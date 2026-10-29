@@ -1,4 +1,3 @@
-
 import { RequestMethod, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
@@ -21,9 +20,7 @@ async function bootstrap() {
 
   const swaggerConfig = new DocumentBuilder()
     .setTitle('CLENA Digital Self-Learning API')
-    .setDescription(
-      'REST API for the CLENA digital self-learning platform.',
-    )
+    .setDescription('REST API for the CLENA digital self-learning platform.')
     .setVersion('1.0')
     .build();
 

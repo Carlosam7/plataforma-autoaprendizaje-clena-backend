@@ -36,6 +36,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Format check
+        run: pnpm exec prettier --check "src/**/*.ts" "test/**/*.ts"
+
       - name: Lint
         run: pnpm lint
 
