@@ -30,15 +30,20 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
+          cache-dependency-path: backend/pnpm-lock.yaml
 
       - name: Install dependencies
+        working-directory: backend
         run: pnpm install --frozen-lockfile
 
       - name: Lint
+        working-directory: backend
         run: pnpm lint
 
       - name: Test
+        working-directory: backend
         run: pnpm test
 
       - name: Build
+        working-directory: backend
         run: pnpm build
