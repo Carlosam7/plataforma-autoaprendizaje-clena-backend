@@ -1,0 +1,90 @@
+// Esquema de persistencia de la plataforma CLENA.
+// Las entidades de este archivo pertenecen a la capa de infraestructura:
+// nunca salen de ella, se mapean a entidades de dominio en los repositorios.
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "esm"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Rol {
+  USUARIO_PUBLICO
+  PERSONAL
+  ADMINISTRADOR
+}
+
+enum EstadoUsuario {
+  ACTIVO
+  INACTIVO
+}
+
+enum CanalVerificacion {
+  CORREO
+  TELEFONO
+}
+
+model Usuario {
+  id                       String        @id @db.Uuid
+  nombre                   String        @db.VarChar(100)
+  // Nulos para el personal del CLENA, que se identifica con correo y contraseña.
+  numeroIdentificacion     String?       @unique @map("numero_identificacion") @db.VarChar(15)
+  fechaNacimiento          DateTime?     @map("fecha_nacimiento") @db.Date
+  // Teléfono en formato E.164 (+57...) y correo en minúsculas, para que la unicidad no dependa del formato.
+  telefono                 String?       @unique @db.VarChar(16)
+  correo                   String?       @unique @db.VarChar(254)
+  rol                      Rol           @default(USUARIO_PUBLICO)
+  estado                   EstadoUsuario @default(ACTIVO)
+  // Ley 1581 de 2012: se guarda qué versión del aviso de privacidad aceptó y cuándo.
+  consentimientoVersion    String?       @map("consentimiento_version") @db.VarChar(40)
+  consentimientoAceptadoEn DateTime?     @map("consentimiento_aceptado_en") @db.Timestamptz(3)
+  creadoEn                 DateTime      @default(now()) @map("creado_en") @db.Timestamptz(3)
+  actualizadoEn            DateTime      @updatedAt @map("actualizado_en") @db.Timestamptz(3)
+
+  sesiones Sesion[]
+
+  @@map("usuarios")
+}
+
+// Registro que espera la verificación del código. La cuenta solo se crea en `usuarios`
+// cuando el código se valida, así un registro abandonado no bloquea el teléfono ni el correo.
+model RegistroPendiente {
+  id                       String            @id @db.Uuid
+  numeroIdentificacion     String            @unique @map("numero_identificacion") @db.VarChar(15)
+  nombre                   String            @db.VarChar(100)
+  fechaNacimiento          DateTime          @map("fecha_nacimiento") @db.Date
+  telefono                 String?           @db.VarChar(16)
+  correo                   String?           @db.VarChar(254)
+  consentimientoVersion    String            @map("consentimiento_version") @db.VarChar(40)
+  consentimientoAceptadoEn DateTime          @map("consentimiento_aceptado_en") @db.Timestamptz(3)
+  canal                    CanalVerificacion
+  codigoHash               String            @map("codigo_hash") @db.VarChar(100)
+  codigoEnviadoEn          DateTime          @map("codigo_enviado_en") @db.Timestamptz(3)
+  codigoExpiraEn           DateTime          @map("codigo_expira_en") @db.Timestamptz(3)
+  intentosFallidos         Int               @default(0) @map("intentos_fallidos")
+  creadoEn                 DateTime          @default(now()) @map("creado_en") @db.Timestamptz(3)
+
+  @@index([codigoExpiraEn])
+  @@map("registros_pendientes")
+}
+
+model Sesion {
+  id               String    @id @db.Uuid
+  usuarioId        String    @map("usuario_id") @db.Uuid
+  // Hash SHA-256 del secreto del refresh token; el token en claro nunca se guarda.
+  refreshTokenHash String    @map("refresh_token_hash") @db.VarChar(64)
+  expiraEn         DateTime  @map("expira_en") @db.Timestamptz(3)
+  revocadaEn       DateTime? @map("revocada_en") @db.Timestamptz(3)
+  creadaEn         DateTime  @default(now()) @map("creada_en") @db.Timestamptz(3)
+
+  // Cascade: una sesión no tiene valor sin su usuario y contiene datos de su actividad.
+  // Al eliminar la cuenta (HU-05) deben desaparecer con ella.
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@index([usuarioId])
+  @@map("sesiones")
+}
