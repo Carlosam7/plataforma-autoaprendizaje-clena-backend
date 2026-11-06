@@ -16,6 +16,26 @@ jobs:
     name: Validate backend
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: clena
+          POSTGRES_PASSWORD: clena
+          POSTGRES_DB: clena
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U clena -d clena"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://clena:clena@localhost:5432/clena?schema=public
+      JWT_ACCESS_SECRET: secreto-solo-para-ci-con-mas-de-32-caracteres
+      AVISO_PRIVACIDAD_VERSION: ci
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -40,9 +60,13 @@ jobs:
         working-directory: backend
         run: pnpm lint
 
-      - name: Test
+      - name: Unit tests with coverage
         working-directory: backend
-        run: pnpm test
+        run: pnpm test:cov
+
+      - name: E2E tests
+        working-directory: backend
+        run: pnpm test:e2e
 
       - name: Build
         working-directory: backend
