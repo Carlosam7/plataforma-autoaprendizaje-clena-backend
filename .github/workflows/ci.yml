@@ -40,6 +40,10 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # El cliente de Prisma no se versiona; lint y tests lo importan.
+      - name: Generate Prisma client
+        run: pnpm prisma:generate
+
       - name: Format check
         run: pnpm format:check
 
