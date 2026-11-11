@@ -40,16 +40,15 @@ export default defineConfig([
       // other options...
     },
   },
-])
-
+]);
 ```
 
 You can also install [eslint-plugin-react-x](https://npmx.dev/package/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://npmx.dev/package/eslint-plugin-react-dom) for React-specific lint rules:
 
 ```js
 // eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+import reactX from 'eslint-plugin-react-x';
+import reactDom from 'eslint-plugin-react-dom';
 
 export default defineConfig([
   globalIgnores(['dist']),
@@ -70,6 +69,35 @@ export default defineConfig([
       // other options...
     },
   },
-])
-
+]);
 ```
+
+## Quality checks (CI)
+
+GitHub Actions (`.github/workflows/ci.yml`, job `Validate frontend`) runs on every push and PR to `main` and `dev`:
+
+```bash
+pnpm format:check   # Prettier
+pnpm lint           # ESLint
+pnpm build          # tsc -b (type-check) + vite build
+```
+
+### Enabling unit tests
+
+1. Install Vitest and Testing Library:
+
+   ```bash
+   pnpm add -D vitest jsdom @testing-library/react @testing-library/jest-dom
+   ```
+
+2. Add a `test` block to `vite.config.ts`:
+
+   ```ts
+   export default defineConfig({
+     plugins: [react()],
+     test: { environment: 'jsdom', globals: true },
+   });
+   ```
+
+3. Add the script `"test": "vitest run"` to `package.json` and write tests as `src/**/*.test.tsx`.
+4. Uncomment the `Unit tests` step of the `frontend` job in `.github/workflows/ci.yml`.

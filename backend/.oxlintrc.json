@@ -8,6 +8,6 @@
     "node": true
   },
   "ignorePatterns": [
-    "src/generated/**"
+    "src/infrastructure/database/prisma/generated/**"
   ]
 }

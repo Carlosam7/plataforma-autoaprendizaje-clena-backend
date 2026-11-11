@@ -5,6 +5,8 @@ export default defineConfig({
   schema: 'prisma/schema.prisma',
   migrations: {
     path: 'prisma/migrations',
+    // `pnpm prisma:seed` (o `prisma db seed`): aviso de privacidad y categorías iniciales.
+    seed: 'tsx prisma/seed.ts',
   },
   datasource: {
     // `prisma generate` no necesita conexión; las migraciones sí.

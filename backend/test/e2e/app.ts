@@ -2,13 +2,12 @@ import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { App } from 'supertest/types.js';
 import { AppModule } from '../../src/app.module.js';
-import { configurarApp } from '../../src/configurar-app.js';
+import { configurarApp } from '../../src/app.setup.js';
 import {
   EnviadorCodigo,
   MensajeCodigo,
-} from '../../src/modules/auth/application/ports/codigo-verificacion.port.js';
-import { ENVIADOR_CODIGO } from '../../src/modules/auth/application/tokens.js';
-import { PrismaService } from '../../src/shared/infrastructure/prisma/prisma.service.js';
+} from '../../src/application/auth/codigo-verificacion.port.js';
+import { PrismaService } from '../../src/infrastructure/database/prisma.service.js';
 
 /** Captura los códigos enviados para poder verificarlos en las pruebas. */
 export class BuzonCodigos implements EnviadorCodigo {
@@ -33,20 +32,19 @@ export async function crearApp(): Promise<{
 }> {
   const buzon = new BuzonCodigos();
   const modulo = await Test.createTestingModule({ imports: [AppModule] })
-    .overrideProvider(ENVIADOR_CODIGO)
+    .overrideProvider(EnviadorCodigo)
     .useValue(buzon)
     .compile();
 
   const app = modulo.createNestApplication<INestApplication<App>>({
     logger: ['error'],
   });
-  configurarApp(app);
-  await app.init();
+  await configurarApp(app);
   return { app, buzon, prisma: app.get(PrismaService) };
 }
 
+/** Borra cuentas y registros; las semillas (aviso, categorías) se conservan. */
 export async function limpiarBaseDatos(prisma: PrismaService): Promise<void> {
-  await prisma.$executeRawUnsafe(
-    'TRUNCATE TABLE "sesiones", "registros_pendientes", "usuarios" RESTART IDENTITY CASCADE',
-  );
+  // CASCADE arrastra metodo_inicio, consentimiento, codigo_verificacion y refresh_token.
+  await prisma.$executeRawUnsafe('TRUNCATE TABLE "usuario_publico" CASCADE');
 }

@@ -1,7 +1,7 @@
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { App } from 'supertest/types.js';
-import { PrismaService } from '../../src/shared/infrastructure/prisma/prisma.service.js';
+import { PrismaService } from '../../src/infrastructure/database/prisma.service.js';
 import { BuzonCodigos, crearApp, limpiarBaseDatos } from './app.js';
 
 const RUTA = '/api/v1/auth/registro';
@@ -33,6 +33,24 @@ describe('HU-01 · Registro con consentimiento (e2e)', () => {
     await app.close();
   });
 
+  /** Cuentas activas: usuarios con al menos un correo o celular verificado. */
+  function cuentasVerificadas(): Promise<number> {
+    return prisma.metodoInicio.count({
+      where: { verificadoEn: { not: null } },
+    });
+  }
+
+  it('muestra el aviso de privacidad vigente antes del registro', async () => {
+    const respuesta = await request(app.getHttpServer())
+      .get('/api/v1/aviso-privacidad/vigente')
+      .expect(200);
+
+    expect(respuesta.body).toMatchObject({
+      version: '1.0',
+      contenido: expect.stringContaining('Ley 1581'),
+    });
+  });
+
   async function registrarYVerificar(datos: Record<string, unknown>) {
     const solicitud = await request(app.getHttpServer())
       .post(RUTA)
@@ -59,7 +77,7 @@ describe('HU-01 · Registro con consentimiento (e2e)', () => {
       destino: 'c****@correo.com',
       mensaje: expect.stringContaining('c****@correo.com'),
     });
-    expect(await prisma.usuario.count()).toBe(0);
+    expect(await cuentasVerificadas()).toBe(0);
 
     const verificacion = await request(app.getHttpServer())
       .post(`${RUTA}/verificar`)
@@ -71,7 +89,7 @@ describe('HU-01 · Registro con consentimiento (e2e)', () => {
 
     expect(verificacion.body).toMatchObject({
       usuario: {
-        id: expect.any(String),
+        id: '41234567',
         nombre: 'Carmen Rodríguez',
         rol: 'USUARIO_PUBLICO',
       },
@@ -79,26 +97,39 @@ describe('HU-01 · Registro con consentimiento (e2e)', () => {
       refreshToken: expect.stringContaining('.'),
     });
 
-    const usuario = await prisma.usuario.findUniqueOrThrow({
-      where: { id: verificacion.body.usuario.id },
+    const usuario = await prisma.usuarioPublico.findUniqueOrThrow({
+      where: { numeroIdentificacion: '41234567' },
+      include: {
+        metodosInicio: { orderBy: { tipo: 'asc' } },
+        consentimientos: { include: { avisoPrivacidad: true } },
+      },
     });
-    expect(usuario).toMatchObject({
-      numeroIdentificacion: '41234567',
-      telefono: '+573001234567',
-      correo: 'carmen@correo.com',
-      rol: 'USUARIO_PUBLICO',
-      consentimientoVersion: 'v-e2e',
-    });
-    expect(usuario.consentimientoAceptadoEn).toBeInstanceOf(Date);
+    expect(usuario.nombre).toBe('Carmen Rodríguez');
+    // Se verificó el correo (el canal del código); el celular queda guardado sin verificar.
+    expect(usuario.metodosInicio).toMatchObject([
+      {
+        tipo: 'CORREO',
+        valor: 'carmen@correo.com',
+        verificadoEn: expect.any(Date),
+      },
+      { tipo: 'TELEFONO', valor: '+573001234567', verificadoEn: null },
+    ]);
+    // Ley 1581: queda la versión del aviso aceptado y la fecha.
+    expect(usuario.consentimientos).toMatchObject([
+      { avisoPrivacidad: { version: '1.0' }, aceptadoEn: expect.any(Date) },
+    ]);
 
     // El refresh token nunca se guarda en claro.
-    const sesion = await prisma.sesion.findFirstOrThrow({
-      where: { usuarioId: usuario.id },
+    const token = await prisma.refreshToken.findFirstOrThrow({
+      where: { usuarioPublicoId: '41234567' },
     });
-    expect(sesion.refreshTokenHash).not.toContain(
+    expect(token.tokenHash).not.toContain(
       verificacion.body.refreshToken.split('.')[1],
     );
-    expect(await prisma.registroPendiente.count()).toBe(0);
+    // El código usado ya no sirve.
+    expect(
+      await prisma.codigoVerificacion.count({ where: { usadoEn: null } }),
+    ).toBe(0);
   });
 
   it('envía el código por SMS si solo hay celular', async () => {
@@ -131,7 +162,7 @@ describe('HU-01 · Registro con consentimiento (e2e)', () => {
       ruta: RUTA,
     });
     expect(buzon.mensajes).toHaveLength(0);
-    expect(await prisma.registroPendiente.count()).toBe(0);
+    expect(await prisma.usuarioPublico.count()).toBe(0);
   });
 
   it.each([
@@ -179,36 +210,38 @@ describe('HU-01 · Registro con consentimiento (e2e)', () => {
     },
   );
 
-  it('si dos solicitudes pendientes usan el mismo celular, solo la primera en verificar crea la cuenta', async () => {
-    const primera = await request(app.getHttpServer())
-      .post(RUTA)
-      .send(carmen)
-      .expect(202);
-    const segunda = await request(app.getHttpServer())
-      .post(RUTA)
-      .send({
-        ...carmen,
-        numeroIdentificacion: '999999',
-        correo: 'otra@correo.com',
-      })
-      .expect(202);
+  describe('celular reservado por el registro sin terminar de otra persona', () => {
+    const luis = {
+      ...carmen,
+      nombre: 'Luis Rodríguez',
+      numeroIdentificacion: '1001234567',
+      correo: 'luis@correo.com',
+    };
 
-    await request(app.getHttpServer())
-      .post(`${RUTA}/verificar`)
-      .send({
-        registroId: primera.body.registroId,
-        codigo: buzon.ultimoPara('carmen@correo.com'),
-      })
-      .expect(201);
+    it('mientras el código del otro sigue vigente, el celular está en uso', async () => {
+      await request(app.getHttpServer()).post(RUTA).send(carmen).expect(202);
 
-    const respuesta = await request(app.getHttpServer())
-      .post(`${RUTA}/verificar`)
-      .send({
-        registroId: segunda.body.registroId,
-        codigo: buzon.ultimoPara('otra@correo.com'),
-      })
-      .expect(409);
-    expect(respuesta.body.codigo).toBe('TELEFONO_EN_USO');
+      const respuesta = await request(app.getHttpServer())
+        .post(RUTA)
+        .send(luis)
+        .expect(409);
+      expect(respuesta.body.codigo).toBe('TELEFONO_EN_USO');
+    });
+
+    it('si el código del otro venció, se libera el celular y se borra ese registro', async () => {
+      await request(app.getHttpServer()).post(RUTA).send(carmen).expect(202);
+      // Simula que pasaron más de 10 minutos sin que Carmen escribiera el código.
+      await prisma.codigoVerificacion.updateMany({
+        data: { expiraEn: new Date(Date.now() - 1000) },
+      });
+
+      await request(app.getHttpServer()).post(RUTA).send(luis).expect(202);
+
+      const usuarios = await prisma.usuarioPublico.findMany({
+        select: { numeroIdentificacion: true },
+      });
+      expect(usuarios).toEqual([{ numeroIdentificacion: '1001234567' }]);
+    });
   });
 
   it('con un código incorrecto informa los intentos restantes', async () => {
@@ -228,7 +261,7 @@ describe('HU-01 · Registro con consentimiento (e2e)', () => {
       codigo: 'CODIGO_INCORRECTO',
       detalles: { intentosRestantes: 4 },
     });
-    expect(await prisma.usuario.count()).toBe(0);
+    expect(await cuentasVerificadas()).toBe(0);
   });
 
   it('no permite pedir otro código enseguida', async () => {

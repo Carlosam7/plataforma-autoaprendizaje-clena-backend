@@ -2,7 +2,7 @@ import { execSync } from 'node:child_process';
 import pg from 'pg';
 import { urlBaseDatosE2e } from './entorno.js';
 
-/** Crea la base de datos de pruebas si no existe y aplica las migraciones. */
+/** Crea la base de datos de pruebas si no existe, aplica las migraciones y carga las semillas. */
 export default async function prepararBaseDatos(): Promise<void> {
   const url = new URL(urlBaseDatosE2e());
   const nombre = url.pathname.slice(1);
@@ -18,8 +18,8 @@ export default async function prepararBaseDatos(): Promise<void> {
   if (existe.rowCount === 0) await cliente.query(`CREATE DATABASE "${nombre}"`);
   await cliente.end();
 
-  execSync('pnpm prisma migrate deploy', {
-    stdio: 'inherit',
-    env: { ...process.env, DATABASE_URL: url.toString() },
-  });
+  // Migraciones y semillas (aviso de privacidad vigente y categorías).
+  const env = { ...process.env, DATABASE_URL: url.toString() };
+  execSync('pnpm prisma migrate deploy', { stdio: 'inherit', env });
+  execSync('pnpm prisma db seed', { stdio: 'inherit', env });
 }
