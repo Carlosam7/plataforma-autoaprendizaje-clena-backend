@@ -284,15 +284,15 @@ describe('VerificarRegistroUseCase', () => {
       codigo: ' 111111 ',
     });
 
+    // La respuesta no expone el identificador (la cédula): solo nombre y rol.
     expect(resultado.usuario).toEqual({
-      // En el modelo de datos el usuario público se identifica por su identificación.
-      id: '41234567',
       nombre: 'Carmen Rodríguez',
       rol: 'USUARIO_PUBLICO',
     });
-    expect(resultado.sesion.accessToken).toBe(`access-${resultado.usuario.id}`);
+    expect(resultado.sesion.accessToken).toBe('access-41234567');
+    // La sesión sí se abre para ese usuario; el emisor decide qué va en el token.
     expect(ctx.emisor.emitidas).toEqual([
-      { id: resultado.usuario.id, rol: 'USUARIO_PUBLICO' },
+      { id: '41234567', rol: 'USUARIO_PUBLICO' },
     ]);
 
     const [usuario] = ctx.usuarios.usuarios;

@@ -88,14 +88,16 @@ describe('HU-01 · Registro con consentimiento (e2e)', () => {
       .expect(201);
 
     expect(verificacion.body).toMatchObject({
-      usuario: {
-        id: '41234567',
-        nombre: 'Carmen Rodríguez',
-        rol: 'USUARIO_PUBLICO',
-      },
+      usuario: { nombre: 'Carmen Rodríguez', rol: 'USUARIO_PUBLICO' },
       accessToken: expect.any(String),
       refreshToken: expect.stringContaining('.'),
     });
+    // La cédula no viaja en la respuesta ni dentro del JWT (que se puede decodificar).
+    expect(JSON.stringify(verificacion.body)).not.toContain('41234567');
+    const [, cargaJwt] = verificacion.body.accessToken.split('.');
+    const carga = JSON.parse(Buffer.from(cargaJwt, 'base64url').toString());
+    expect(Object.keys(carga).sort()).toEqual(['exp', 'iat', 'rol', 'sid']);
+    expect(carga.rol).toBe('USUARIO_PUBLICO');
 
     const usuario = await prisma.usuarioPublico.findUniqueOrThrow({
       where: { numeroIdentificacion: '41234567' },
@@ -119,10 +121,12 @@ describe('HU-01 · Registro con consentimiento (e2e)', () => {
       { avisoPrivacidad: { version: '1.0' }, aceptadoEn: expect.any(Date) },
     ]);
 
-    // El refresh token nunca se guarda en claro.
-    const token = await prisma.refreshToken.findFirstOrThrow({
-      where: { usuarioPublicoId: '41234567' },
+    // El sid del JWT es la sesión guardada en refresh_token, que sí apunta al usuario.
+    const token = await prisma.refreshToken.findUniqueOrThrow({
+      where: { id: carga.sid },
     });
+    expect(token.usuarioPublicoId).toBe('41234567');
+    // El refresh token nunca se guarda en claro.
     expect(token.tokenHash).not.toContain(
       verificacion.body.refreshToken.split('.')[1],
     );

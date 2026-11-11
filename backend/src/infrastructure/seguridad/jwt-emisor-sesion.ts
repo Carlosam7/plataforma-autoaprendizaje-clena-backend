@@ -12,7 +12,7 @@ import { VariablesEntorno } from '../config/variables-entorno.js';
 import { PrismaService } from '../database/prisma.service.js';
 
 /**
- * Access token: JWT firmado y de vida corta.
+ * Access token: JWT firmado y de vida corta, con `{ sid, rol }`.
  * Refresh token: valor opaco `<id>.<secreto>`. En la tabla refresh_token solo se guarda el
  * SHA-256 del secreto, que tiene 256 bits de entropía, así que un hash rápido es suficiente.
  */
@@ -56,8 +56,11 @@ export class JwtEmisorSesion implements EmisorSesion {
       },
     });
 
+    // El JWT solo va firmado, no cifrado: cualquiera que lo tenga puede leerlo. Por eso no
+    // lleva datos personales (la cédula es la llave del usuario público), solo el id de la
+    // sesión; quien necesite saber el usuario lo busca en refresh_token por ese id.
     const accessToken = await this.jwt.signAsync(
-      { sub: usuario.id, rol: usuario.rol, sid: id },
+      { sid: id, rol: usuario.rol },
       { expiresIn: accessSegundos },
     );
 

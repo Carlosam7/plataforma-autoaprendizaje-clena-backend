@@ -10,7 +10,8 @@ import { ConfiguracionRegistro } from './configuracion-registro.js';
 import { EmisorSesion, SesionEmitida } from './emisor-sesion.port.js';
 
 export interface UsuarioRegistradoResultado {
-  usuario: { id: string; nombre: string; rol: Rol };
+  // Sin identificador: es la cédula y el frontend no la necesita (datos mínimos, Ley 1581).
+  usuario: { nombre: string; rol: Rol };
   sesion: SesionEmitida;
 }
 
@@ -56,7 +57,6 @@ export class VerificarRegistroUseCase {
     });
     return {
       usuario: {
-        id: usuario.id,
         nombre: usuario.nombre.valor,
         rol: usuario.rol,
       },

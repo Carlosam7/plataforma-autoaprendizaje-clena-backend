@@ -29,10 +29,8 @@ export class CodigoEnviadoResponseDto {
   puedeReenviarEn: Date;
 }
 
+// Sin identificador a propósito: para el usuario público sería su cédula.
 class UsuarioResponseDto {
-  @ApiProperty({ format: 'uuid' })
-  id: string;
-
   @ApiProperty({ example: 'Carmen Rodríguez' })
   nombre: string;
 
@@ -44,7 +42,10 @@ export class SesionIniciadaResponseDto {
   @ApiProperty({ type: UsuarioResponseDto })
   usuario: UsuarioResponseDto;
 
-  @ApiProperty()
+  @ApiProperty({
+    description:
+      'JWT con { sid, rol }: id de la sesión, sin datos personales. Se envía como Bearer.',
+  })
   accessToken: string;
 
   @ApiProperty()
