@@ -7,5 +7,8 @@ export default defineConfig({
     globals: true,
     root: './',
     include: ['**/*.e2e-spec.ts'],
+    // Los e2e comparten la misma base de datos: uno detrás de otro.
+    fileParallelism: false,
+    env: { NODE_ENV: 'test', LOG_LEVEL: 'silent' },
   },
 });
