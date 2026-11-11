@@ -1,10 +1,10 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_FILTER } from '@nestjs/core';
-import { HealthController } from './health.controller.js';
 import { PrismaModule } from './infrastructure/database/prisma.module.js';
-import { CategoriaModule } from './presentation/categoria/categoria.module.js';
+import { CategoriaModule } from './modules/categoria.module.js';
 import { ExcepcionesFilter } from './presentation/filters/excepciones.filter.js';
+import { HealthController } from './presentation/health/health.controller.js';
 
 @Module({
   imports: [

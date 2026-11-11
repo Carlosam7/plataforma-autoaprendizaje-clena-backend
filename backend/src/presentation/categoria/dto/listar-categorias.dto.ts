@@ -3,8 +3,8 @@ import { IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
 import {
   CAMPOS_ORDEN_CATEGORIA,
   CriterioCategorias,
-} from '../../domain/categoria/categoria.repository.js';
-import { PaginacionDto } from '../shared/paginacion.dto.js';
+} from '../../../domain/categoria/categoria.repository.js';
+import { PaginacionDto } from '../../shared/paginacion.dto.js';
 
 export class ListarCategoriasDto
   extends PaginacionDto
