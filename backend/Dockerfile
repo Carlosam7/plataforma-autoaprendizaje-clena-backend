@@ -10,4 +10,6 @@ RUN pnpm build
 
 ENV NODE_ENV=production
 EXPOSE 3000
-CMD ["node", "dist/main"]
+# Aplica las migraciones pendientes antes de arrancar, para que
+# `docker compose up` deje la base lista sin pasos manuales.
+CMD ["sh", "-c", "pnpm prisma:deploy && node dist/main"]
