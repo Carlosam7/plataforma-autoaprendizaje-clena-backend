@@ -7,15 +7,25 @@ import {
   Logger,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
+import {
+  ErrorDeNegocio,
+  TipoError,
+} from '../../domain/shared/error-de-negocio.js';
+import { RespuestaErrorDto } from '../shared/respuesta-error.dto.js';
 
-export interface RespuestaError {
-  statusCode: number;
-  codigo: string;
-  mensaje: string;
-  detalles?: string[];
-  ruta: string;
-  fecha: string;
-}
+export type RespuestaError = RespuestaErrorDto;
+
+// El dominio no conoce HTTP: dice qué tipo de error es y aquí se traduce al estado.
+const ESTADO_POR_TIPO: Record<TipoError, HttpStatus> = {
+  validacion: HttpStatus.BAD_REQUEST,
+  conflicto: HttpStatus.CONFLICT,
+  no_encontrado: HttpStatus.NOT_FOUND,
+  no_autorizado: HttpStatus.UNAUTHORIZED,
+  prohibido: HttpStatus.FORBIDDEN,
+  demasiados_intentos: HttpStatus.TOO_MANY_REQUESTS,
+  expirado: HttpStatus.GONE,
+  servicio_no_disponible: HttpStatus.SERVICE_UNAVAILABLE,
+};
 
 // Mensajes para el usuario final: lenguaje sencillo, sin términos técnicos (DoD del backlog).
 const ERRORES: Record<number, { codigo: string; mensaje: string }> = {
@@ -44,15 +54,24 @@ const ERRORES: Record<number, { codigo: string; mensaje: string }> = {
 
 const ERROR_INTERNO = {
   codigo: 'ERROR_INTERNO',
-  mensaje: 'Ocurrió un problema. Intenta de nuevo en unos minutos.',
+  mensaje:
+    'Algo salió mal de nuestro lado. Intenta de nuevo o pide ayuda a un monitor.',
 };
+
+/** Cuerpo de las HttpException que ya traen el formato propio (p. ej. el ValidationPipe). */
+interface CuerpoPropio {
+  codigo: string;
+  mensaje: string;
+  detalles?: Record<string, unknown>;
+}
 
 export function construirRespuestaError(
   statusCode: number,
   ruta: string,
-  detalles?: string[],
+  propio?: CuerpoPropio,
 ): RespuestaError {
-  const { codigo, mensaje } =
+  const { codigo, mensaje, detalles }: CuerpoPropio =
+    propio ??
     ERRORES[statusCode] ??
     (statusCode >= 500
       ? ERROR_INTERNO
@@ -61,12 +80,13 @@ export function construirRespuestaError(
     statusCode,
     codigo,
     mensaje,
-    ...(detalles?.length ? { detalles } : {}),
+    ...(detalles ? { detalles } : {}),
     ruta,
     fecha: new Date().toISOString(),
   };
 }
 
+/** Único filtro global: toda respuesta de error tiene la misma forma. */
 @Catch()
 export class ExcepcionesFilter implements ExceptionFilter {
   private readonly logger = new Logger(ExcepcionesFilter.name);
@@ -75,32 +95,51 @@ export class ExcepcionesFilter implements ExceptionFilter {
     const ctx = host.switchToHttp();
     const req = ctx.getRequest<Request>();
     const res = ctx.getResponse<Response>();
+    const ruta = req.originalUrl;
 
-    if (!(error instanceof HttpException)) {
-      // El detalle interno (SQL, stack) va al log, nunca al cliente.
-      this.logger.error(
-        `${req.method} ${req.originalUrl}`,
-        error instanceof Error ? error.stack : String(error),
+    if (error instanceof ErrorDeNegocio) {
+      const status = ESTADO_POR_TIPO[error.tipo];
+      res.status(status).json(
+        construirRespuestaError(status, ruta, {
+          codigo: error.codigo,
+          mensaje: error.message,
+          detalles: error.detalles,
+        }),
       );
-      res
-        .status(HttpStatus.INTERNAL_SERVER_ERROR)
-        .json(construirRespuestaError(500, req.originalUrl));
       return;
     }
 
-    const status = error.getStatus();
-    const cuerpo = error.getResponse();
-    // ValidationPipe deja un arreglo en `message`; las demás excepciones, un texto.
-    const original =
-      typeof cuerpo === 'object' && 'message' in cuerpo
-        ? cuerpo.message
-        : cuerpo;
-    const detalles = (Array.isArray(original) ? original : [original]).map(
-      String,
-    );
+    if (error instanceof HttpException) {
+      const status = error.getStatus();
+      const cuerpo = error.getResponse();
+      res
+        .status(status)
+        .json(
+          construirRespuestaError(
+            status,
+            ruta,
+            esCuerpoPropio(cuerpo) ? cuerpo : undefined,
+          ),
+        );
+      return;
+    }
 
+    // El detalle interno (SQL, stack) va al log, nunca al cliente.
+    this.logger.error(
+      `${req.method} ${ruta}`,
+      error instanceof Error ? error.stack : String(error),
+    );
     res
-      .status(status)
-      .json(construirRespuestaError(status, req.originalUrl, detalles));
+      .status(HttpStatus.INTERNAL_SERVER_ERROR)
+      .json(construirRespuestaError(500, ruta));
   }
+}
+
+function esCuerpoPropio(cuerpo: unknown): cuerpo is CuerpoPropio {
+  return (
+    typeof cuerpo === 'object' &&
+    cuerpo !== null &&
+    typeof (cuerpo as CuerpoPropio).codigo === 'string' &&
+    typeof (cuerpo as CuerpoPropio).mensaje === 'string'
+  );
 }

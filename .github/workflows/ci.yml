@@ -21,6 +21,26 @@ jobs:
       run:
         working-directory: backend
 
+    services:
+      postgres:
+        # Misma versión mayor que docker-compose.yml (el enunciado exige 15 o superior).
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: clena
+          POSTGRES_PASSWORD: clena
+          POSTGRES_DB: clena
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U clena -d clena"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://clena:clena@localhost:5432/clena
+      JWT_ACCESS_SECRET: secreto-solo-para-ci-con-mas-de-32-caracteres
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -50,8 +70,13 @@ jobs:
       - name: Lint
         run: pnpm lint
 
-      - name: Unit tests
-        run: pnpm test
+      # Falla si dominio o aplicación bajan del 70 % de cobertura (vitest.config.ts).
+      - name: Unit tests with coverage
+        run: pnpm test:cov
+
+      # global-setup crea la base clena_e2e, aplica las migraciones y carga las semillas.
+      - name: E2E tests
+        run: pnpm test:e2e
 
       - name: Build
         run: pnpm build

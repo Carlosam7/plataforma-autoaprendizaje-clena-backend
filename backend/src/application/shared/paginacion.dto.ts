@@ -7,15 +7,15 @@ import { Paginacion } from '../../domain/shared/pagina.js';
 export class PaginacionDto implements Paginacion {
   @ApiPropertyOptional({ default: 1, minimum: 1 })
   @Type(() => Number)
-  @IsInt()
-  @Min(1)
+  @IsInt({ message: 'La página debe ser un número entero.' })
+  @Min(1, { message: 'La página debe ser 1 o mayor.' })
   pagina: number = 1;
 
   @ApiPropertyOptional({ default: 20, minimum: 1, maximum: 100 })
   @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  @Max(100)
+  @IsInt({ message: 'El límite debe ser un número entero.' })
+  @Min(1, { message: 'El límite debe ser 1 o mayor.' })
+  @Max(100, { message: 'El límite puede ser máximo 100.' })
   limite: number = 20;
 }
 
