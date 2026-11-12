@@ -20,55 +20,63 @@ export class HttpAuthRepository implements AuthRepository {
   constructor(private readonly baseUrl = '/api/v1') {}
 
   async obtenerAvisoPrivacidad(): Promise<AvisoPrivacidad> {
-    const res = await fetch(`${this.baseUrl}/aviso-privacidad/vigente`, {
-      headers: { Accept: 'application/json' },
-    });
-    if (!res.ok) {
-      await this.manejarErrorHttp(res);
+    try {
+      const res = await fetch(`${this.baseUrl}/aviso-privacidad/vigente`, {
+        headers: { Accept: 'application/json' },
+      });
+      if (!res.ok) {
+        await this.manejarErrorHttp(res);
+      }
+      const data = (await res.json()) as {
+        version: string;
+        contenido: string;
+        vigenteDesde: string;
+      };
+      return {
+        version: data.version,
+        contenido: data.contenido,
+        vigenteDesde: new Date(data.vigenteDesde),
+      };
+    } catch (err) {
+      this.manejarFalloRed(err);
     }
-    const data = (await res.json()) as {
-      version: string;
-      contenido: string;
-      vigenteDesde: string;
-    };
-    return {
-      version: data.version,
-      contenido: data.contenido,
-      vigenteDesde: new Date(data.vigenteDesde),
-    };
   }
 
   async solicitarRegistro(datos: SolicitudRegistro): Promise<CodigoEnviado> {
-    const res = await fetch(`${this.baseUrl}/auth/registro`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-      },
-      body: JSON.stringify(datos),
-    });
+    try {
+      const res = await fetch(`${this.baseUrl}/auth/registro`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify(datos),
+      });
 
-    if (!res.ok) {
-      await this.manejarErrorHttp(res);
+      if (!res.ok) {
+        await this.manejarErrorHttp(res);
+      }
+
+      const data = (await res.json()) as {
+        registroId: string;
+        canal: 'CORREO' | 'TELEFONO';
+        destino: string;
+        mensaje: string;
+        expiraEn: string;
+        puedeReenviarEn: string;
+      };
+
+      return {
+        registroId: data.registroId,
+        canal: data.canal,
+        destino: data.destino,
+        mensaje: data.mensaje,
+        expiraEn: new Date(data.expiraEn),
+        puedeReenviarEn: new Date(data.puedeReenviarEn),
+      };
+    } catch (err) {
+      this.manejarFalloRed(err);
     }
-
-    const data = (await res.json()) as {
-      registroId: string;
-      canal: 'CORREO' | 'TELEFONO';
-      destino: string;
-      mensaje: string;
-      expiraEn: string;
-      puedeReenviarEn: string;
-    };
-
-    return {
-      registroId: data.registroId,
-      canal: data.canal,
-      destino: data.destino,
-      mensaje: data.mensaje,
-      expiraEn: new Date(data.expiraEn),
-      puedeReenviarEn: new Date(data.puedeReenviarEn),
-    };
   }
 
   async solicitarInicioSesion(correo: string): Promise<CodigoEnviado> {
@@ -132,54 +140,62 @@ export class HttpAuthRepository implements AuthRepository {
   async verificarRegistro(
     params: VerificarRegistroParams,
   ): Promise<AuthSession> {
-    const res = await fetch(`${this.baseUrl}/auth/registro/verificar`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-      },
-      body: JSON.stringify(params),
-    });
+    try {
+      const res = await fetch(`${this.baseUrl}/auth/registro/verificar`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify(params),
+      });
 
-    if (!res.ok) {
-      await this.manejarErrorHttp(res);
+      if (!res.ok) {
+        await this.manejarErrorHttp(res);
+      }
+
+      const data = (await res.json()) as AuthSession;
+      return data;
+    } catch (err) {
+      this.manejarFalloRed(err);
     }
-
-    const data = (await res.json()) as AuthSession;
-    return data;
   }
 
   async reenviarCodigo(registroId: string): Promise<CodigoEnviado> {
-    const res = await fetch(`${this.baseUrl}/auth/registro/reenviar-codigo`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-      },
-      body: JSON.stringify({ registroId }),
-    });
+    try {
+      const res = await fetch(`${this.baseUrl}/auth/registro/reenviar-codigo`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({ registroId }),
+      });
 
-    if (!res.ok) {
-      await this.manejarErrorHttp(res);
+      if (!res.ok) {
+        await this.manejarErrorHttp(res);
+      }
+
+      const data = (await res.json()) as {
+        registroId: string;
+        canal: 'CORREO' | 'TELEFONO';
+        destino: string;
+        mensaje: string;
+        expiraEn: string;
+        puedeReenviarEn: string;
+      };
+
+      return {
+        registroId: data.registroId,
+        canal: data.canal,
+        destino: data.destino,
+        mensaje: data.mensaje,
+        expiraEn: new Date(data.expiraEn),
+        puedeReenviarEn: new Date(data.puedeReenviarEn),
+      };
+    } catch (err) {
+      this.manejarFalloRed(err);
     }
-
-    const data = (await res.json()) as {
-      registroId: string;
-      canal: 'CORREO' | 'TELEFONO';
-      destino: string;
-      mensaje: string;
-      expiraEn: string;
-      puedeReenviarEn: string;
-    };
-
-    return {
-      registroId: data.registroId,
-      canal: data.canal,
-      destino: data.destino,
-      mensaje: data.mensaje,
-      expiraEn: new Date(data.expiraEn),
-      puedeReenviarEn: new Date(data.puedeReenviarEn),
-    };
   }
 
   async obtenerSesion(): Promise<AuthSession | null> {
@@ -206,6 +222,24 @@ export class HttpAuthRepository implements AuthRepository {
     } catch (e) {
       console.error('No se pudo limpiar la sesión del almacenamiento local', e);
     }
+  }
+
+  private manejarFalloRed(err: unknown): never {
+    if (err instanceof AuthError) throw err;
+    if (
+      err instanceof TypeError &&
+      err.message.toLowerCase().includes('fetch')
+    ) {
+      throw new AuthError(
+        'No se pudo conectar con el servidor. Asegúrate de que el backend esté iniciado en http://localhost:3000.',
+      );
+    }
+    if (err instanceof Error) {
+      throw new AuthError(err.message);
+    }
+    throw new AuthError(
+      'Ocurrió un error de conexión al comunicarse con el servidor.',
+    );
   }
 
   private async manejarErrorHttp(res: Response): Promise<never> {
