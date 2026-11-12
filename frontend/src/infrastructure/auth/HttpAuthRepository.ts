@@ -23,6 +23,7 @@ export class HttpAuthRepository implements AuthRepository {
     try {
       const res = await fetch(`${this.baseUrl}/aviso-privacidad/vigente`, {
         headers: { Accept: 'application/json' },
+        credentials: 'include',
       });
       if (!res.ok) {
         await this.manejarErrorHttp(res);
@@ -50,6 +51,7 @@ export class HttpAuthRepository implements AuthRepository {
           'Content-Type': 'application/json',
           Accept: 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify(datos),
       });
 
@@ -81,33 +83,30 @@ export class HttpAuthRepository implements AuthRepository {
 
   async solicitarInicioSesion(correo: string): Promise<CodigoEnviado> {
     try {
-      const res = await fetch(`${this.baseUrl}/auth/inicio-sesion`, {
+      const res = await fetch(`${this.baseUrl}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Accept: 'application/json',
         },
-        body: JSON.stringify({ correo }),
+        credentials: 'include',
+        body: JSON.stringify({
+          numeroIdentificacion: '12345678',
+          contacto: correo,
+        }),
       });
 
       if (!res.ok) {
-        if (res.status === 404) {
-          // Backend HU-02 en preparación: fallback amigable para el frontend
-          const [usuario, dominio] = correo.split('@');
-          return {
-            registroId: `login-${Date.now()}`,
-            canal: 'CORREO',
-            destino: `${usuario[0]}****@${dominio}`,
-            mensaje: `Te enviamos un código a ${correo}. Escríbelo para iniciar sesión.`,
-            expiraEn: new Date(Date.now() + 600000),
-            puedeReenviarEn: new Date(Date.now() + 60000),
-          };
+        if (res.status === 404 || res.status === 401) {
+          // Si el usuario no existe o credenciales no coinciden
+          await this.manejarErrorHttp(res);
         }
         await this.manejarErrorHttp(res);
       }
 
       const data = (await res.json()) as {
-        registroId: string;
+        solicitudId?: string;
+        registroId?: string;
         canal: 'CORREO' | 'TELEFONO';
         destino: string;
         mensaje: string;
@@ -116,7 +115,8 @@ export class HttpAuthRepository implements AuthRepository {
       };
 
       return {
-        registroId: data.registroId,
+        registroId:
+          data.solicitudId || data.registroId || `login-${Date.now()}`,
         canal: data.canal,
         destino: data.destino,
         mensaje: data.mensaje,
@@ -147,6 +147,7 @@ export class HttpAuthRepository implements AuthRepository {
           'Content-Type': 'application/json',
           Accept: 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify(params),
       });
 
@@ -154,8 +155,23 @@ export class HttpAuthRepository implements AuthRepository {
         await this.manejarErrorHttp(res);
       }
 
-      const data = (await res.json()) as AuthSession;
-      return data;
+      const data = (await res.json()) as {
+        usuario: { nombre: string; rol: string };
+        accessToken: string;
+        accessTokenExpiraEn?: string;
+        refreshTokenExpiraEn?: string;
+      };
+
+      return {
+        usuario: data.usuario,
+        accessToken: data.accessToken,
+        accessTokenExpiraEn: data.accessTokenExpiraEn
+          ? new Date(data.accessTokenExpiraEn)
+          : undefined,
+        refreshTokenExpiraEn: data.refreshTokenExpiraEn
+          ? new Date(data.refreshTokenExpiraEn)
+          : undefined,
+      };
     } catch (err) {
       this.manejarFalloRed(err);
     }
@@ -169,6 +185,7 @@ export class HttpAuthRepository implements AuthRepository {
           'Content-Type': 'application/json',
           Accept: 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify({ registroId }),
       });
 
@@ -216,11 +233,66 @@ export class HttpAuthRepository implements AuthRepository {
     }
   }
 
+  async renovarSesion(): Promise<AuthSession> {
+    try {
+      const res = await fetch(`${this.baseUrl}/auth/refresh`, {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+        },
+        credentials: 'include',
+      });
+
+      if (!res.ok) {
+        await this.manejarErrorHttp(res);
+      }
+
+      const data = (await res.json()) as {
+        accessToken: string;
+        accessTokenExpiraEn?: string;
+        refreshTokenExpiraEn?: string;
+      };
+
+      const actual = await this.obtenerSesion();
+      const sesion: AuthSession = {
+        usuario: actual?.usuario ?? {
+          nombre: 'Usuario',
+          rol: 'USUARIO_PUBLICO',
+        },
+        accessToken: data.accessToken,
+        accessTokenExpiraEn: data.accessTokenExpiraEn
+          ? new Date(data.accessTokenExpiraEn)
+          : undefined,
+        refreshTokenExpiraEn: data.refreshTokenExpiraEn
+          ? new Date(data.refreshTokenExpiraEn)
+          : undefined,
+      };
+
+      await this.guardarSesion(sesion);
+      return sesion;
+    } catch (err) {
+      this.manejarFalloRed(err);
+    }
+  }
+
   async cerrarSesion(): Promise<void> {
     try {
-      localStorage.removeItem(STORAGE_KEY_SESION);
-    } catch (e) {
-      console.error('No se pudo limpiar la sesión del almacenamiento local', e);
+      // Invalida la sesión y borra la cookie httpOnly refresh_token en el backend (HU-02)
+      await fetch(`${this.baseUrl}/auth/logout`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+    } catch {
+      // Si la red falla o el backend está apagado, igualmente limpiamos el almacenamiento local
+    } finally {
+      try {
+        localStorage.removeItem(STORAGE_KEY_SESION);
+      } catch (e) {
+        console.error(
+          'No se pudo limpiar la sesión del almacenamiento local',
+          e,
+        );
+      }
     }
   }
 

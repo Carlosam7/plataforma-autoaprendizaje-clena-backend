@@ -6,6 +6,8 @@ export interface Usuario {
 export interface AuthSession {
   usuario: Usuario;
   accessToken: string;
+  accessTokenExpiraEn?: Date | string;
+  refreshTokenExpiraEn?: Date | string;
 }
 
 export type CanalVerificacion = 'CORREO' | 'TELEFONO';
