@@ -182,6 +182,29 @@ describe('HU-02 · Inicio de sesión con sesión persistente (e2e)', () => {
     });
   });
 
+  it('con intentos en paralelo solo prueba tantos códigos como intentos permitidos', async () => {
+    const solicitud = await http()
+      .post(`${API}/login`)
+      .send({ numeroIdentificacion: '41234567', contacto: 'carmen@correo.com' })
+      .expect(202);
+    const correcto = buzon.ultimoPara('carmen@correo.com');
+
+    const respuestas = await Promise.all(
+      Array.from({ length: 10 }, () =>
+        http()
+          .post(`${API}/login/verificar`)
+          .send({
+            solicitudId: solicitud.body.solicitudId,
+            codigo: correcto === '000000' ? '111111' : '000000',
+          }),
+      ),
+    );
+
+    const estados = respuestas.map((r) => r.status);
+    expect(estados.filter((s) => s === 400)).toHaveLength(5);
+    expect(estados.filter((s) => s === 429)).toHaveLength(5);
+  });
+
   it('renueva la sesión con el refresh token y el anterior deja de servir', async () => {
     const inicial = await iniciarSesion();
 

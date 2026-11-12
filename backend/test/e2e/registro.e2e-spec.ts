@@ -268,6 +268,28 @@ describe('HU-01 · Registro con consentimiento (e2e)', () => {
     expect(await cuentasVerificadas()).toBe(0);
   });
 
+  it('con intentos en paralelo solo prueba tantos códigos como intentos permitidos', async () => {
+    const solicitud = await request(app.getHttpServer())
+      .post(RUTA)
+      .send(carmen)
+      .expect(202);
+    const codigoCorrecto = buzon.ultimoPara('carmen@correo.com');
+    const codigoIncorrecto = codigoCorrecto === '000000' ? '111111' : '000000';
+
+    const respuestas = await Promise.all(
+      Array.from({ length: 10 }, () =>
+        request(app.getHttpServer()).post(`${RUTA}/verificar`).send({
+          registroId: solicitud.body.registroId,
+          codigo: codigoIncorrecto,
+        }),
+      ),
+    );
+
+    const estados = respuestas.map((r) => r.status);
+    expect(estados.filter((s) => s === 400)).toHaveLength(5);
+    expect(estados.filter((s) => s === 429)).toHaveLength(5);
+  });
+
   it('no permite pedir otro código enseguida', async () => {
     const solicitud = await request(app.getHttpServer())
       .post(RUTA)
