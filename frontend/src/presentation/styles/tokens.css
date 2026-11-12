@@ -8,6 +8,7 @@
   --primary: #0d6258;
   --white: #ffffff;
   --bg: #f8fafc;
+  --surface: #ffffff;
   --accent: #f2c66d;
   --ink: #172b3a;
 
@@ -18,23 +19,52 @@
   --tint: #eef4f4; /* franja de accesibilidad */
   --track: #dce7e7; /* riel de la barra de progreso */
   --icon-bg: #e7f2ee; /* fondo de íconos de guía */
+  --icon-fg: #0d6258;
   --notice: #fff3d8; /* avisos */
 
-  /* Estados de botón: el Figma los dibuja pero no devolvió sus valores; son aproximados.
-     Confirmar con el diseño. */
+  /* Estados de botón */
   --primary-hover: #09493f;
   --focus: #17324d;
   --disabled-bg: #e2e8ec;
   --disabled-fg: #526575;
 
-  /* Semánticos: es lo que cambia el alto contraste */
+  /* Semánticos para temas y alto contraste */
+  --header-bg: #ffffff;
+  --header-border: #e2e8ec;
+  --nav-link: var(--navy);
+  --nav-logo: var(--primary);
   --hero-title: var(--navy);
   --hero-text: var(--muted);
   --eyebrow: var(--primary);
+
   --btn-primary-bg: var(--primary);
   --btn-primary-fg: #ffffff;
+  --btn-primary-border: transparent;
+  --btn-primary-hover: var(--primary-hover);
+
+  --btn-secondary-bg: #ffffff;
+  --btn-secondary-fg: var(--primary);
+  --btn-secondary-border: var(--border);
+  --btn-secondary-hover-border: var(--primary);
+  --btn-secondary-hover-bg: #f1f5f9;
+
+  --a11y-bar-bg: var(--tint);
+  --a11y-bar-text: var(--primary);
+  --a11y-btn-fg: var(--navy);
+  --a11y-btn-bg: transparent;
+  --a11y-btn-border: transparent;
+  --a11y-btn-active-bg: #ffffff;
+  --a11y-btn-active-fg: var(--navy);
+  --a11y-btn-active-border: var(--navy);
+
+  --card-bg: var(--surface);
   --card-border: var(--border);
+  --card-title: var(--navy);
+  --card-text: var(--ink);
+
   --footer-bg: var(--navy);
+  --footer-fg: #ffffff;
+  --footer-border: transparent;
 
   /* Forma */
   --radius-sm: 8px;
@@ -46,8 +76,7 @@
   --gutter: 96px; /* margen lateral en escritorio */
 }
 
-/* Letra: base de 18 px. «Grande» sube 1,2× (el Figma pasa de 20 a 24 px en el texto de bienvenida)
-   y «muy grande» 1,44×. Todo se mide en rem, así que escala completo y el zoom al 200 % sigue funcionando. */
+/* Letra: base de 18 px. «Grande» sube 1,2× y «muy grande» 1,44× */
 html {
   font-size: 112.5%;
 }
@@ -58,17 +87,63 @@ html {
   font-size: 162%;
 }
 
-/* Alto contraste según el frame «01 · Alto contraste»: texto negro, bordes negros,
-   botón principal negro y pie negro. */
+/* Modo Alto Contraste (Opción 2: Monocromático Blanco & Negro Puro · Estándar Universal Acromático):
+   Fondo negro azabache absoluto, textos blancos puros y bordes nítidos de máximo contraste (21:1). */
 :root[data-contrast='high'] {
-  --hero-title: #000000;
-  --hero-text: #000000;
-  --eyebrow: #000000;
-  --btn-primary-bg: #000000;
-  --card-border: #000000;
+  --bg: #000000;
+  --surface: #000000;
+  --ink: #ffffff;
+  --navy: #ffffff;
+  --primary: #ffffff;
+  --muted: #f0f0f0;
+  --border: #ffffff;
+  --border-input: #ffffff;
+  --icon-bg: #1a1a1a;
+  --icon-fg: #ffffff;
+  --notice: #1a1a1a;
+
+  --focus: #ffffff;
+
+  --header-bg: #000000;
+  --header-border: #ffffff;
+  --nav-link: #ffffff;
+  --nav-logo: #ffffff;
+
+  --hero-title: #ffffff;
+  --hero-text: #ffffff;
+  --eyebrow: #ffffff;
+
+  --btn-primary-bg: #ffffff;
+  --btn-primary-fg: #000000;
+  --btn-primary-border: #ffffff;
+  --btn-primary-hover: #e5e5e5;
+
+  --btn-secondary-bg: #000000;
+  --btn-secondary-fg: #ffffff;
+  --btn-secondary-border: #ffffff;
+  --btn-secondary-hover-border: #ffffff;
+  --btn-secondary-hover-bg: #1a1a1a;
+
+  --a11y-bar-bg: #000000;
+  --a11y-bar-text: #ffffff;
+  --a11y-btn-fg: #ffffff;
+  --a11y-btn-bg: #000000;
+  --a11y-btn-border: #ffffff;
+  --a11y-btn-active-bg: #ffffff;
+  --a11y-btn-active-fg: #000000;
+  --a11y-btn-active-border: #ffffff;
+
+  --card-bg: #000000;
+  --card-border: #ffffff;
+  --card-title: #ffffff;
+  --card-text: #ffffff;
+
   --footer-bg: #000000;
-  --primary-hover: #000000;
-  --focus: #0033cc;
+  --footer-fg: #ffffff;
+  --footer-border: #ffffff;
+
+  --disabled-bg: #222222;
+  --disabled-fg: #777777;
 }
 
 @media (max-width: 720px) {

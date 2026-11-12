@@ -48,7 +48,7 @@ export function HomePage() {
           paso a paso.
         </p>
         <a
-          className="self-start inline-flex items-center justify-center min-h-14 px-6 py-4 font-semibold text-btn-primary-fg bg-btn-primary-bg rounded-xl hover:bg-primary-hover no-underline cursor-pointer border border-transparent"
+          className="self-start inline-flex items-center justify-center min-h-14 px-6 py-4 font-semibold text-btn-primary-fg bg-btn-primary-bg rounded-xl hover:bg-btn-primary-hover no-underline cursor-pointer border-2 border-btn-primary-border"
           href="/guias"
         >
           Comenzar a aprender →
@@ -68,16 +68,18 @@ export function HomePage() {
         >
           ¿Qué aprenderás?
         </h2>
-        <div className="grid grid-cols-1 md:grid-cols-[minmax(10rem,1fr)_4fr] gap-6 mt-6 p-6 md:p-8 bg-white border border-card-border rounded-[20px]">
+        <div className="grid grid-cols-1 md:grid-cols-[minmax(10rem,1fr)_4fr] gap-6 mt-6 p-6 md:p-8 bg-card-bg border-2 border-card-border rounded-[20px]">
           <div>
             <p className="font-medium text-muted">01 / CATEGORÍA</p>
-            <p className="text-[1.556rem] font-bold text-navy">Phishing</p>
+            <p className="text-[1.556rem] font-bold text-card-title">
+              Phishing
+            </p>
           </div>
           <div>
-            <h3 className="text-[1.333rem] font-bold text-navy">
+            <h3 className="text-[1.333rem] font-bold text-card-title">
               Reconoce los engaños antes de actuar.
             </h3>
-            <p className="mt-2 text-ink">
+            <p className="mt-2 text-card-text">
               Algunas personas se hacen pasar por alguien de confianza para
               pedirte datos o dinero. Aprende a reconocer sus señales en
               mensajes, llamadas, códigos QR y alertas falsas.
@@ -103,21 +105,21 @@ export function HomePage() {
         <ul className="list-none m-0 p-0 mt-6 grid gap-5 grid-cols-[repeat(auto-fit,minmax(15rem,1fr))]">
           {GUIDES.map((g) => (
             <li key={g.n}>
-              <article className="flex flex-col gap-4 h-full p-6 bg-white border border-card-border rounded-[20px]">
+              <article className="flex flex-col gap-4 h-full p-6 bg-card-bg border-2 border-card-border rounded-[20px]">
                 <div className="flex justify-between items-start">
                   <div
-                    className="w-14 h-14 bg-icon-bg rounded-xl"
+                    className="w-14 h-14 bg-icon-bg border border-card-border/50 rounded-xl"
                     aria-hidden="true"
                   />
                   <span className="font-medium text-muted">{g.n}</span>
                 </div>
-                <h3 className="text-[1.333rem] font-bold leading-[1.45] text-navy min-h-[2.9em]">
+                <h3 className="text-[1.333rem] font-bold leading-[1.45] text-card-title min-h-[2.9em]">
                   {g.title}
                 </h3>
                 <p className="text-muted">{g.desc}</p>
                 <p className="font-medium text-muted">{g.time} · A tu ritmo</p>
                 <a
-                  className="mt-auto w-full inline-flex items-center justify-center min-h-14 px-6 py-4 font-semibold text-primary bg-white border border-border-subtle rounded-xl hover:border-primary no-underline cursor-pointer"
+                  className="mt-auto w-full inline-flex items-center justify-center min-h-14 px-6 py-4 font-semibold text-btn-secondary-fg bg-btn-secondary-bg border-2 border-btn-secondary-border rounded-xl hover:border-btn-secondary-hover-border hover:bg-btn-secondary-hover-bg no-underline cursor-pointer"
                   href={`/guias/${g.title.toLowerCase().replace(/\s+/g, '-')}`}
                 >
                   Comenzar guía
