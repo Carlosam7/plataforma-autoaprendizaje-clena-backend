@@ -7,14 +7,19 @@ import { ReenviarCodigoRegistro } from '@/application/auth/ReenviarCodigoRegistr
 import { SolicitarInicioSesion } from '@/application/auth/SolicitarInicioSesion';
 import { SolicitarRegistro } from '@/application/auth/SolicitarRegistro';
 import { VerificarCodigoRegistro } from '@/application/auth/VerificarCodigoRegistro';
+import { CalcularResultadoPractica } from '@/application/guias/CalcularResultadoPractica';
+import { ListarGuias } from '@/application/guias/ListarGuias';
+import { ObtenerDetalleGuia } from '@/application/guias/ObtenerDetalleGuia';
 import { DomPreferencesApplier } from '@/infrastructure/accessibility/DomPreferencesApplier';
 import { LocalStoragePreferencesRepository } from '@/infrastructure/accessibility/LocalStoragePreferencesRepository';
 import { HttpAuthRepository } from '@/infrastructure/auth/HttpAuthRepository';
+import { InMemoryGuiasRepository } from '@/infrastructure/guias/InMemoryGuiasRepository';
 
 // Único lugar donde se eligen implementaciones.
 const preferencesRepository = new LocalStoragePreferencesRepository();
 const preferencesApplier = new DomPreferencesApplier();
 const authRepository = new HttpAuthRepository();
+const guiasRepository = new InMemoryGuiasRepository();
 
 export const container = {
   accessibility: {
@@ -42,5 +47,11 @@ export const container = {
     verificarCodigo: new VerificarCodigoRegistro(authRepository),
     reenviarCodigo: new ReenviarCodigoRegistro(authRepository),
     authRepository,
+  },
+  guias: {
+    listar: new ListarGuias(guiasRepository),
+    obtenerDetalle: new ObtenerDetalleGuia(guiasRepository),
+    calcularResultado: new CalcularResultadoPractica(),
+    guiasRepository,
   },
 };
