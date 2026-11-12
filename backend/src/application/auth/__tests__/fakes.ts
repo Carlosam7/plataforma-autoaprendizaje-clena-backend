@@ -172,4 +172,10 @@ export class SesionRepositoryEnMemoria implements SesionRepository {
     );
     return Promise.resolve(sesion ?? null);
   }
+  revocarDePersonal(personalId: string): Promise<void> {
+    for (const sesion of this.sesiones) {
+      if (sesion.usuarioId === personalId) sesion.revocada = true;
+    }
+    return Promise.resolve();
+  }
 }
