@@ -1,0 +1,59 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-navy: var(--navy);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-accent: var(--accent);
+  --color-ink: var(--ink);
+  --color-surface: var(--bg);
+
+  --color-border-subtle: var(--border);
+  --color-border-input: var(--border-input);
+  --color-muted: var(--muted);
+  --color-tint: var(--tint);
+  --color-track: var(--track);
+  --color-icon-bg: var(--icon-bg);
+  --color-notice: var(--notice);
+
+  --color-focus: var(--focus);
+  --color-disabled-bg: var(--disabled-bg);
+  --color-disabled-fg: var(--disabled-fg);
+
+  --color-hero-title: var(--hero-title);
+  --color-hero-text: var(--hero-text);
+  --color-eyebrow: var(--eyebrow);
+  --color-btn-primary-bg: var(--btn-primary-bg);
+  --color-btn-primary-fg: var(--btn-primary-fg);
+  --color-card-border: var(--card-border);
+  --color-footer-bg: var(--footer-bg);
+
+  --font-sans: 'Inter', system-ui, sans-serif;
+
+  --spacing-gutter: var(--gutter);
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font);
+  font-weight: 400;
+  line-height: 1.45;
+}
+
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
+  border-radius: var(--radius-sm);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}

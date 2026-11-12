@@ -1,13 +1,24 @@
 <!doctype html>
-<html lang="en">
+<html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>frontend</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Kamá · Sala de Internet del CLENA</title>
+    <!-- Aplica las preferencias antes del primer pintado para evitar el parpadeo.
+         La clave debe coincidir con LocalStoragePreferencesRepository. -->
+    <script>
+      try {
+        var p = JSON.parse(
+          localStorage.getItem('clena.accesibilidad.v1') || '{}',
+        );
+        var d = document.documentElement;
+        if (p.fontSize) d.dataset.fontSize = p.fontSize;
+        d.dataset.contrast = p.highContrast ? 'high' : 'normal';
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <script type="module" src="/src/main/main.tsx"></script>
   </body>
 </html>

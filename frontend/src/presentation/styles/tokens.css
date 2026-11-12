@@ -1,0 +1,78 @@
+/* Tokens extraídos del Figma, frame «Sistema visual · Kamá».
+   Inter 18 px · controles de 56 px · espaciado de 8 px. */
+:root {
+  --font: 'Inter', system-ui, sans-serif;
+
+  /* Paleta oficial */
+  --navy: #17324d;
+  --primary: #0d6258;
+  --white: #ffffff;
+  --bg: #f8fafc;
+  --accent: #f2c66d;
+  --ink: #172b3a;
+
+  /* Neutros y superficies usados en los componentes */
+  --border: #d7e2e7;
+  --border-input: #869ba9;
+  --muted: #526575;
+  --tint: #eef4f4; /* franja de accesibilidad */
+  --track: #dce7e7; /* riel de la barra de progreso */
+  --icon-bg: #e7f2ee; /* fondo de íconos de guía */
+  --notice: #fff3d8; /* avisos */
+
+  /* Estados de botón: el Figma los dibuja pero no devolvió sus valores; son aproximados.
+     Confirmar con el diseño. */
+  --primary-hover: #09493f;
+  --focus: #17324d;
+  --disabled-bg: #e2e8ec;
+  --disabled-fg: #526575;
+
+  /* Semánticos: es lo que cambia el alto contraste */
+  --hero-title: var(--navy);
+  --hero-text: var(--muted);
+  --eyebrow: var(--primary);
+  --btn-primary-bg: var(--primary);
+  --btn-primary-fg: #ffffff;
+  --card-border: var(--border);
+  --footer-bg: var(--navy);
+
+  /* Forma */
+  --radius-sm: 8px;
+  --radius: 12px; /* botones, campos, avisos */
+  --radius-card: 20px; /* tarjetas */
+  --radius-pill: 28px; /* «Necesito ayuda» */
+  --control-h: 56px;
+  --touch-h: 44px;
+  --gutter: 96px; /* margen lateral en escritorio */
+}
+
+/* Letra: base de 18 px. «Grande» sube 1,2× (el Figma pasa de 20 a 24 px en el texto de bienvenida)
+   y «muy grande» 1,44×. Todo se mide en rem, así que escala completo y el zoom al 200 % sigue funcionando. */
+html {
+  font-size: 112.5%;
+}
+:root[data-font-size='grande'] {
+  font-size: 135%;
+}
+:root[data-font-size='muy_grande'] {
+  font-size: 162%;
+}
+
+/* Alto contraste según el frame «01 · Alto contraste»: texto negro, bordes negros,
+   botón principal negro y pie negro. */
+:root[data-contrast='high'] {
+  --hero-title: #000000;
+  --hero-text: #000000;
+  --eyebrow: #000000;
+  --btn-primary-bg: #000000;
+  --card-border: #000000;
+  --footer-bg: #000000;
+  --primary-hover: #000000;
+  --focus: #0033cc;
+}
+
+@media (max-width: 720px) {
+  :root {
+    --gutter: 24px;
+  }
+}
