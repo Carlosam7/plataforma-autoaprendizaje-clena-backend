@@ -23,6 +23,13 @@ export class PrismaPersonalRepository implements PersonalRepository {
     return fila ? aDominio(fila) : null;
   }
 
+  async buscarPorCorreo(correo: Correo): Promise<Personal | null> {
+    const fila = await this.prisma.personal.findUnique({
+      where: { correo: correo.valor },
+    });
+    return fila ? aDominio(fila) : null;
+  }
+
   async existeCorreo(correo: Correo, exceptoId?: string): Promise<boolean> {
     const total = await this.prisma.personal.count({
       where: {
@@ -112,6 +119,7 @@ function datosEditables(personal: Personal) {
     activo: personal.activo,
     debeCambiarPassword: personal.debeCambiarPassword,
     passwordHash: personal.passwordHash,
+    ultimoAccesoEn: personal.ultimoAccesoEn,
   };
 }
 
