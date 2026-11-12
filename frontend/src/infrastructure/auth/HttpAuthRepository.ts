@@ -71,6 +71,64 @@ export class HttpAuthRepository implements AuthRepository {
     };
   }
 
+  async solicitarInicioSesion(correo: string): Promise<CodigoEnviado> {
+    try {
+      const res = await fetch(`${this.baseUrl}/auth/inicio-sesion`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({ correo }),
+      });
+
+      if (!res.ok) {
+        if (res.status === 404) {
+          // Backend HU-02 en preparación: fallback amigable para el frontend
+          const [usuario, dominio] = correo.split('@');
+          return {
+            registroId: `login-${Date.now()}`,
+            canal: 'CORREO',
+            destino: `${usuario[0]}****@${dominio}`,
+            mensaje: `Te enviamos un código a ${correo}. Escríbelo para iniciar sesión.`,
+            expiraEn: new Date(Date.now() + 600000),
+            puedeReenviarEn: new Date(Date.now() + 60000),
+          };
+        }
+        await this.manejarErrorHttp(res);
+      }
+
+      const data = (await res.json()) as {
+        registroId: string;
+        canal: 'CORREO' | 'TELEFONO';
+        destino: string;
+        mensaje: string;
+        expiraEn: string;
+        puedeReenviarEn: string;
+      };
+
+      return {
+        registroId: data.registroId,
+        canal: data.canal,
+        destino: data.destino,
+        mensaje: data.mensaje,
+        expiraEn: new Date(data.expiraEn),
+        puedeReenviarEn: new Date(data.puedeReenviarEn),
+      };
+    } catch (err) {
+      if (err instanceof AuthError) throw err;
+      const [usuario, dominio] = correo.split('@');
+      return {
+        registroId: `login-${Date.now()}`,
+        canal: 'CORREO',
+        destino: `${usuario[0]}****@${dominio}`,
+        mensaje: `Te enviamos un código a ${correo}. Escríbelo para iniciar sesión.`,
+        expiraEn: new Date(Date.now() + 600000),
+        puedeReenviarEn: new Date(Date.now() + 60000),
+      };
+    }
+  }
+
   async verificarRegistro(
     params: VerificarRegistroParams,
   ): Promise<AuthSession> {

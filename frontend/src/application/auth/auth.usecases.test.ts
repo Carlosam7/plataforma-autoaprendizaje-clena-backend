@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { AuthRepository } from './ports';
 import { ObtenerAvisoPrivacidad } from './ObtenerAvisoPrivacidad';
+import { SolicitarInicioSesion } from './SolicitarInicioSesion';
 import { SolicitarRegistro } from './SolicitarRegistro';
 import { VerificarCodigoRegistro } from './VerificarCodigoRegistro';
 import { ReenviarCodigoRegistro } from './ReenviarCodigoRegistro';
@@ -18,6 +19,14 @@ function crearMockRepository(): AuthRepository {
       canal: 'CORREO',
       destino: 'a****@correo.com',
       mensaje: 'Código enviado a a****@correo.com',
+      expiraEn: new Date(Date.now() + 600000),
+      puedeReenviarEn: new Date(Date.now() + 60000),
+    }),
+    solicitarInicioSesion: vi.fn().mockResolvedValue({
+      registroId: 'login-123',
+      canal: 'CORREO',
+      destino: 'a****@correo.com',
+      mensaje: 'Código de acceso enviado',
       expiraEn: new Date(Date.now() + 600000),
       puedeReenviarEn: new Date(Date.now() + 60000),
     }),
@@ -130,6 +139,24 @@ describe('Auth Use Cases', () => {
           codigo: '1234',
         }),
       ).rejects.toThrow(AuthValidationError);
+    });
+  });
+
+  describe('SolicitarInicioSesion', () => {
+    it('valida correo electrónico y llama al repositorio', async () => {
+      const repo = crearMockRepository();
+      const useCase = new SolicitarInicioSesion(repo);
+      const resultado = await useCase.ejecutar('ana@correo.com');
+      expect(resultado.registroId).toBe('login-123');
+      expect(repo.solicitarInicioSesion).toHaveBeenCalledWith('ana@correo.com');
+    });
+
+    it('rechaza si el correo no tiene formato válido', async () => {
+      const repo = crearMockRepository();
+      const useCase = new SolicitarInicioSesion(repo);
+      await expect(useCase.ejecutar('correo-invalido')).rejects.toThrow(
+        AuthValidationError,
+      );
     });
   });
 

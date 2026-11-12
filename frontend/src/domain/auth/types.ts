@@ -35,6 +35,10 @@ export interface SolicitudRegistro {
   canalVerificacion?: CanalVerificacion;
 }
 
+export interface SolicitudInicioSesion {
+  correo: string;
+}
+
 export interface VerificarRegistroParams {
   registroId: string;
   codigo: string;

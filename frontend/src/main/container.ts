@@ -4,6 +4,7 @@ import { ResetAccessibilityPreferences } from '@/application/accessibility/Reset
 import { ToggleHighContrast } from '@/application/accessibility/ToggleHighContrast';
 import { ObtenerAvisoPrivacidad } from '@/application/auth/ObtenerAvisoPrivacidad';
 import { ReenviarCodigoRegistro } from '@/application/auth/ReenviarCodigoRegistro';
+import { SolicitarInicioSesion } from '@/application/auth/SolicitarInicioSesion';
 import { SolicitarRegistro } from '@/application/auth/SolicitarRegistro';
 import { VerificarCodigoRegistro } from '@/application/auth/VerificarCodigoRegistro';
 import { DomPreferencesApplier } from '@/infrastructure/accessibility/DomPreferencesApplier';
@@ -37,6 +38,7 @@ export const container = {
   auth: {
     obtenerAvisoPrivacidad: new ObtenerAvisoPrivacidad(authRepository),
     solicitarRegistro: new SolicitarRegistro(authRepository),
+    solicitarInicioSesion: new SolicitarInicioSesion(authRepository),
     verificarCodigo: new VerificarCodigoRegistro(authRepository),
     reenviarCodigo: new ReenviarCodigoRegistro(authRepository),
     authRepository,
