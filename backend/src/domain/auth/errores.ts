@@ -127,3 +127,14 @@ export class EnvioCodigoFallidoError extends ErrorDeNegocio {
     );
   }
 }
+
+/** El access token no es válido, venció o su sesión se cerró. */
+export class SesionInvalidaError extends ErrorDeNegocio {
+  constructor() {
+    super(
+      'SESION_INVALIDA',
+      'no_autorizado',
+      'Tu sesión terminó. Inicia sesión de nuevo para continuar.',
+    );
+  }
+}
