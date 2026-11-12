@@ -20,4 +20,3 @@ export class ObtenerDetalleGuia {
     return detalle;
   }
 }
-

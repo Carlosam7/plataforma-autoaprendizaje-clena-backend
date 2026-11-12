@@ -6,4 +6,3 @@ export interface GuiasRepository {
   obtenerDetalleGuia(slug: string): Promise<DetalleGuia | null>;
   registrarAperturaGuia(slug: string): Promise<void>;
 }
-
