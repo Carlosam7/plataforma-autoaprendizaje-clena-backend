@@ -8,7 +8,6 @@ import {
   SesionActiva,
   SesionRepository,
 } from '../../../domain/auth/sesion.repository.js';
-import { Rol } from '../../../domain/auth/tipos.js';
 import { Usuario } from '../../../domain/auth/usuario.js';
 import { UsuarioRepository } from '../../../domain/auth/usuario.repository.js';
 import { Correo } from '../../../domain/auth/value-objects/correo.js';
@@ -23,7 +22,17 @@ import {
   MensajeCodigo,
 } from '../codigo-verificacion.port.js';
 import { ConfiguracionRegistro } from '../configuracion-registro.js';
-import { EmisorSesion, SesionEmitida } from '../emisor-sesion.port.js';
+import {
+  EmisorSesion,
+  RefreshTokenGuardado,
+  SesionEmitida,
+  TitularSesion,
+} from '../emisor-sesion.port.js';
+import { CodigoInicioSesion } from '../../../domain/auth/codigo-inicio-sesion.js';
+import {
+  CuentaParaInicio,
+  InicioSesionRepository,
+} from '../../../domain/auth/inicio-sesion.repository.js';
 
 export class RelojFijo implements Reloj {
   constructor(public actual: Date) {}
@@ -68,17 +77,113 @@ export class EnviadorEnMemoria implements EnviadorCodigo {
   }
 }
 
+/** Sesiones en memoria: el refresh token es simplemente su id. */
 export class EmisorSesionFalso implements EmisorSesion {
-  emitidas: { id: string; rol: Rol }[] = [];
-  iniciar(usuario: { id: string; rol: Rol }): Promise<SesionEmitida> {
+  emitidas: TitularSesion[] = [];
+  guardados = new Map<string, RefreshTokenGuardado>();
+  private n = 0;
+
+  constructor(private readonly duracionHoras = 12) {}
+
+  iniciar(usuario: TitularSesion, ahora = new Date()): Promise<SesionEmitida> {
     this.emitidas.push(usuario);
-    const ahora = new Date();
-    return Promise.resolve({
-      accessToken: `access-${usuario.id}`,
-      accessTokenExpiraEn: ahora,
-      refreshToken: `refresh-${usuario.id}`,
-      refreshTokenExpiraEn: ahora,
+    this.n += 1;
+    const id = `rt-${this.n}`;
+    const expiraEn = new Date(ahora.getTime() + this.duracionHoras * 3_600_000);
+    this.guardados.set(id, {
+      id,
+      titular: usuario,
+      expiraEn,
+      revocadoEn: null,
+      reemplazadoPorId: null,
+      titularActivo: true,
     });
+    return Promise.resolve({
+      accessToken: `access-${id}`,
+      accessTokenExpiraEn: ahora,
+      refreshToken: id,
+      refreshTokenExpiraEn: expiraEn,
+    });
+  }
+  buscar(refreshToken: string): Promise<RefreshTokenGuardado | null> {
+    const guardado = this.guardados.get(refreshToken);
+    return Promise.resolve(guardado ? { ...guardado } : null);
+  }
+  async rotar(
+    anterior: RefreshTokenGuardado,
+    ahora: Date,
+  ): Promise<SesionEmitida> {
+    const sesion = await this.iniciar(anterior.titular, ahora);
+    const actual = this.guardados.get(anterior.id)!;
+    actual.revocadoEn = ahora;
+    actual.reemplazadoPorId = sesion.refreshToken;
+    return sesion;
+  }
+  revocar(id: string, ahora: Date): Promise<void> {
+    const guardado = this.guardados.get(id);
+    if (guardado && !guardado.revocadoEn) guardado.revocadoEn = ahora;
+    return Promise.resolve();
+  }
+  revocarTodas(titular: TitularSesion, ahora: Date): Promise<void> {
+    for (const guardado of this.guardados.values()) {
+      if (guardado.titular.id === titular.id && !guardado.revocadoEn)
+        guardado.revocadoEn = ahora;
+    }
+    return Promise.resolve();
+  }
+  activas(): RefreshTokenGuardado[] {
+    return [...this.guardados.values()].filter((g) => !g.revocadoEn);
+  }
+}
+
+/** Cuentas activas con sus contactos y los códigos de inicio de sesión emitidos. */
+export class InicioSesionRepositoryEnMemoria implements InicioSesionRepository {
+  cuentas: (CuentaParaInicio & { verificado: boolean })[] = [];
+  codigos: CodigoInicioSesion[] = [];
+
+  buscarCuenta(
+    numero: NumeroIdentificacion,
+    contacto: Correo | Telefono,
+  ): Promise<CuentaParaInicio | null> {
+    const cuenta = this.cuentas.find(
+      (c) =>
+        c.usuarioId === numero.valor &&
+        c.destino.constructor === contacto.constructor &&
+        c.destino.valor === contacto.valor,
+    );
+    return Promise.resolve(cuenta ?? null);
+  }
+  buscarCuentaPorContacto(id: string): Promise<CuentaParaInicio | null> {
+    return Promise.resolve(
+      this.cuentas.find((c) => c.metodoInicioId === id) ?? null,
+    );
+  }
+  ultimoCodigoSinUsar(id: string): Promise<CodigoInicioSesion | null> {
+    const codigo = this.codigos.findLast(
+      (c) => c.metodoInicioId === id && !c.usadoEn,
+    );
+    return Promise.resolve(codigo ?? null);
+  }
+  emitirCodigo(codigo: CodigoInicioSesion): Promise<void> {
+    for (const anterior of this.codigos) {
+      if (
+        anterior.metodoInicioId === codigo.metodoInicioId &&
+        !anterior.usadoEn
+      )
+        anterior.marcarUsado(codigo.creadoEn);
+    }
+    this.codigos.push(codigo);
+    return Promise.resolve();
+  }
+  actualizarCodigo(): Promise<void> {
+    return Promise.resolve();
+  }
+  confirmar(codigo: CodigoInicioSesion): Promise<void> {
+    const cuenta = this.cuentas.find(
+      (c) => c.metodoInicioId === codigo.metodoInicioId,
+    );
+    if (cuenta) cuenta.verificado = true;
+    return Promise.resolve();
   }
 }
 

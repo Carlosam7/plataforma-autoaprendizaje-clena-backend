@@ -289,7 +289,7 @@ describe('VerificarRegistroUseCase', () => {
       nombre: 'Carmen Rodríguez',
       rol: 'USUARIO_PUBLICO',
     });
-    expect(resultado.sesion.accessToken).toBe('access-41234567');
+    expect(resultado.sesion.accessToken).toEqual(expect.any(String));
     // La sesión sí se abre para ese usuario; el emisor decide qué va en el token.
     expect(ctx.emisor.emitidas).toEqual([
       { id: '41234567', rol: 'USUARIO_PUBLICO' },
