@@ -106,11 +106,15 @@ export class PrismaInicioSesionRepository implements InicioSesionRepository {
     ]);
   }
 
-  async actualizarCodigo(codigo: CodigoInicioSesion): Promise<void> {
-    await this.prisma.codigoVerificacion.update({
-      where: { id: codigo.id },
-      data: { intentos: codigo.intentosFallidos },
+  async reservarIntento(
+    codigoId: string,
+    maxIntentos: number,
+  ): Promise<boolean> {
+    const { count } = await this.prisma.codigoVerificacion.updateMany({
+      where: { id: codigoId, usadoEn: null, intentos: { lt: maxIntentos } },
+      data: { intentos: { increment: 1 } },
     });
+    return count > 0;
   }
 
   async confirmar(codigo: CodigoInicioSesion): Promise<void> {
@@ -118,7 +122,7 @@ export class PrismaInicioSesionRepository implements InicioSesionRepository {
     await this.prisma.$transaction([
       this.prisma.codigoVerificacion.update({
         where: { id: codigo.id },
-        data: { intentos: codigo.intentosFallidos, usadoEn: ahora },
+        data: { usadoEn: ahora },
       }),
       this.prisma.metodoInicio.updateMany({
         where: { id: codigo.metodoInicioId, verificadoEn: null },

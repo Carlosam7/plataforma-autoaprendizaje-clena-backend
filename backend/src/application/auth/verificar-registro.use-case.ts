@@ -1,5 +1,6 @@
 import {
   CodigoIncorrectoError,
+  IntentosAgotadosError,
   RegistroNoEncontradoError,
 } from '../../domain/auth/errores.js';
 import { RegistroPendienteRepository } from '../../domain/auth/registro-pendiente.repository.js';
@@ -39,13 +40,23 @@ export class VerificarRegistroUseCase {
     if (!registro) throw new RegistroNoEncontradoError();
 
     registro.asegurarCodigoUtilizable(ahora, politicaCodigo);
+    // Se reserva el intento antes de comparar: así, con peticiones en paralelo, solo
+    // maxIntentos llegan a probar un código.
+    if (
+      !(await this.registros.reservarIntento(
+        registro.id,
+        politicaCodigo.maxIntentos,
+      ))
+    ) {
+      throw new IntentosAgotadosError();
+    }
 
     if (
       !(await this.hasher.coincide(comando.codigo.trim(), registro.codigoHash))
     ) {
-      const restantes = registro.registrarIntentoFallido(politicaCodigo);
-      await this.registros.guardar(registro);
-      throw new CodigoIncorrectoError(restantes);
+      throw new CodigoIncorrectoError(
+        registro.registrarIntentoFallido(politicaCodigo),
+      );
     }
 
     const usuario = registro.confirmar();

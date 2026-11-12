@@ -175,8 +175,12 @@ export class InicioSesionRepositoryEnMemoria implements InicioSesionRepository {
     this.codigos.push(codigo);
     return Promise.resolve();
   }
-  actualizarCodigo(): Promise<void> {
-    return Promise.resolve();
+  // El caso de uso suma el intento fallido en memoria sobre este mismo objeto.
+  reservarIntento(codigoId: string, maxIntentos: number): Promise<boolean> {
+    const codigo = this.codigos.find((c) => c.id === codigoId);
+    return Promise.resolve(
+      !!codigo && !codigo.usadoEn && codigo.intentosFallidos < maxIntentos,
+    );
   }
   confirmar(codigo: CodigoInicioSesion): Promise<void> {
     const cuenta = this.cuentas.find(
@@ -235,6 +239,12 @@ export class RegistroPendienteRepositoryEnMemoria implements RegistroPendienteRe
   guardar(registro: RegistroPendiente): Promise<void> {
     this.registros.set(registro.id, registro);
     return Promise.resolve();
+  }
+  reservarIntento(registroId: string, maxIntentos: number): Promise<boolean> {
+    const registro = this.registros.get(registroId);
+    return Promise.resolve(
+      !!registro && registro.intentosFallidos < maxIntentos,
+    );
   }
   confirmar(registro: RegistroPendiente): Promise<void> {
     this.registros.delete(registro.id);

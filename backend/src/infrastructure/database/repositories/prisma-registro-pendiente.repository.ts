@@ -155,6 +155,22 @@ export class PrismaRegistroPendienteRepository implements RegistroPendienteRepos
     }
   }
 
+  async reservarIntento(
+    registroId: string,
+    maxIntentos: number,
+  ): Promise<boolean> {
+    const { count } = await this.prisma.codigoVerificacion.updateMany({
+      where: {
+        metodoInicioId: registroId,
+        proposito: 'REGISTRO',
+        usadoEn: null,
+        intentos: { lt: maxIntentos },
+      },
+      data: { intentos: { increment: 1 } },
+    });
+    return count > 0;
+  }
+
   async confirmar(registro: RegistroPendiente, ahora: Date): Promise<void> {
     await this.prisma.$transaction([
       this.prisma.metodoInicio.update({

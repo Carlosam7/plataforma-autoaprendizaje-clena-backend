@@ -39,8 +39,15 @@ export abstract class InicioSesionRepository {
   /** Guarda el código nuevo y anula los anteriores sin usar. */
   abstract emitirCodigo(codigo: CodigoInicioSesion): Promise<void>;
 
-  /** Persiste los intentos fallidos. */
-  abstract actualizarCodigo(codigo: CodigoInicioSesion): Promise<void>;
+  /**
+   * Suma un intento al código solo si todavía le quedan; devuelve false si ya se agotaron.
+   * Es una sola operación en la base de datos: con peticiones en paralelo, solo `maxIntentos`
+   * la superan, así que no se puede probar más códigos que los permitidos.
+   */
+  abstract reservarIntento(
+    codigoId: string,
+    maxIntentos: number,
+  ): Promise<boolean>;
 
   /**
    * Marca el código como usado y, si el contacto aún no estaba verificado (se registró con

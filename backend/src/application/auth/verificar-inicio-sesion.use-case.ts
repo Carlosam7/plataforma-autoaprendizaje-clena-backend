@@ -1,5 +1,6 @@
 import {
   CodigoIncorrectoError,
+  IntentosAgotadosError,
   SolicitudInicioSesionNoEncontradaError,
 } from '../../domain/auth/errores.js';
 import { InicioSesionRepository } from '../../domain/auth/inicio-sesion.repository.js';
@@ -35,13 +36,23 @@ export class VerificarInicioSesionUseCase {
     if (!cuenta || !codigo) throw new SolicitudInicioSesionNoEncontradaError();
 
     codigo.asegurarUtilizable(ahora, politicaCodigo);
+    // Se reserva el intento antes de comparar: así, con peticiones en paralelo, solo
+    // maxIntentos llegan a probar un código.
+    if (
+      !(await this.cuentas.reservarIntento(
+        codigo.id,
+        politicaCodigo.maxIntentos,
+      ))
+    ) {
+      throw new IntentosAgotadosError();
+    }
 
     if (
       !(await this.hasher.coincide(comando.codigo.trim(), codigo.codigoHash))
     ) {
-      const restantes = codigo.registrarIntentoFallido(politicaCodigo);
-      await this.cuentas.actualizarCodigo(codigo);
-      throw new CodigoIncorrectoError(restantes);
+      throw new CodigoIncorrectoError(
+        codigo.registrarIntentoFallido(politicaCodigo),
+      );
     }
 
     codigo.marcarUsado(ahora);

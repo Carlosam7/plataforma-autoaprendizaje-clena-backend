@@ -69,6 +69,12 @@ export class CodigoPersonalRepositoryEnMemoria implements CodigoPersonalReposito
     this.codigos.push(codigo);
     return Promise.resolve();
   }
+  reservarIntento(codigoId: string, maxIntentos: number): Promise<boolean> {
+    const codigo = this.codigos.find((c) => c.id === codigoId);
+    return Promise.resolve(
+      !!codigo && !codigo.usadoEn && codigo.intentosFallidos < maxIntentos,
+    );
+  }
   actualizar(): Promise<void> {
     return Promise.resolve();
   }
