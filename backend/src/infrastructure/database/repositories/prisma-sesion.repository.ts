@@ -38,4 +38,11 @@ export class PrismaSesionRepository implements SesionRepository {
       rol: fila.personal.rol,
     };
   }
+
+  async revocarDePersonal(personalId: string, ahora: Date): Promise<void> {
+    await this.prisma.refreshToken.updateMany({
+      where: { personalId, revocadoEn: null },
+      data: { revocadoEn: ahora },
+    });
+  }
 }

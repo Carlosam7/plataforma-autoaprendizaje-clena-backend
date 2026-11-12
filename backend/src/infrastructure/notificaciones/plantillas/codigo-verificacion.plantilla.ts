@@ -14,6 +14,11 @@ const TEXTOS: Record<PropositoCodigo, { asunto: string; para: string }> = {
     asunto: 'Código de verificación para tu registro en Kamá',
     para: 'para completar tu registro en Kamá',
   },
+  // HU-04: el personal cambia su contraseña temporal en el primer ingreso.
+  CAMBIO_PASSWORD_INICIAL: {
+    asunto: 'Código para cambiar tu contraseña temporal en Kamá',
+    para: 'para cambiar tu contraseña temporal en Kamá',
+  },
 };
 
 /** «483920» → «483 920»: en dos grupos se lee y se copia más fácil. */

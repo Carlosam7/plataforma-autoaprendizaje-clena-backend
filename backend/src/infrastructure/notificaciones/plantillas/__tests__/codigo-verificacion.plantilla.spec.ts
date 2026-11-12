@@ -75,3 +75,21 @@ describe('smsCodigoVerificacion', () => {
     expect(sms.length).toBeLessThanOrEqual(70);
   });
 });
+
+describe('plantillaCodigoVerificacion · cambio de contraseña temporal (HU-04)', () => {
+  const correoPersonal = plantillaCodigoVerificacion({
+    ...mensaje,
+    destino: 'luis@clena.example',
+    proposito: 'CAMBIO_PASSWORD_INICIAL',
+  });
+
+  it('el asunto y el texto dicen que es para cambiar la contraseña temporal', () => {
+    expect(correoPersonal.asunto).toBe(
+      'Código para cambiar tu contraseña temporal en Kamá',
+    );
+    expect(correoPersonal.texto).toContain(
+      'para cambiar tu contraseña temporal en Kamá',
+    );
+    expect(correoPersonal.texto).toContain('483 920');
+  });
+});

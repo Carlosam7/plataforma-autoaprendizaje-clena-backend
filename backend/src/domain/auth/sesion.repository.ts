@@ -18,4 +18,7 @@ export abstract class SesionRepository {
     sesionId: string,
     ahora: Date,
   ): Promise<SesionActiva | null>;
+
+  /** Cierra todas las sesiones abiertas de una persona del personal. */
+  abstract revocarDePersonal(personalId: string, ahora: Date): Promise<void>;
 }

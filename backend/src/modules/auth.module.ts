@@ -196,5 +196,13 @@ type Config = ConfigService<VariablesEntorno, true>;
       ) => new ObtenerAvisoPrivacidadUseCase(...deps),
     },
   ],
+  // Otros módulos (p. ej. personal) envían códigos, abren sesiones y las cierran.
+  exports: [
+    EmisorSesion,
+    EnviadorCodigo,
+    GeneradorCodigo,
+    HasherCodigo,
+    SesionRepository,
+  ],
 })
 export class AuthModule {}
