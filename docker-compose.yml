@@ -28,7 +28,7 @@ services:
     environment:
       PORT: 3000
       # Mientras no haya proveedor real de correo/SMS los códigos se escriben en los
-      # logs (NOTIFICACIONES_PROVEEDOR=consola), y eso solo se permite fuera de producción.
+      # logs (NOTIFICACIONES_CORREO/NOTIFICACIONES_SMS=consola), y eso solo se permite fuera de producción.
       NODE_ENV: ${NODE_ENV:-development}
       DATABASE_URL: postgresql://${DATABASE_USER:-clena}:${DATABASE_PASSWORD:-clena}@postgres:5432/${DATABASE_NAME:-clena}
       # Valor solo para desarrollo local; en cualquier despliegue real defínelo en .env.
