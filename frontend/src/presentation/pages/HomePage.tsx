@@ -29,9 +29,9 @@ const GUIDES = [
 
 export function HomePage() {
   return (
-    <main id="contenido" className="max-w-[90rem] mx-auto">
+    <main id="contenido" className="max-w-360 mx-auto">
       <section
-        className="px-gutter pt-10 md:pt-24 pb-8 md:pb-12 flex flex-col gap-4 max-w-[44rem]"
+        className="px-gutter pt-10 md:pt-24 pb-8 md:pb-12 flex flex-col gap-4 max-w-176"
         aria-labelledby="hero-title"
       >
         <p className="text-[1.111rem] font-semibold text-eyebrow">
@@ -48,7 +48,7 @@ export function HomePage() {
           paso a paso.
         </p>
         <a
-          className="self-start inline-flex items-center justify-center min-h-[56px] px-6 py-4 font-semibold text-btn-primary-fg bg-btn-primary-bg rounded-xl hover:bg-primary-hover no-underline cursor-pointer border border-transparent"
+          className="self-start inline-flex items-center justify-center min-h-14 px-6 py-4 font-semibold text-btn-primary-fg bg-btn-primary-bg rounded-xl hover:bg-primary-hover no-underline cursor-pointer border border-transparent"
           href="/guias"
         >
           Comenzar a aprender →
@@ -117,7 +117,7 @@ export function HomePage() {
                 <p className="text-muted">{g.desc}</p>
                 <p className="font-medium text-muted">{g.time} · A tu ritmo</p>
                 <a
-                  className="mt-auto w-full inline-flex items-center justify-center min-h-[56px] px-6 py-4 font-semibold text-primary bg-white border border-border-subtle rounded-xl hover:border-primary no-underline cursor-pointer"
+                  className="mt-auto w-full inline-flex items-center justify-center min-h-14 px-6 py-4 font-semibold text-primary bg-white border border-border-subtle rounded-xl hover:border-primary no-underline cursor-pointer"
                   href={`/guias/${g.title.toLowerCase().replace(/\s+/g, '-')}`}
                 >
                   Comenzar guía

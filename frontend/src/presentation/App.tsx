@@ -26,7 +26,7 @@ export function App() {
           </p>
         </div>
         <a
-          className="inline-flex items-center justify-center min-h-[56px] px-6 py-4 font-semibold text-primary bg-white border border-border-subtle rounded-xl hover:border-primary no-underline cursor-pointer"
+          className="inline-flex items-center justify-center min-h-14 px-6 py-4 font-semibold text-primary bg-white border border-border-subtle rounded-xl hover:border-primary no-underline cursor-pointer"
           href="/ayuda"
         >
           Solicitar ayuda

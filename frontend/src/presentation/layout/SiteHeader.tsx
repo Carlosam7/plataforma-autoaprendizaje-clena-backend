@@ -5,7 +5,7 @@ export function SiteHeader() {
     <header className="flex flex-col bg-white">
       <AccessibilityBar />
       <nav
-        className="-order-1 md:order-none flex items-center gap-3 md:gap-8 px-gutter py-4 md:py-[22px]"
+        className="-order-1 md:order-0 flex items-center gap-3 md:gap-8 px-gutter py-4 md:py-5.5"
         aria-label="Principal"
       >
         <a
@@ -19,31 +19,31 @@ export function SiteHeader() {
           Aprender para cuidarte
         </p>
         <a
-          className="hidden md:inline-flex items-center min-h-[44px] font-medium text-navy no-underline hover:underline hover:underline-offset-[0.2em]"
+          className="hidden md:inline-flex items-center min-h-11 font-medium text-navy no-underline hover:underline hover:underline-offset-[0.2em]"
           href="/"
         >
           Inicio
         </a>
         <a
-          className="hidden md:inline-flex items-center min-h-[44px] font-medium text-navy no-underline hover:underline hover:underline-offset-[0.2em]"
+          className="hidden md:inline-flex items-center min-h-11 font-medium text-navy no-underline hover:underline hover:underline-offset-[0.2em]"
           href="/guias"
         >
           Guías
         </a>
         <a
-          className="hidden md:inline-flex items-center min-h-[44px] font-medium text-navy no-underline hover:underline hover:underline-offset-[0.2em]"
+          className="hidden md:inline-flex items-center min-h-11 font-medium text-navy no-underline hover:underline hover:underline-offset-[0.2em]"
           href="/mi-progreso"
         >
           Mi progreso
         </a>
         <a
-          className="hidden md:inline-flex items-center min-h-[44px] font-medium text-navy no-underline hover:underline hover:underline-offset-[0.2em]"
+          className="hidden md:inline-flex items-center min-h-11 font-medium text-navy no-underline hover:underline hover:underline-offset-[0.2em]"
           href="/ayuda"
         >
           Ayuda
         </a>
         <a
-          className="hidden md:inline-flex items-center justify-center min-h-[56px] px-6 py-4 font-semibold text-primary bg-white border border-border-subtle rounded-xl hover:border-primary no-underline cursor-pointer"
+          className="hidden md:inline-flex items-center justify-center min-h-14 px-6 py-4 font-semibold text-primary bg-white border border-border-subtle rounded-xl hover:border-primary no-underline cursor-pointer"
           href="/iniciar-sesion"
         >
           Iniciar sesión

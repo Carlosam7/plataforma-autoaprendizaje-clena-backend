@@ -22,7 +22,7 @@ export function AccessibilityBar() {
       {/* aria-disabled en vez de disabled: el foco no se pierde al llegar al límite. */}
       <button
         type="button"
-        className="min-h-[44px] px-2.5 py-2 font-semibold text-navy bg-transparent border-2 border-transparent rounded-lg cursor-pointer hover:bg-white aria-pressed:bg-white aria-pressed:border-navy aria-disabled:opacity-45 aria-disabled:cursor-not-allowed"
+        className="min-h-11 px-2.5 py-2 font-semibold text-navy bg-transparent border-2 border-transparent rounded-lg cursor-pointer hover:bg-white aria-pressed:bg-white aria-pressed:border-navy aria-disabled:opacity-45 aria-disabled:cursor-not-allowed"
         aria-label="Reducir letra"
         aria-disabled={!p.canDecreaseFont}
         onClick={p.canDecreaseFont ? decreaseFont : undefined}
@@ -31,7 +31,7 @@ export function AccessibilityBar() {
       </button>
       <button
         type="button"
-        className="min-h-[44px] px-2.5 py-2 font-semibold text-navy bg-transparent border-2 border-transparent rounded-lg cursor-pointer hover:bg-white aria-pressed:bg-white aria-pressed:border-navy aria-disabled:opacity-45 aria-disabled:cursor-not-allowed"
+        className="min-h-11 px-2.5 py-2 font-semibold text-navy bg-transparent border-2 border-transparent rounded-lg cursor-pointer hover:bg-white aria-pressed:bg-white aria-pressed:border-navy aria-disabled:opacity-45 aria-disabled:cursor-not-allowed"
         aria-label="Aumentar letra"
         aria-disabled={!p.canIncreaseFont}
         onClick={p.canIncreaseFont ? increaseFont : undefined}
@@ -40,7 +40,7 @@ export function AccessibilityBar() {
       </button>
       <button
         type="button"
-        className="min-h-[44px] px-2.5 py-2 font-semibold text-navy bg-transparent border-2 border-transparent rounded-lg cursor-pointer hover:bg-white aria-pressed:bg-white aria-pressed:border-navy aria-disabled:opacity-45 aria-disabled:cursor-not-allowed"
+        className="min-h-11 px-2.5 py-2 font-semibold text-navy bg-transparent border-2 border-transparent rounded-lg cursor-pointer hover:bg-white aria-pressed:bg-white aria-pressed:border-navy aria-disabled:opacity-45 aria-disabled:cursor-not-allowed"
         aria-pressed={p.highContrast}
         onClick={toggleContrast}
       >
