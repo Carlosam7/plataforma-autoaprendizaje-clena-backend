@@ -38,6 +38,10 @@ import { AvisoPrivacidadController } from '../presentation/auth/aviso-privacidad
 import { JwtAuthGuard } from '../presentation/auth/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../presentation/auth/guards/roles.guard.js';
 import { RegistroController } from '../presentation/auth/registro.controller.js';
+import { SmtpEnviadorCorreo } from '../infrastructure/notificaciones/smtp-enviador-correo.js';
+import { EnviadorPorCanal } from '../infrastructure/notificaciones/enviador-por-canal.js';
+import { TwilioEnviadorSms } from '../infrastructure/notificaciones/twilio-enviador-sms.js';
+import { TextbeeEnviadorSms } from '../infrastructure/notificaciones/textbee-enviador-sms.js';
 
 type Config = ConfigService<VariablesEntorno, true>;
 
@@ -77,7 +81,45 @@ type Config = ConfigService<VariablesEntorno, true>;
     },
     { provide: GeneradorCodigo, useClass: GeneradorCodigoNumerico },
     { provide: HasherCodigo, useFactory: () => new BcryptHasherCodigo() },
-    { provide: EnviadorCodigo, useClass: ConsolaEnviadorCodigo },
+    {
+      provide: EnviadorCodigo,
+      inject: [ConfigService],
+      useFactory: (config: Config) => {
+        const correo =
+          config.get('NOTIFICACIONES_CORREO', { infer: true }) === 'smtp'
+            ? new SmtpEnviadorCorreo({
+                host: config.get('SMTP_HOST', { infer: true }),
+                puerto: config.get('SMTP_PUERTO', { infer: true }),
+                usuario: config.get('SMTP_USUARIO', { infer: true }),
+                clave: config.get('SMTP_CLAVE', { infer: true }),
+                remitente: config.get('CORREO_REMITENTE', { infer: true }),
+              })
+            : new ConsolaEnviadorCodigo();
+
+        const modoSms = config.get('NOTIFICACIONES_SMS', { infer: true });
+        const sms =
+          modoSms === 'twilio'
+            ? new TwilioEnviadorSms({
+                accountSid: config.get('TWILIO_ACCOUNT_SID', { infer: true }),
+                authToken: config.get('TWILIO_AUTH_TOKEN', { infer: true }),
+                numeroOrigen: config.get('TWILIO_NUMERO_ORIGEN', {
+                  infer: true,
+                }),
+              })
+            : modoSms === 'textbee'
+              ? new TextbeeEnviadorSms({
+                  apiKey: config.get('TEXTBEE_API_KEY', { infer: true }),
+                  dispositivoId: config.get('TEXTBEE_DEVICE_ID', {
+                    infer: true,
+                  }),
+                })
+              : new ConsolaEnviadorCodigo();
+        return new EnviadorPorCanal({
+          CORREO: correo,
+          TELEFONO: sms,
+        });
+      },
+    },
     {
       provide: EmisorSesion,
       inject: [JwtService, PrismaService, ConfigService, GeneradorId, Reloj],

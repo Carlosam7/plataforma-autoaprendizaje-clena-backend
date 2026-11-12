@@ -118,6 +118,16 @@ export class ReenvioMuyProntoError extends ErrorDeNegocio {
   }
 }
 
+export class EnvioCodigoFallidoError extends ErrorDeNegocio {
+  constructor() {
+    super(
+      'ENVIO_CODIGO_FALLIDO',
+      'servicio_no_disponible',
+      'No pudimos enviarte el código. Intenta de nuevo más tarde o pide ayuda a un monitor.',
+    );
+  }
+}
+
 /** El access token no es válido, venció o su sesión se cerró. */
 export class SesionInvalidaError extends ErrorDeNegocio {
   constructor() {
