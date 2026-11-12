@@ -79,3 +79,4 @@ export interface ResultadoPractica {
   aprobada: boolean;
   umbralAprobacion: number; // e.g. 70%
 }
+

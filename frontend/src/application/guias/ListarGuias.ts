@@ -10,3 +10,4 @@ export class ListarGuias {
     return guias.filter((g) => g.estado === 'PUBLICADA');
   }
 }
+
