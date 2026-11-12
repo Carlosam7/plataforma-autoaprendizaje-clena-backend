@@ -14,6 +14,11 @@ const TEXTOS: Record<PropositoCodigo, { asunto: string; para: string }> = {
     asunto: 'Código de verificación para tu registro en Kamá',
     para: 'para completar tu registro en Kamá',
   },
+  // HU-02: el usuario público entra con su identificación y su correo o celular.
+  INICIO_SESION: {
+    asunto: 'Código para iniciar sesión en Kamá',
+    para: 'para iniciar sesión en Kamá',
+  },
   // HU-04: el personal cambia su contraseña temporal en el primer ingreso.
   CAMBIO_PASSWORD_INICIAL: {
     asunto: 'Código para cambiar tu contraseña temporal en Kamá',

@@ -57,10 +57,21 @@ export class PrismaCodigoPersonalRepository implements CodigoPersonalRepository 
     ]);
   }
 
+  async reservarIntento(
+    codigoId: string,
+    maxIntentos: number,
+  ): Promise<boolean> {
+    const { count } = await this.prisma.codigoVerificacion.updateMany({
+      where: { id: codigoId, usadoEn: null, intentos: { lt: maxIntentos } },
+      data: { intentos: { increment: 1 } },
+    });
+    return count > 0;
+  }
+
   async actualizar(codigo: CodigoPersonal): Promise<void> {
     await this.prisma.codigoVerificacion.update({
       where: { id: codigo.id },
-      data: { intentos: codigo.intentosFallidos, usadoEn: codigo.usadoEn },
+      data: { usadoEn: codigo.usadoEn },
     });
   }
 }

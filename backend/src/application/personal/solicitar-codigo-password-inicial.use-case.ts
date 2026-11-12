@@ -55,7 +55,8 @@ export class SolicitarCodigoPasswordInicialUseCase {
       ahora,
       politica,
     });
-    await this.codigos.emitir(nuevo);
+    // Primero se envía y después se guarda: si el envío falla, no queda un código
+    // guardado que obligue a esperar para pedir otro.
     await this.enviador.enviar({
       canal: 'CORREO',
       destino: cuenta.correo.valor,
@@ -63,6 +64,7 @@ export class SolicitarCodigoPasswordInicialUseCase {
       proposito: 'CAMBIO_PASSWORD_INICIAL',
       vigenciaMinutos: politica.vigenciaMinutos,
     });
+    await this.codigos.emitir(nuevo);
 
     return { destino: cuenta.correo.enmascarado(), expiraEn: nuevo.expiraEn };
   }
