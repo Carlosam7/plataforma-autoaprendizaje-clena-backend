@@ -117,3 +117,13 @@ export class ReenvioMuyProntoError extends ErrorDeNegocio {
     );
   }
 }
+
+export class EnvioCodigoFallidoError extends ErrorDeNegocio {
+  constructor() {
+    super(
+      'ENVIO_CODIGO_FALLIDO',
+      'servicio_no_disponible',
+      'No pudimos enviarte el código. Intenta de nuevo más tarde o pide ayuda a un monitor.',
+    );
+  }
+}

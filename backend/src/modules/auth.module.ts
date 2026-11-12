@@ -30,6 +30,8 @@ import {
 import { JwtEmisorSesion } from '../infrastructure/seguridad/jwt-emisor-sesion.js';
 import { AvisoPrivacidadController } from '../presentation/auth/aviso-privacidad.controller.js';
 import { RegistroController } from '../presentation/auth/registro.controller.js';
+import { SmtpEnviadorCorreo } from '../infrastructure/notificaciones/smtp-enviador-correo.js';
+import { EnviadorPorCanal } from '../infrastructure/notificaciones/enviador-por-canal.js';
 
 type Config = ConfigService<VariablesEntorno, true>;
 
@@ -57,7 +59,28 @@ type Config = ConfigService<VariablesEntorno, true>;
     },
     { provide: GeneradorCodigo, useClass: GeneradorCodigoNumerico },
     { provide: HasherCodigo, useFactory: () => new BcryptHasherCodigo() },
-    { provide: EnviadorCodigo, useClass: ConsolaEnviadorCodigo },
+    {
+      provide: EnviadorCodigo,
+      inject: [ConfigService],
+      useFactory: (config: Config) => {
+        const correo =
+          config.get('NOTIFICACIONES_CORREO', { infer: true }) === 'smtp'
+            ? new SmtpEnviadorCorreo({
+                host: config.get('SMTP_HOST', { infer: true }),
+                puerto: config.get('SMTP_PUERTO', { infer: true }),
+                usuario: config.get('SMTP_USUARIO', { infer: true }),
+                clave: config.get('SMTP_CLAVE', { infer: true }),
+                remitente: config.get('CORREO_REMITENTE', { infer: true }),
+              })
+            : new ConsolaEnviadorCodigo();
+
+        const sms = new ConsolaEnviadorCodigo();
+        return new EnviadorPorCanal({
+          CORREO: correo,
+          TELEFONO: sms,
+        });
+      },
+    },
     {
       provide: EmisorSesion,
       inject: [JwtService, PrismaService, ConfigService, GeneradorId, Reloj],
