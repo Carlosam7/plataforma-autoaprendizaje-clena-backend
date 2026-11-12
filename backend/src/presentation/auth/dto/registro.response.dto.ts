@@ -51,9 +51,9 @@ export class SesionIniciadaResponseDto {
   @ApiProperty()
   accessTokenExpiraEn: Date;
 
-  @ApiProperty()
-  refreshToken: string;
-
-  @ApiProperty()
+  @ApiProperty({
+    description:
+      'Hasta cuándo dura la sesión. El refresh token no va en el cuerpo: llega en la cookie httpOnly refresh_token.',
+  })
   refreshTokenExpiraEn: Date;
 }

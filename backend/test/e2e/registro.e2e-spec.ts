@@ -2,7 +2,12 @@ import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { App } from 'supertest/types.js';
 import { PrismaService } from '../../src/infrastructure/database/prisma.service.js';
-import { BuzonCodigos, crearApp, limpiarBaseDatos } from './app.js';
+import {
+  BuzonCodigos,
+  cookieRefresh,
+  crearApp,
+  limpiarBaseDatos,
+} from './app.js';
 
 const RUTA = '/api/v1/auth/registro';
 
@@ -90,8 +95,10 @@ describe('HU-01 · Registro con consentimiento (e2e)', () => {
     expect(verificacion.body).toMatchObject({
       usuario: { nombre: 'Carmen Rodríguez', rol: 'USUARIO_PUBLICO' },
       accessToken: expect.any(String),
-      refreshToken: expect.stringContaining('.'),
     });
+    // El refresh token llega en la cookie httpOnly, no en el cuerpo.
+    expect(verificacion.body).not.toHaveProperty('refreshToken');
+    const refreshToken = cookieRefresh(verificacion).split('=')[1];
     // La cédula no viaja en la respuesta ni dentro del JWT (que se puede decodificar).
     expect(JSON.stringify(verificacion.body)).not.toContain('41234567');
     const [, cargaJwt] = verificacion.body.accessToken.split('.');
@@ -127,9 +134,7 @@ describe('HU-01 · Registro con consentimiento (e2e)', () => {
     });
     expect(token.usuarioPublicoId).toBe('41234567');
     // El refresh token nunca se guarda en claro.
-    expect(token.tokenHash).not.toContain(
-      verificacion.body.refreshToken.split('.')[1],
-    );
+    expect(token.tokenHash).not.toContain(refreshToken.split('.')[1]);
     // El código usado ya no sirve.
     expect(
       await prisma.codigoVerificacion.count({ where: { usadoEn: null } }),

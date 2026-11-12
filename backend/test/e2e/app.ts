@@ -107,3 +107,14 @@ export async function sesionUsuarioPublico(
     .iniciar({ id: usuario.numeroIdentificacion, rol: 'USUARIO_PUBLICO' });
   return sesion.accessToken;
 }
+
+/** La cookie `refresh_token=<valor>` que puso la respuesta, lista para enviarla en `Cookie`. */
+export function cookieRefresh(respuesta: {
+  headers: Record<string, unknown>;
+}): string {
+  const cookies =
+    (respuesta.headers['set-cookie'] as string[] | undefined) ?? [];
+  const cookie = cookies.find((c) => c.startsWith('refresh_token='));
+  if (!cookie) throw new Error('La respuesta no puso la cookie refresh_token');
+  return cookie.split(';')[0];
+}

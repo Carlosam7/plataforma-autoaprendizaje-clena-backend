@@ -34,15 +34,6 @@ export class VerificarInicioSesionRequestDto {
   codigo: string;
 }
 
-export class RefreshTokenRequestDto {
-  @ApiProperty({
-    description: 'El refresh token que se recibió al iniciar sesión',
-  })
-  @IsString({ message: 'Falta el refresh token.' })
-  @MaxLength(200, { message: 'El refresh token no es válido.' })
-  refreshToken: string;
-}
-
 export class InicioSesionSolicitadoResponseDto {
   @ApiProperty({
     format: 'uuid',
@@ -78,9 +69,9 @@ export class SesionRenovadaResponseDto {
   @ApiProperty()
   accessTokenExpiraEn: Date;
 
-  @ApiProperty({ description: 'Nuevo refresh token: el anterior ya no sirve' })
-  refreshToken: string;
-
-  @ApiProperty()
+  @ApiProperty({
+    description:
+      'Hasta cuándo dura la sesión renovada. El refresh token nuevo llega en la cookie refresh_token.',
+  })
   refreshTokenExpiraEn: Date;
 }

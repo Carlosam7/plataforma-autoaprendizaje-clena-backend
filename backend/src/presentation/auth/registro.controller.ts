@@ -4,6 +4,7 @@ import {
   HttpCode,
   HttpStatus,
   Post,
+  Res,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -18,7 +19,9 @@ import {
   ApiTooManyRequestsResponse,
 } from '@nestjs/swagger';
 import { ThrottlerGuard } from '@nestjs/throttler';
+import type { Response } from 'express';
 import { RespuestaErrorDto } from '../shared/respuesta-error.dto.js';
+import { ponerCookieRefresh } from './cookie-refresh.js';
 import { Publico } from '../shared/publico.decorator.js';
 import { CodigoEnviadoResultado } from '../../application/auth/codigo-enviado.js';
 import { ReenviarCodigoRegistroUseCase } from '../../application/auth/reenviar-codigo-registro.use-case.js';
@@ -100,9 +103,10 @@ export class RegistroController {
   })
   async verificar(
     @Body() dto: VerificarRegistroRequestDto,
+    @Res({ passthrough: true }) res: Response,
   ): Promise<SesionIniciadaResponseDto> {
     const { usuario, sesion } = await this.verificarRegistro.ejecutar(dto);
-    return { usuario, ...sesion };
+    return { usuario, ...ponerCookieRefresh(res, sesion) };
   }
 
   @Post('reenviar-codigo')

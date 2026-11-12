@@ -2,7 +2,12 @@ import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { App } from 'supertest/types.js';
 import { PrismaService } from '../../src/infrastructure/database/prisma.service.js';
-import { BuzonCodigos, crearApp, limpiarBaseDatos } from './app.js';
+import {
+  BuzonCodigos,
+  cookieRefresh,
+  crearApp,
+  limpiarBaseDatos,
+} from './app.js';
 
 const API = '/api/v1/auth';
 
@@ -57,10 +62,9 @@ describe('HU-02 · Inicio de sesión con sesión persistente (e2e)', () => {
         codigo: buzon.ultimoPara(destino),
       })
       .expect(200);
-    return verificacion.body as {
-      accessToken: string;
-      refreshToken: string;
-      usuario: { nombre: string; rol: string };
+    return {
+      accessToken: verificacion.body.accessToken as string,
+      cookie: cookieRefresh(verificacion),
     };
   }
 
@@ -71,7 +75,7 @@ describe('HU-02 · Inicio de sesión con sesión persistente (e2e)', () => {
       .set('Authorization', `Bearer ${token}`);
   }
 
-  it('envía un código al correo y con él entrega access token y refresh token', async () => {
+  it('envía un código al correo y con él entrega el access token y el refresh token en una cookie httpOnly', async () => {
     const solicitud = await http()
       .post(`${API}/login`)
       .send({ numeroIdentificacion: '41234567', contacto: 'Carmen@Correo.com' })
@@ -100,12 +104,19 @@ describe('HU-02 · Inicio de sesión con sesión persistente (e2e)', () => {
     expect(sesion.body).toMatchObject({
       usuario: { nombre: 'Carmen Rodríguez', rol: 'USUARIO_PUBLICO' },
       accessToken: expect.any(String),
-      refreshToken: expect.any(String),
+      refreshTokenExpiraEn: expect.any(String),
     });
+    // El refresh token no va en el cuerpo: solo en una cookie que JavaScript no puede leer.
+    expect(sesion.body).not.toHaveProperty('refreshToken');
+    const [setCookie] = sesion.headers['set-cookie'] as unknown as string[];
+    expect(setCookie).toMatch(/^refresh_token=[^;]+;/);
+    expect(setCookie).toContain('HttpOnly');
+    expect(setCookie).toContain('SameSite=Strict');
+    expect(setCookie).toContain('Path=/api/v1/auth');
     // La cédula no viaja en la respuesta ni en el JWT.
     expect(JSON.stringify(sesion.body)).not.toContain('41234567');
     // El refresh token se guarda con hash, nunca en claro.
-    const [, secreto] = sesion.body.refreshToken.split('.');
+    const [, secreto] = cookieRefresh(sesion).split('.');
     const guardados = await prisma.refreshToken.findMany();
     expect(guardados).toHaveLength(1);
     expect(guardados[0].tokenHash).not.toContain(secreto);
@@ -210,10 +221,10 @@ describe('HU-02 · Inicio de sesión con sesión persistente (e2e)', () => {
 
     const renovada = await http()
       .post(`${API}/refresh`)
-      .send({ refreshToken: inicial.refreshToken })
+      .set('Cookie', inicial.cookie)
       .expect(200);
 
-    expect(renovada.body.refreshToken).not.toBe(inicial.refreshToken);
+    expect(cookieRefresh(renovada)).not.toBe(inicial.cookie);
     // El access token nuevo funciona (403: válido pero sin rol para esa ruta) y el viejo no (401).
     await rutaProtegida(renovada.body.accessToken).expect(403);
     await rutaProtegida(inicial.accessToken).expect(401);
@@ -223,48 +234,60 @@ describe('HU-02 · Inicio de sesión con sesión persistente (e2e)', () => {
     const inicial = await iniciarSesion();
     const renovada = await http()
       .post(`${API}/refresh`)
-      .send({ refreshToken: inicial.refreshToken })
+      .set('Cookie', inicial.cookie)
       .expect(200);
 
     const reutilizado = await http()
       .post(`${API}/refresh`)
-      .send({ refreshToken: inicial.refreshToken })
+      .set('Cookie', inicial.cookie)
       .expect(401);
     expect(reutilizado.body.codigo).toBe('SESION_INVALIDA');
 
     await http()
       .post(`${API}/refresh`)
-      .send({ refreshToken: renovada.body.refreshToken })
+      .set('Cookie', cookieRefresh(renovada))
       .expect(401);
     expect(
       await prisma.refreshToken.count({ where: { revocadoEn: null } }),
     ).toBe(0);
   });
 
-  it('cerrar sesión invalida el refresh token y el access token', async () => {
+  it('cerrar sesión invalida el refresh token, el access token y borra la cookie', async () => {
     const sesion = await iniciarSesion();
 
-    await http()
+    const cierre = await http()
       .post(`${API}/logout`)
-      .send({ refreshToken: sesion.refreshToken })
+      .set('Cookie', sesion.cookie)
       .expect(204);
+    expect(cierre.headers['set-cookie']).toEqual([
+      expect.stringMatching(/^refresh_token=;.*Expires=Thu, 01 Jan 1970/),
+    ]);
 
     await http()
       .post(`${API}/refresh`)
-      .send({ refreshToken: sesion.refreshToken })
+      .set('Cookie', sesion.cookie)
       .expect(401);
     await rutaProtegida(sesion.accessToken).expect(401);
   });
 
   it('rechaza refresh tokens inventados o mal formados sin error interno', async () => {
-    for (const refreshToken of [
+    for (const valor of [
       'inventado',
       '00000000-0000-0000-0000-000000000000.secreto',
       'a.b.c',
+      '%E0%A4%A',
     ]) {
-      await http().post(`${API}/refresh`).send({ refreshToken }).expect(401);
+      await http()
+        .post(`${API}/refresh`)
+        .set('Cookie', `refresh_token=${valor}`)
+        .expect(401);
     }
-    await http().post(`${API}/refresh`).send({}).expect(400);
+    // Sin cookie: 401, y un refresh token en el cuerpo ya no se acepta.
+    await http().post(`${API}/refresh`).expect(401);
+    await http()
+      .post(`${API}/refresh`)
+      .send({ refreshToken: 'cualquiera' })
+      .expect(401);
   });
 
   it('valida la entrada con el formato uniforme de errores', async () => {
