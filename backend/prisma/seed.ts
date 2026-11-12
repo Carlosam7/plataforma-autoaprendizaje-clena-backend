@@ -3,6 +3,7 @@
 //   pnpm prisma:seed
 import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
+import bcrypt from 'bcryptjs';
 import { PrismaClient } from '../src/infrastructure/database/prisma/generated/client.js';
 
 const AVISO_PRIVACIDAD = {
@@ -34,6 +35,40 @@ const CATEGORIAS = [
   },
 ];
 
+/**
+ * HU-04: administrador inicial, con datos tomados de variables de entorno (nunca del código).
+ * Queda con debe_cambiar_password = true: la contraseña del .env es temporal.
+ * Si ya existe una cuenta con ese correo no se toca, así volver a sembrar no pisa su contraseña.
+ */
+async function sembrarAdministradorInicial(
+  prisma: PrismaClient,
+): Promise<string> {
+  const nombre = process.env.ADMIN_INICIAL_NOMBRE?.trim();
+  const correo = process.env.ADMIN_INICIAL_CORREO?.trim().toLowerCase();
+  const password = process.env.ADMIN_INICIAL_PASSWORD;
+  if (!nombre || !correo || !password) {
+    return 'sin administrador inicial (define ADMIN_INICIAL_NOMBRE, ADMIN_INICIAL_CORREO y ADMIN_INICIAL_PASSWORD)';
+  }
+  if (password.length < 8 || !/\p{L}/u.test(password) || !/\d/.test(password)) {
+    throw new Error(
+      'ADMIN_INICIAL_PASSWORD debe tener al menos 8 caracteres, con una letra y un número',
+    );
+  }
+
+  await prisma.personal.upsert({
+    where: { correo },
+    create: {
+      nombre,
+      correo,
+      passwordHash: await bcrypt.hash(password, 12),
+      rol: 'ADMINISTRADOR',
+      debeCambiarPassword: true,
+    },
+    update: {},
+  });
+  return `administrador inicial ${correo}`;
+}
+
 async function main(): Promise<void> {
   const url = process.env.DATABASE_URL;
   if (!url) throw new Error('Define DATABASE_URL para cargar las semillas');
@@ -59,8 +94,10 @@ async function main(): Promise<void> {
       });
     }
 
+    const admin = await sembrarAdministradorInicial(prisma);
+
     console.log(
-      `Semillas cargadas: aviso de privacidad ${AVISO_PRIVACIDAD.version} y ${CATEGORIAS.length} categoría(s).`,
+      `Semillas cargadas: aviso de privacidad ${AVISO_PRIVACIDAD.version}, ${CATEGORIAS.length} categoría(s) y ${admin}.`,
     );
   } finally {
     await prisma.$disconnect();

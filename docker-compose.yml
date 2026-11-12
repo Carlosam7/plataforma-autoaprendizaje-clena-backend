@@ -34,6 +34,12 @@ services:
       # Valor solo para desarrollo local; en cualquier despliegue real defínelo en .env.
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-solo-desarrollo-local-cambia-este-secreto-ya}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8080,http://localhost:5173}
+      # HU-04: administrador inicial que crean las semillas al arrancar. Valores solo para
+      # desarrollo local (la contraseña se debe cambiar en el primer ingreso); en un despliegue
+      # real defínelos en .env.
+      ADMIN_INICIAL_NOMBRE: ${ADMIN_INICIAL_NOMBRE:-Administrador CLENA}
+      ADMIN_INICIAL_CORREO: ${ADMIN_INICIAL_CORREO:-admin@clena.example}
+      ADMIN_INICIAL_PASSWORD: ${ADMIN_INICIAL_PASSWORD:-CambiaEsta2026}
     ports:
       - "3000:3000"
     depends_on:
