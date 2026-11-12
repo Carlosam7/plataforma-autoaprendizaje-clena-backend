@@ -138,10 +138,11 @@ Regístralo en `AppModule.imports`.
 ## 4. Requisitos transversales que todo endpoint respeta
 
 - Prefijo `/api/v1` (global en `main.ts`); Swagger en `/docs`; salud en `/api/v1/health`.
-- Toda entrada validada por DTO (`ValidationPipe` global con `whitelist`, `forbidNonWhitelisted`, `transform`).
+- Toda entrada validada por DTO (`crearPipeValidacion()` global: `whitelist`, `forbidNonWhitelisted`, `transform`). Cada decorador de `class-validator` lleva `{ message: '...' }` en español sencillo: ese texto es el que ve el usuario.
 - Todo listado: paginación + filtros + ordenamiento. Respuesta `{ datos, total, pagina, limite }`.
-- Errores uniformes vía `ExcepcionesFilter` (`statusCode, codigo, mensaje, detalles?, ruta, fecha`). Mensajes en lenguaje sencillo para adultos mayores; nunca filtrar SQL/stack al cliente.
+- Errores uniformes vía el único filtro global `ExcepcionesFilter`: `{ statusCode, codigo, mensaje, detalles?, ruta, fecha }`. Validación → `codigo: 'DATOS_INVALIDOS'`, `mensaje` = primer error y `detalles.campos` = `{ campo: [mensajes] }`. Errores de negocio: clases que extienden `ErrorDeNegocio` (`src/domain/shared/error-de-negocio.ts`) con un `tipo` (`validacion`, `conflicto`, `no_encontrado`, `expirado`…) que el filtro traduce a HTTP. Nunca filtrar SQL/stack al cliente.
 - Roles: `ADMINISTRADOR`, `PERSONAL` (personal del CLENA) y usuario público. JWT access + refresh, contraseñas con bcrypt/argon2.
+- El access token **no lleva datos personales**: solo `{ sid, rol }`, donde `sid` es la fila de `refresh_token`; el usuario se obtiene de esa fila. Nunca pongas la cédula (llave de `usuario_publico`) en el JWT ni en respuestas que no la necesiten.
 - Ley 1581: datos personales mínimos, consentimiento explícito, aviso de privacidad, opción de eliminar cuenta. No pidas ni guardes datos que la HU no necesite.
 - Configuración solo por variables de entorno; toda variable nueva va a `backend/.env.example` (sin valores secretos reales). Nada de secretos en el código.
 - Logs: `Logger` de Nest (o el logger estructurado del proyecto), nunca `console.log`.
@@ -150,13 +151,14 @@ Regístralo en `AppModule.imports`.
 
 - Cambios de esquema = `pnpm prisma:migrate --name <descripcion>` → migración versionada en `prisma/migrations/`. Prohibido `db push`/`synchronize` fuera de local. Nunca edites una migración ya fusionada; crea otra.
 - Índice en toda columna por la que se busca o filtra.
-- Datos semilla ficticios (nunca datos reales del CLENA) en el script de seed del proyecto; añade los registros que tu HU necesita para la demo.
+- Datos semilla ficticios (nunca datos reales del CLENA) en `prisma/seed.ts` (`pnpm prisma:seed`), con `upsert` para que sea idempotente; añade los registros que tu HU necesita para la demo. El contenedor y los e2e lo ejecutan solos.
+- El modelo de datos oficial (`docs/Modelo de datos — Kamá.pdf` + migración inicial) manda: no crees tablas paralelas para una HU; si de verdad falta algo, migración nueva y actualizar el PDF.
 
 ## 6. Pruebas (mínimo por HU)
 
 - Unitaria del caso de uso en `src/application/<modulo>/__tests__/<accion>.use-case.spec.ts` con un repositorio falso que extiende el puerto (sin Nest, sin BD). Cubre camino feliz + cada regla/criterio de aceptación + errores de dominio.
 - Unitaria de reglas de la entidad en `src/domain/<modulo>/__tests__/` si la entidad tiene lógica.
-- e2e del flujo principal en `test/e2e/<modulo>.e2e-spec.ts` con supertest contra `/api/v1/...` (incluye 400 por validación y 401/403 si la ruta es protegida).
+- e2e del flujo principal en `test/e2e/<modulo>.e2e-spec.ts` con supertest contra `/api/v1/...` (incluye 400 por validación y 401/403 si la ruta es protegida). Usa `crearApp()`/`limpiarBaseDatos()` de `test/e2e/app.ts`; corren contra la base `clena_e2e` que prepara `global-setup.ts` (migraciones + semillas).
 - Meta: ≥ 70 % de cobertura en `domain` y `application` (`pnpm test:cov`).
 
 ## 7. Frontend (la HU no está terminada sin pantalla)

@@ -7,8 +7,12 @@ export default defineConfig({
     globals: true,
     root: './',
     include: ['**/*.e2e-spec.ts'],
-    // Los e2e comparten la misma base de datos: uno detrás de otro.
+    // global-setup crea la base clena_e2e, aplica migraciones y carga las semillas.
+    globalSetup: ['./test/e2e/global-setup.ts'],
+    setupFiles: ['./test/e2e/setup.ts'],
+    // Los archivos comparten la base de datos: se ejecutan uno tras otro.
     fileParallelism: false,
-    env: { NODE_ENV: 'test', LOG_LEVEL: 'silent' },
+    // Sin logs de pino durante las pruebas.
+    env: { LOG_LEVEL: 'silent' },
   },
 });

@@ -1,10 +1,7 @@
-import {
-  ArgumentsHost,
-  BadRequestException,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { ArgumentsHost, Logger, NotFoundException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
+import { TelefonoEnUsoError } from '../../../domain/auth/errores.js';
+import { errorDeValidacion } from '../../shared/pipe-validacion.js';
 import { ExcepcionesFilter } from '../excepciones.filter.js';
 
 function ejecutar(error: unknown) {
@@ -24,26 +21,41 @@ function ejecutar(error: unknown) {
 }
 
 describe('ExcepcionesFilter', () => {
-  it('validación: 400 con mensaje sencillo y los detalles de cada campo', () => {
-    const { status, cuerpo } = ejecutar(
-      new BadRequestException(['pagina must not be less than 1']),
-    );
+  it('validación: 400 con el primer mensaje y los mensajes de cada campo', () => {
+    const errorPipe = errorDeValidacion([
+      {
+        property: 'limite',
+        constraints: { max: 'El límite puede ser máximo 100.' },
+        children: [],
+      },
+    ]);
+    const { status, cuerpo } = ejecutar(errorPipe);
     expect(status).toBe(400);
     expect(cuerpo).toMatchObject({
       statusCode: 400,
       codigo: 'DATOS_INVALIDOS',
-      detalles: ['pagina must not be less than 1'],
+      mensaje: 'El límite puede ser máximo 100.',
+      detalles: { campos: { limite: ['El límite puede ser máximo 100.'] } },
       ruta: '/api/v1/prueba',
     });
   });
 
-  it('404 con texto simple usa la misma forma', () => {
+  it('error de negocio: el tipo define el estado y el mensaje se muestra tal cual', () => {
+    const { status, cuerpo } = ejecutar(new TelefonoEnUsoError());
+    expect(status).toBe(409);
+    expect(cuerpo).toMatchObject({
+      codigo: 'TELEFONO_EN_USO',
+      mensaje: 'Ese teléfono ya está en uso, prueba con otro',
+    });
+  });
+
+  it('una HttpException del framework usa el mensaje sencillo de su estado', () => {
     const { cuerpo } = ejecutar(new NotFoundException('Cannot GET /x'));
     expect(cuerpo).toMatchObject({
       codigo: 'NO_ENCONTRADO',
       mensaje: 'No encontramos lo que buscas.',
-      detalles: ['Cannot GET /x'],
     });
+    expect(JSON.stringify(cuerpo)).not.toContain('Cannot GET');
   });
 
   it('error inesperado: 500 sin filtrar el detalle interno al cliente', () => {

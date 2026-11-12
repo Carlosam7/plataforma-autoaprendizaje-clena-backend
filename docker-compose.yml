@@ -27,7 +27,13 @@ services:
     restart: unless-stopped
     environment:
       PORT: 3000
+      # Mientras no haya proveedor real de correo/SMS los códigos se escriben en los
+      # logs (NOTIFICACIONES_PROVEEDOR=consola), y eso solo se permite fuera de producción.
+      NODE_ENV: ${NODE_ENV:-development}
       DATABASE_URL: postgresql://${DATABASE_USER:-clena}:${DATABASE_PASSWORD:-clena}@postgres:5432/${DATABASE_NAME:-clena}
+      # Valor solo para desarrollo local; en cualquier despliegue real defínelo en .env.
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-solo-desarrollo-local-cambia-este-secreto-ya}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8080,http://localhost:5173}
     ports:
       - "3000:3000"
     depends_on:

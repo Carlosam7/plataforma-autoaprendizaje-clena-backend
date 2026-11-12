@@ -3,3 +3,4 @@ allowBuilds:
   '@scarf/scarf': true
   esbuild: true
   prisma: true
+  workerd: false
