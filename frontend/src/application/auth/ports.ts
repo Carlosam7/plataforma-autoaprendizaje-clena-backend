@@ -14,5 +14,6 @@ export interface AuthRepository {
   reenviarCodigo(registroId: string): Promise<CodigoEnviado>;
   obtenerSesion(): Promise<AuthSession | null>;
   guardarSesion(sesion: AuthSession): Promise<void>;
+  renovarSesion?(): Promise<AuthSession>;
   cerrarSesion(): Promise<void>;
 }

@@ -13,6 +13,8 @@ export interface VariablesEntorno {
   CODIGO_VERIFICACION_TTL_MINUTOS: number;
   CODIGO_VERIFICACION_MAX_INTENTOS: number;
   CODIGO_VERIFICACION_ESPERA_REENVIO_SEGUNDOS: number;
+  AUTH_LIMITE_PETICIONES: number;
+  AUTH_LIMITE_VENTANA_SEGUNDOS: number;
   NOTIFICACIONES_CORREO: 'consola' | 'smtp';
   NOTIFICACIONES_SMS: 'consola' | 'twilio' | 'textbee';
   SMTP_HOST: string;
@@ -115,6 +117,10 @@ export function validarVariablesEntorno(
       'CODIGO_VERIFICACION_ESPERA_REENVIO_SEGUNDOS',
       60,
     ),
+    // HU-02: peticiones por IP a login, verificación, refresh y logout dentro de la ventana.
+    // La sala comparte IP, así que el límite no puede ser muy bajo.
+    AUTH_LIMITE_PETICIONES: entero('AUTH_LIMITE_PETICIONES', 30),
+    AUTH_LIMITE_VENTANA_SEGUNDOS: entero('AUTH_LIMITE_VENTANA_SEGUNDOS', 60),
     NOTIFICACIONES_CORREO: notificacionesCorreo,
     NOTIFICACIONES_SMS: notificacionesSms,
     // Solo son obligatorias si el correo se envía de verdad.

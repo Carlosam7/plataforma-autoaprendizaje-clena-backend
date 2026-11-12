@@ -36,7 +36,8 @@ export class ReenviarCodigoRegistroUseCase {
       politicaCodigo,
     );
 
-    await this.registros.guardar(registro);
+    // Primero se envía y después se guarda: si el envío falla, no queda un código
+    // guardado que obligue a esperar para pedir otro.
     await this.enviador.enviar({
       canal: registro.canal,
       destino: registro.destino.valor,
@@ -44,6 +45,7 @@ export class ReenviarCodigoRegistroUseCase {
       proposito: 'REGISTRO',
       vigenciaMinutos: politicaCodigo.vigenciaMinutos,
     });
+    await this.registros.guardar(registro);
 
     return resultadoCodigoEnviado(
       registro,

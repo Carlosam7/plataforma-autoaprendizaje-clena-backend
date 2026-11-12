@@ -2,6 +2,14 @@ import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtModule, JwtService } from '@nestjs/jwt';
+import { ThrottlerModule } from '@nestjs/throttler';
+import { CerrarSesionUseCase } from '../application/auth/cerrar-sesion.use-case.js';
+import { RenovarSesionUseCase } from '../application/auth/renovar-sesion.use-case.js';
+import { SolicitarInicioSesionUseCase } from '../application/auth/solicitar-inicio-sesion.use-case.js';
+import { VerificarInicioSesionUseCase } from '../application/auth/verificar-inicio-sesion.use-case.js';
+import { InicioSesionRepository } from '../domain/auth/inicio-sesion.repository.js';
+import { PrismaInicioSesionRepository } from '../infrastructure/database/repositories/prisma-inicio-sesion.repository.js';
+import { SesionController } from '../presentation/auth/sesion.controller.js';
 import {
   EnviadorCodigo,
   GeneradorCodigo,
@@ -55,8 +63,23 @@ type Config = ConfigService<VariablesEntorno, true>;
         secret: config.get('JWT_ACCESS_SECRET', { infer: true }),
       }),
     }),
+    // Lo usa el ThrottlerGuard de SesionController (no es global).
+    ThrottlerModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: Config) => [
+        {
+          ttl:
+            config.get('AUTH_LIMITE_VENTANA_SEGUNDOS', { infer: true }) * 1000,
+          limit: config.get('AUTH_LIMITE_PETICIONES', { infer: true }),
+        },
+      ],
+    }),
   ],
-  controllers: [RegistroController, AvisoPrivacidadController],
+  controllers: [
+    RegistroController,
+    AvisoPrivacidadController,
+    SesionController,
+  ],
   providers: [
     // Guards globales, en este orden: primero quién eres (401), después qué puedes hacer (403).
     { provide: APP_GUARD, useClass: JwtAuthGuard },
@@ -187,6 +210,52 @@ type Config = ConfigService<VariablesEntorno, true>;
       useFactory: (
         ...deps: ConstructorParameters<typeof ReenviarCodigoRegistroUseCase>
       ) => new ReenviarCodigoRegistroUseCase(...deps),
+    },
+    {
+      provide: InicioSesionRepository,
+      useClass: PrismaInicioSesionRepository,
+    },
+    {
+      provide: SolicitarInicioSesionUseCase,
+      inject: [
+        InicioSesionRepository,
+        GeneradorCodigo,
+        HasherCodigo,
+        EnviadorCodigo,
+        GeneradorId,
+        Reloj,
+        ConfiguracionRegistro,
+      ],
+      useFactory: (
+        ...deps: ConstructorParameters<typeof SolicitarInicioSesionUseCase>
+      ) => new SolicitarInicioSesionUseCase(...deps),
+    },
+    {
+      provide: VerificarInicioSesionUseCase,
+      inject: [
+        InicioSesionRepository,
+        HasherCodigo,
+        EmisorSesion,
+        Reloj,
+        ConfiguracionRegistro,
+      ],
+      useFactory: (
+        ...deps: ConstructorParameters<typeof VerificarInicioSesionUseCase>
+      ) => new VerificarInicioSesionUseCase(...deps),
+    },
+    {
+      provide: RenovarSesionUseCase,
+      inject: [EmisorSesion, Reloj],
+      useFactory: (
+        ...deps: ConstructorParameters<typeof RenovarSesionUseCase>
+      ) => new RenovarSesionUseCase(...deps),
+    },
+    {
+      provide: CerrarSesionUseCase,
+      inject: [EmisorSesion, Reloj],
+      useFactory: (
+        ...deps: ConstructorParameters<typeof CerrarSesionUseCase>
+      ) => new CerrarSesionUseCase(...deps),
     },
     {
       provide: ObtenerAvisoPrivacidadUseCase,

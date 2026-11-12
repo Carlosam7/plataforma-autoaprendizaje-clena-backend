@@ -13,7 +13,11 @@ const esDesarrollo = process.env.NODE_ENV === 'development';
       pinoHttp: {
         level: process.env.LOG_LEVEL ?? (esProduccion ? 'info' : 'debug'),
         // Nunca registrar credenciales ni cookies de sesión.
-        redact: ['req.headers.authorization', 'req.headers.cookie'],
+        redact: [
+          'req.headers.authorization',
+          'req.headers.cookie',
+          'res.headers["set-cookie"]',
+        ],
         // El healthcheck se consulta cada pocos segundos; no aporta al log.
         autoLogging: {
           ignore: (req) => req.url?.endsWith('/health') ?? false,

@@ -148,7 +148,12 @@ describe('HttpAuthRepository', () => {
     ).rejects.toThrow(AuthValidationError);
   });
 
-  it('guarda, recupera y cierra la sesión en localStorage', async () => {
+  it('guarda, recupera y cierra la sesión llamando a /auth/logout con credentials', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      status: 204,
+    } as Response);
+
     const sesion = {
       usuario: { nombre: 'Carmen', rol: 'USUARIO_PUBLICO' },
       accessToken: 'token-abc',
@@ -159,7 +164,43 @@ describe('HttpAuthRepository', () => {
     expect(obtenida).toEqual(sesion);
 
     await repository.cerrarSesion();
+    expect(fetchSpy).toHaveBeenCalledWith(
+      '/api/v1/auth/logout',
+      expect.objectContaining({
+        method: 'POST',
+        credentials: 'include',
+      }),
+    );
     const despuesDeCerrar = await repository.obtenerSesion();
     expect(despuesDeCerrar).toBeNull();
+  });
+
+  it('renovarSesion llama a /auth/refresh con credentials y rota el token', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        accessToken: 'nuevo-access-token',
+        accessTokenExpiraEn: '2026-01-01T01:00:00.000Z',
+        refreshTokenExpiraEn: '2026-01-08T00:00:00.000Z',
+      }),
+    } as Response);
+
+    await repository.guardarSesion({
+      usuario: { nombre: 'Carmen', rol: 'USUARIO_PUBLICO' },
+      accessToken: 'token-viejo',
+    });
+
+    const sesionRenovada = await repository.renovarSesion();
+
+    expect(fetchSpy).toHaveBeenCalledWith(
+      '/api/v1/auth/refresh',
+      expect.objectContaining({
+        method: 'POST',
+        credentials: 'include',
+      }),
+    );
+    expect(sesionRenovada.accessToken).toBe('nuevo-access-token');
+    expect(sesionRenovada.usuario.nombre).toBe('Carmen');
   });
 });
