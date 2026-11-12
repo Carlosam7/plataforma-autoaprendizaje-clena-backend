@@ -2,6 +2,7 @@ import {
   AvisoPrivacidad,
   AvisoPrivacidadRepository,
 } from '../../../domain/auth/aviso-privacidad.repository.js';
+import { EnvioCodigoFallidoError } from '../../../domain/auth/errores.js';
 import { RegistroPendiente } from '../../../domain/auth/registro-pendiente.js';
 import { RegistroPendienteRepository } from '../../../domain/auth/registro-pendiente.repository.js';
 import {
@@ -71,7 +72,13 @@ export class HasherFalso implements HasherCodigo {
 
 export class EnviadorEnMemoria implements EnviadorCodigo {
   enviados: MensajeCodigo[] = [];
+  /** true: el próximo envío falla como si el proveedor de correo o SMS no respondiera. */
+  fallaSiguiente = false;
   enviar(mensaje: MensajeCodigo): Promise<void> {
+    if (this.fallaSiguiente) {
+      this.fallaSiguiente = false;
+      return Promise.reject(new EnvioCodigoFallidoError());
+    }
     this.enviados.push(mensaje);
     return Promise.resolve();
   }

@@ -9,6 +9,7 @@ import {
   CodigoExpiradoError,
   CodigoIncorrectoError,
   CorreoEnUsoError,
+  EnvioCodigoFallidoError,
   IdentificacionYaRegistradaError,
   IntentosAgotadosError,
   RegistroNoEncontradoError,
@@ -99,6 +100,19 @@ async function registrarCuenta(
 }
 
 describe('SolicitarRegistroUseCase', () => {
+  it('si el envío del código falla, borra la solicitud y se puede intentar enseguida', async () => {
+    const ctx = montar();
+    ctx.enviador.fallaSiguiente = true;
+
+    await expect(ctx.solicitar.ejecutar(datosCarmen)).rejects.toThrow(
+      EnvioCodigoFallidoError,
+    );
+    expect(ctx.registros.registros.size).toBe(0);
+
+    await ctx.solicitar.ejecutar(datosCarmen);
+    expect(ctx.enviador.enviados).toHaveLength(1);
+  });
+
   it('guarda la solicitud y envía el código al correo, sin crear todavía la cuenta', async () => {
     const ctx = montar();
 

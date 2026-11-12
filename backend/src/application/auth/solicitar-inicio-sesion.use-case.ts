@@ -74,7 +74,8 @@ export class SolicitarInicioSesionUseCase {
       ahora,
       politica: politicaCodigo,
     });
-    await this.cuentas.emitirCodigo(nuevo);
+    // Primero se envía y después se guarda: si el envío falla, no queda un código
+    // guardado que obligue a esperar para pedir otro.
     await this.enviador.enviar({
       canal: cuenta.canal,
       destino: cuenta.destino.valor,
@@ -82,6 +83,7 @@ export class SolicitarInicioSesionUseCase {
       proposito: 'INICIO_SESION',
       vigenciaMinutos: politicaCodigo.vigenciaMinutos,
     });
+    await this.cuentas.emitirCodigo(nuevo);
 
     return {
       solicitudId: cuenta.metodoInicioId,

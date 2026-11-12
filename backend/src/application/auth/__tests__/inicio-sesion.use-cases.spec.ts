@@ -2,6 +2,7 @@ import {
   CodigoExpiradoError,
   CodigoIncorrectoError,
   CredencialesInvalidasError,
+  EnvioCodigoFallidoError,
   IntentosAgotadosError,
   ReenvioMuyProntoError,
   SesionInvalidaError,
@@ -80,6 +81,22 @@ function crearContexto() {
 }
 
 describe('HU-02 · Solicitar inicio de sesión', () => {
+  it('si el envío del código falla, se puede pedir otro enseguida', async () => {
+    const ctx = crearContexto();
+    const datos = {
+      numeroIdentificacion: '41234567',
+      contacto: 'carmen@correo.com',
+    };
+    ctx.enviador.fallaSiguiente = true;
+
+    await expect(ctx.solicitar.ejecutar(datos)).rejects.toThrow(
+      EnvioCodigoFallidoError,
+    );
+    await ctx.solicitar.ejecutar(datos);
+
+    expect(ctx.enviador.enviados).toHaveLength(1);
+  });
+
   it('con identificación y correo correctos envía un código al correo', async () => {
     const ctx = crearContexto();
 

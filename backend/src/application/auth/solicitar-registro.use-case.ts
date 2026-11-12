@@ -113,14 +113,22 @@ export class SolicitarRegistroUseCase {
       politica: politicaCodigo,
     });
 
+    // Se guarda antes de enviar porque guardar puede fallar por un contacto ocupado, y entonces
+    // no debe salir ningún código. Si el envío falla, se borra la solicitud: así la persona
+    // puede intentarlo enseguida sin esperar y su correo o celular no queda reservado.
     await this.registros.guardar(registro);
-    await this.enviador.enviar({
-      canal: registro.canal,
-      destino: registro.destino.valor,
-      codigo,
-      proposito: 'REGISTRO',
-      vigenciaMinutos: politicaCodigo.vigenciaMinutos,
-    });
+    try {
+      await this.enviador.enviar({
+        canal: registro.canal,
+        destino: registro.destino.valor,
+        codigo,
+        proposito: 'REGISTRO',
+        vigenciaMinutos: politicaCodigo.vigenciaMinutos,
+      });
+    } catch (error) {
+      await this.registros.eliminar(registro.id);
+      throw error;
+    }
 
     return resultadoCodigoEnviado(
       registro,
