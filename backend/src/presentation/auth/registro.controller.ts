@@ -1,4 +1,12 @@
-import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  HttpCode,
+  HttpStatus,
+  Post,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
 import {
   ApiAcceptedResponse,
   ApiBadRequestResponse,
@@ -10,7 +18,10 @@ import {
   ApiTags,
   ApiTooManyRequestsResponse,
 } from '@nestjs/swagger';
+import { ThrottlerGuard } from '@nestjs/throttler';
+import type { Response } from 'express';
 import { RespuestaErrorDto } from '../shared/respuesta-error.dto.js';
+import { ponerCookieRefresh } from './cookie-refresh.js';
 import { Publico } from '../shared/publico.decorator.js';
 import { CodigoEnviadoResultado } from '../../application/auth/codigo-enviado.js';
 import { ReenviarCodigoRegistroUseCase } from '../../application/auth/reenviar-codigo-registro.use-case.js';
@@ -26,8 +37,11 @@ import {
   VerificarRegistroRequestDto,
 } from './dto/verificar-registro.request.dto.js';
 
+// Límite por IP, como en SesionController: cada solicitud puede mandar un SMS pagado
+// y la verificación es un blanco de fuerza bruta.
 @ApiTags('Registro')
 @Publico()
+@UseGuards(ThrottlerGuard)
 @Controller('auth/registro')
 export class RegistroController {
   constructor(
@@ -89,9 +103,10 @@ export class RegistroController {
   })
   async verificar(
     @Body() dto: VerificarRegistroRequestDto,
+    @Res({ passthrough: true }) res: Response,
   ): Promise<SesionIniciadaResponseDto> {
     const { usuario, sesion } = await this.verificarRegistro.ejecutar(dto);
-    return { usuario, ...sesion };
+    return { usuario, ...ponerCookieRefresh(res, sesion) };
   }
 
   @Post('reenviar-codigo')

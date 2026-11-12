@@ -1,4 +1,7 @@
-import { CodigoIncorrectoError } from '../../domain/auth/errores.js';
+import {
+  CodigoIncorrectoError,
+  IntentosAgotadosError,
+} from '../../domain/auth/errores.js';
 import {
   CambioPasswordNoRequeridoError,
   CodigoNoSolicitadoError,
@@ -46,12 +49,17 @@ export class CambiarPasswordInicialUseCase {
     const ahora = this.reloj.ahora();
     const politica = this.config.politicaCodigo;
     codigo.asegurarUtilizable(ahora, politica);
+    // Se reserva el intento antes de comparar: así, con peticiones en paralelo, solo
+    // maxIntentos llegan a probar un código.
+    if (
+      !(await this.codigos.reservarIntento(codigo.id, politica.maxIntentos))
+    ) {
+      throw new IntentosAgotadosError();
+    }
     if (
       !(await this.hasherCodigo.coincide(entrada.codigo, codigo.codigoHash))
     ) {
-      const restantes = codigo.registrarIntentoFallido(politica);
-      await this.codigos.actualizar(codigo);
-      throw new CodigoIncorrectoError(restantes);
+      throw new CodigoIncorrectoError(codigo.registrarIntentoFallido(politica));
     }
 
     if (
