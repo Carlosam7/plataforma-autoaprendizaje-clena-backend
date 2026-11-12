@@ -1,2 +1,5 @@
 /DOCUMENTACION
 /graphify-out
+*.tsbuildinfo
+.pnpm-store
+
