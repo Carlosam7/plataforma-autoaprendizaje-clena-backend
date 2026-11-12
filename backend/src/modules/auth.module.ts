@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { APP_GUARD } from '@nestjs/core';
 import { JwtModule, JwtService } from '@nestjs/jwt';
 import {
   EnviadorCodigo,
@@ -11,16 +12,20 @@ import { EmisorSesion } from '../application/auth/emisor-sesion.port.js';
 import { ObtenerAvisoPrivacidadUseCase } from '../application/auth/obtener-aviso-privacidad.use-case.js';
 import { ReenviarCodigoRegistroUseCase } from '../application/auth/reenviar-codigo-registro.use-case.js';
 import { SolicitarRegistroUseCase } from '../application/auth/solicitar-registro.use-case.js';
+import { ValidarSesionUseCase } from '../application/auth/validar-sesion.use-case.js';
+import { VerificadorAccessToken } from '../application/auth/verificador-access-token.port.js';
 import { VerificarRegistroUseCase } from '../application/auth/verificar-registro.use-case.js';
 import { GeneradorId } from '../application/shared/generador-id.port.js';
 import { Reloj } from '../application/shared/reloj.port.js';
 import { AvisoPrivacidadRepository } from '../domain/auth/aviso-privacidad.repository.js';
 import { RegistroPendienteRepository } from '../domain/auth/registro-pendiente.repository.js';
+import { SesionRepository } from '../domain/auth/sesion.repository.js';
 import { UsuarioRepository } from '../domain/auth/usuario.repository.js';
 import { VariablesEntorno } from '../infrastructure/config/variables-entorno.js';
 import { PrismaService } from '../infrastructure/database/prisma.service.js';
 import { PrismaAvisoPrivacidadRepository } from '../infrastructure/database/repositories/prisma-aviso-privacidad.repository.js';
 import { PrismaRegistroPendienteRepository } from '../infrastructure/database/repositories/prisma-registro-pendiente.repository.js';
+import { PrismaSesionRepository } from '../infrastructure/database/repositories/prisma-sesion.repository.js';
 import { PrismaUsuarioRepository } from '../infrastructure/database/repositories/prisma-usuario.repository.js';
 import { ConsolaEnviadorCodigo } from '../infrastructure/notificaciones/consola-enviador-codigo.js';
 import {
@@ -28,8 +33,15 @@ import {
   GeneradorCodigoNumerico,
 } from '../infrastructure/seguridad/codigo-verificacion.js';
 import { JwtEmisorSesion } from '../infrastructure/seguridad/jwt-emisor-sesion.js';
+import { JwtVerificadorAccessToken } from '../infrastructure/seguridad/jwt-verificador-access-token.js';
 import { AvisoPrivacidadController } from '../presentation/auth/aviso-privacidad.controller.js';
+import { JwtAuthGuard } from '../presentation/auth/guards/jwt-auth.guard.js';
+import { RolesGuard } from '../presentation/auth/guards/roles.guard.js';
 import { RegistroController } from '../presentation/auth/registro.controller.js';
+import { SmtpEnviadorCorreo } from '../infrastructure/notificaciones/smtp-enviador-correo.js';
+import { EnviadorPorCanal } from '../infrastructure/notificaciones/enviador-por-canal.js';
+import { TwilioEnviadorSms } from '../infrastructure/notificaciones/twilio-enviador-sms.js';
+import { TextbeeEnviadorSms } from '../infrastructure/notificaciones/textbee-enviador-sms.js';
 
 type Config = ConfigService<VariablesEntorno, true>;
 
@@ -46,6 +58,18 @@ type Config = ConfigService<VariablesEntorno, true>;
   ],
   controllers: [RegistroController, AvisoPrivacidadController],
   providers: [
+    // Guards globales, en este orden: primero quién eres (401), después qué puedes hacer (403).
+    { provide: APP_GUARD, useClass: JwtAuthGuard },
+    { provide: APP_GUARD, useClass: RolesGuard },
+    { provide: SesionRepository, useClass: PrismaSesionRepository },
+    { provide: VerificadorAccessToken, useClass: JwtVerificadorAccessToken },
+    {
+      provide: ValidarSesionUseCase,
+      inject: [VerificadorAccessToken, SesionRepository, Reloj],
+      useFactory: (
+        ...deps: ConstructorParameters<typeof ValidarSesionUseCase>
+      ) => new ValidarSesionUseCase(...deps),
+    },
     { provide: UsuarioRepository, useClass: PrismaUsuarioRepository },
     {
       provide: RegistroPendienteRepository,
@@ -57,7 +81,45 @@ type Config = ConfigService<VariablesEntorno, true>;
     },
     { provide: GeneradorCodigo, useClass: GeneradorCodigoNumerico },
     { provide: HasherCodigo, useFactory: () => new BcryptHasherCodigo() },
-    { provide: EnviadorCodigo, useClass: ConsolaEnviadorCodigo },
+    {
+      provide: EnviadorCodigo,
+      inject: [ConfigService],
+      useFactory: (config: Config) => {
+        const correo =
+          config.get('NOTIFICACIONES_CORREO', { infer: true }) === 'smtp'
+            ? new SmtpEnviadorCorreo({
+                host: config.get('SMTP_HOST', { infer: true }),
+                puerto: config.get('SMTP_PUERTO', { infer: true }),
+                usuario: config.get('SMTP_USUARIO', { infer: true }),
+                clave: config.get('SMTP_CLAVE', { infer: true }),
+                remitente: config.get('CORREO_REMITENTE', { infer: true }),
+              })
+            : new ConsolaEnviadorCodigo();
+
+        const modoSms = config.get('NOTIFICACIONES_SMS', { infer: true });
+        const sms =
+          modoSms === 'twilio'
+            ? new TwilioEnviadorSms({
+                accountSid: config.get('TWILIO_ACCOUNT_SID', { infer: true }),
+                authToken: config.get('TWILIO_AUTH_TOKEN', { infer: true }),
+                numeroOrigen: config.get('TWILIO_NUMERO_ORIGEN', {
+                  infer: true,
+                }),
+              })
+            : modoSms === 'textbee'
+              ? new TextbeeEnviadorSms({
+                  apiKey: config.get('TEXTBEE_API_KEY', { infer: true }),
+                  dispositivoId: config.get('TEXTBEE_DEVICE_ID', {
+                    infer: true,
+                  }),
+                })
+              : new ConsolaEnviadorCodigo();
+        return new EnviadorPorCanal({
+          CORREO: correo,
+          TELEFONO: sms,
+        });
+      },
+    },
     {
       provide: EmisorSesion,
       inject: [JwtService, PrismaService, ConfigService, GeneradorId, Reloj],
@@ -133,6 +195,14 @@ type Config = ConfigService<VariablesEntorno, true>;
         ...deps: ConstructorParameters<typeof ObtenerAvisoPrivacidadUseCase>
       ) => new ObtenerAvisoPrivacidadUseCase(...deps),
     },
+  ],
+  // Otros módulos (p. ej. personal) envían códigos, abren sesiones y las cierran.
+  exports: [
+    EmisorSesion,
+    EnviadorCodigo,
+    GeneradorCodigo,
+    HasherCodigo,
+    SesionRepository,
   ],
 })
 export class AuthModule {}

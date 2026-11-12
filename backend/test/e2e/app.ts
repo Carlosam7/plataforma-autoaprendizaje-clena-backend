@@ -1,4 +1,5 @@
-import { INestApplication } from '@nestjs/common';
+import { INestApplication, Type } from '@nestjs/common';
+import bcrypt from 'bcryptjs';
 import { Test } from '@nestjs/testing';
 import { App } from 'supertest/types.js';
 import { AppModule } from '../../src/app.module.js';
@@ -7,6 +8,8 @@ import {
   EnviadorCodigo,
   MensajeCodigo,
 } from '../../src/application/auth/codigo-verificacion.port.js';
+import { EmisorSesion } from '../../src/application/auth/emisor-sesion.port.js';
+import { Rol } from '../../src/domain/auth/tipos.js';
 import { PrismaService } from '../../src/infrastructure/database/prisma.service.js';
 
 /** Captura los códigos enviados para poder verificarlos en las pruebas. */
@@ -25,13 +28,17 @@ export class BuzonCodigos implements EnviadorCodigo {
   }
 }
 
-export async function crearApp(): Promise<{
+/** `controladores`: rutas extra solo para pruebas (p. ej. para ejercitar los guards). */
+export async function crearApp(controladores: Type[] = []): Promise<{
   app: INestApplication<App>;
   buzon: BuzonCodigos;
   prisma: PrismaService;
 }> {
   const buzon = new BuzonCodigos();
-  const modulo = await Test.createTestingModule({ imports: [AppModule] })
+  const modulo = await Test.createTestingModule({
+    imports: [AppModule],
+    controllers: controladores,
+  })
     .overrideProvider(EnviadorCodigo)
     .useValue(buzon)
     .compile();
@@ -46,5 +53,57 @@ export async function crearApp(): Promise<{
 /** Borra cuentas y registros; las semillas (aviso, categorías) se conservan. */
 export async function limpiarBaseDatos(prisma: PrismaService): Promise<void> {
   // CASCADE arrastra metodo_inicio, consentimiento, codigo_verificacion y refresh_token.
-  await prisma.$executeRawUnsafe('TRUNCATE TABLE "usuario_publico" CASCADE');
+  await prisma.$executeRawUnsafe(
+    'TRUNCATE TABLE "usuario_publico", "personal" CASCADE',
+  );
+}
+
+/**
+ * Crea una cuenta del personal y le abre una sesión, sin pasar por el login (HU-06).
+ * Devuelve el id de la cuenta y el access token listo para `Authorization: Bearer`.
+ */
+export async function sesionPersonal(
+  app: INestApplication<App>,
+  datos: {
+    rol: Exclude<Rol, 'USUARIO_PUBLICO'>;
+    correo?: string;
+    password?: string;
+    debeCambiarPassword?: boolean;
+  },
+): Promise<{ id: string; token: string }> {
+  const prisma = app.get(PrismaService);
+  const cuenta = await prisma.personal.create({
+    data: {
+      nombre: `Persona ${datos.rol.toLowerCase()}`,
+      correo:
+        datos.correo ??
+        `${datos.rol.toLowerCase()}-${Date.now()}@clena.example`,
+      // Costo 4: en las pruebas importa la velocidad, no la resistencia a fuerza bruta.
+      passwordHash: await bcrypt.hash(datos.password ?? 'Temporal2026', 4),
+      rol: datos.rol,
+      debeCambiarPassword: datos.debeCambiarPassword ?? false,
+    },
+  });
+  const sesion = await app
+    .get(EmisorSesion)
+    .iniciar({ id: cuenta.id, rol: datos.rol });
+  return { id: cuenta.id, token: sesion.accessToken };
+}
+
+/** Usuario público con sesión abierta, para comprobar los 403. */
+export async function sesionUsuarioPublico(
+  app: INestApplication<App>,
+): Promise<string> {
+  const prisma = app.get(PrismaService);
+  const usuario = await prisma.usuarioPublico.create({
+    data: {
+      numeroIdentificacion: `9${Date.now()}`.slice(0, 15),
+      nombre: 'Rafael Gómez',
+      fechaNacimiento: new Date('1968-03-10'),
+    },
+  });
+  const sesion = await app
+    .get(EmisorSesion)
+    .iniciar({ id: usuario.numeroIdentificacion, rol: 'USUARIO_PUBLICO' });
+  return sesion.accessToken;
 }

@@ -4,6 +4,10 @@ import {
 } from '../../../domain/auth/aviso-privacidad.repository.js';
 import { RegistroPendiente } from '../../../domain/auth/registro-pendiente.js';
 import { RegistroPendienteRepository } from '../../../domain/auth/registro-pendiente.repository.js';
+import {
+  SesionActiva,
+  SesionRepository,
+} from '../../../domain/auth/sesion.repository.js';
 import { Rol } from '../../../domain/auth/tipos.js';
 import { Usuario } from '../../../domain/auth/usuario.js';
 import { UsuarioRepository } from '../../../domain/auth/usuario.repository.js';
@@ -158,3 +162,20 @@ export const configuracionPrueba: ConfiguracionRegistro = {
     esperaReenvioSegundos: 60,
   },
 };
+
+export class SesionRepositoryEnMemoria implements SesionRepository {
+  sesiones: (SesionActiva & { revocada: boolean })[] = [];
+
+  buscarActiva(sesionId: string): Promise<SesionActiva | null> {
+    const sesion = this.sesiones.find(
+      (s) => s.sesionId === sesionId && !s.revocada,
+    );
+    return Promise.resolve(sesion ?? null);
+  }
+  revocarDePersonal(personalId: string): Promise<void> {
+    for (const sesion of this.sesiones) {
+      if (sesion.usuarioId === personalId) sesion.revocada = true;
+    }
+    return Promise.resolve();
+  }
+}

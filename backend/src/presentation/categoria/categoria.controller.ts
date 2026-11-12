@@ -1,9 +1,13 @@
 import { Controller, Get, Query } from '@nestjs/common';
-import { ApiOkResponse } from '@nestjs/swagger';
-import { CategoriasPaginadasDto } from '../../application/categoria/categoria.dto.js';
-import { ListarCategoriasDto } from '../../application/categoria/listar-categorias.dto.js';
+import { ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import { ListarCategoriasUseCase } from '../../application/categoria/listar-categorias.use-case.js';
+import { Publico } from '../shared/publico.decorator.js';
+import { CategoriasPaginadasDto } from './dto/categoria.dto.js';
+import { ListarCategoriasDto } from './dto/listar-categorias.dto.js';
 
+@ApiTags('categorias')
+// HU-03: el catálogo se puede ver sin cuenta.
+@Publico()
 @Controller('categorias')
 export class CategoriaController {
   constructor(private readonly listarCategorias: ListarCategoriasUseCase) {}
