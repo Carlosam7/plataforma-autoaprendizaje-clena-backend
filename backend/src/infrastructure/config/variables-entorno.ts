@@ -14,12 +14,17 @@ export interface VariablesEntorno {
   CODIGO_VERIFICACION_MAX_INTENTOS: number;
   CODIGO_VERIFICACION_ESPERA_REENVIO_SEGUNDOS: number;
   NOTIFICACIONES_CORREO: 'consola' | 'smtp';
-  NOTIFICACIONES_SMS: 'consola';
+  NOTIFICACIONES_SMS: 'consola' | 'twilio' | 'textbee';
   SMTP_HOST: string;
   SMTP_PUERTO: number;
   SMTP_USUARIO: string;
   SMTP_CLAVE: string;
   CORREO_REMITENTE: string;
+  TWILIO_ACCOUNT_SID: string;
+  TWILIO_AUTH_TOKEN: string;
+  TWILIO_NUMERO_ORIGEN: string;
+  TEXTBEE_API_KEY: string;
+  TEXTBEE_DEVICE_ID: string;
 }
 
 export function validarVariablesEntorno(
@@ -71,7 +76,18 @@ export function validarVariablesEntorno(
     ['consola', 'smtp'] as const,
     'consola',
   );
+
+  const notificacionesSms = opcion(
+    'NOTIFICACIONES_SMS',
+    ['consola', 'twilio', 'textbee'] as const,
+    'consola',
+  );
+
   const usaSmtp = notificacionesCorreo === 'smtp';
+
+  const usaTwilio = notificacionesSms === 'twilio';
+
+  const usaTextbee = notificacionesSms === 'textbee';
 
   const variables: VariablesEntorno = {
     PORT: entero('PORT', 3000),
@@ -100,17 +116,22 @@ export function validarVariablesEntorno(
       60,
     ),
     NOTIFICACIONES_CORREO: notificacionesCorreo,
-    NOTIFICACIONES_SMS: opcion(
-      'NOTIFICACIONES_SMS',
-      ['consola'] as const,
-      'consola',
-    ),
+    NOTIFICACIONES_SMS: notificacionesSms,
     // Solo son obligatorias si el correo se envía de verdad.
     SMTP_HOST: texto('SMTP_HOST', usaSmtp ? undefined : ''),
     SMTP_PUERTO: entero('SMTP_PUERTO', 587),
     SMTP_USUARIO: texto('SMTP_USUARIO', usaSmtp ? undefined : ''),
     SMTP_CLAVE: texto('SMTP_CLAVE', usaSmtp ? undefined : ''),
     CORREO_REMITENTE: texto('CORREO_REMITENTE', usaSmtp ? undefined : ''),
+    // Solo son obligatorias si el SMS se envía de verdad.
+    TWILIO_ACCOUNT_SID: texto('TWILIO_ACCOUNT_SID', usaTwilio ? undefined : ''),
+    TWILIO_AUTH_TOKEN: texto('TWILIO_AUTH_TOKEN', usaTwilio ? undefined : ''),
+    TWILIO_NUMERO_ORIGEN: texto(
+      'TWILIO_NUMERO_ORIGEN',
+      usaTwilio ? undefined : '',
+    ),
+    TEXTBEE_API_KEY: texto('TEXTBEE_API_KEY', usaTextbee ? undefined : ''),
+    TEXTBEE_DEVICE_ID: texto('TEXTBEE_DEVICE_ID', usaTextbee ? undefined : ''),
   };
 
   if (variables.NODE_ENV === 'production') {

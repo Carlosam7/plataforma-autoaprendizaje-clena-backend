@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { MensajeCodigo } from '../../../../application/auth/codigo-verificacion.port.js';
-import { plantillaCodigoVerificacion } from '../codigo-verificacion.plantilla.js';
+import {
+  plantillaCodigoVerificacion,
+  smsCodigoVerificacion,
+} from '../codigo-verificacion.plantilla.js';
 
 const mensaje: MensajeCodigo = {
   canal: 'CORREO',
@@ -10,6 +13,15 @@ const mensaje: MensajeCodigo = {
   vigenciaMinutos: 10,
 };
 
+const mensajeSms: MensajeCodigo = {
+  canal: 'TELEFONO',
+  destino: '+521234567890',
+  codigo: '483920',
+  proposito: 'REGISTRO',
+  vigenciaMinutos: 10,
+};
+
+const sms = smsCodigoVerificacion(mensajeSms);
 const correo = plantillaCodigoVerificacion(mensaje);
 
 describe('plantillaCodigoVerificacion', () => {
@@ -42,5 +54,24 @@ describe('plantillaCodigoVerificacion', () => {
   it('no incluye el correo del destinatario en el contenido', () => {
     expect(correo.texto).not.toContain(mensaje.destino);
     expect(correo.html).not.toContain(mensaje.destino);
+  });
+});
+
+describe('smsCodigoVerificacion', () => {
+  it('genera un mensaje de texto con el código y la vigencia', () => {
+    expect(sms).toContain('483 920');
+    expect(sms).toContain('Vence en 10 min.');
+  });
+
+  it('advierte que no se debe compartir el código', () => {
+    expect(sms).toContain('No lo compartas');
+  });
+
+  it('no incluye el telefono del destinatario en el contenido', () => {
+    expect(sms).not.toContain(mensajeSms.destino);
+  });
+
+  it('cabe en un solo SMS (70 caracteres con tildes)', () => {
+    expect(sms.length).toBeLessThanOrEqual(70);
   });
 });

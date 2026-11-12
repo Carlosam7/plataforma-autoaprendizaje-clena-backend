@@ -53,6 +53,13 @@ export function plantillaCodigoVerificacion(
   };
 }
 
+export function smsCodigoVerificacion(mensaje: MensajeCodigo): string {
+  const codigo = agrupar(mensaje.codigo);
+  const vence = `Vence en ${mensaje.vigenciaMinutos} min.`;
+  const aviso = 'No lo compartas.';
+  return `Kamá: Tu código es ${codigo}. ${vence} ${aviso}`;
+}
+
 function html(
   codigo: string,
   para: string,

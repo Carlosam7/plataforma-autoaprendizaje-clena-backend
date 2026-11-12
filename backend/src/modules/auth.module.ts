@@ -32,6 +32,8 @@ import { AvisoPrivacidadController } from '../presentation/auth/aviso-privacidad
 import { RegistroController } from '../presentation/auth/registro.controller.js';
 import { SmtpEnviadorCorreo } from '../infrastructure/notificaciones/smtp-enviador-correo.js';
 import { EnviadorPorCanal } from '../infrastructure/notificaciones/enviador-por-canal.js';
+import { TwilioEnviadorSms } from '../infrastructure/notificaciones/twilio-enviador-sms.js';
+import { TextbeeEnviadorSms } from '../infrastructure/notificaciones/textbee-enviador-sms.js';
 
 type Config = ConfigService<VariablesEntorno, true>;
 
@@ -74,7 +76,24 @@ type Config = ConfigService<VariablesEntorno, true>;
               })
             : new ConsolaEnviadorCodigo();
 
-        const sms = new ConsolaEnviadorCodigo();
+        const modoSms = config.get('NOTIFICACIONES_SMS', { infer: true });
+        const sms =
+          modoSms === 'twilio'
+            ? new TwilioEnviadorSms({
+                accountSid: config.get('TWILIO_ACCOUNT_SID', { infer: true }),
+                authToken: config.get('TWILIO_AUTH_TOKEN', { infer: true }),
+                numeroOrigen: config.get('TWILIO_NUMERO_ORIGEN', {
+                  infer: true,
+                }),
+              })
+            : modoSms === 'textbee'
+              ? new TextbeeEnviadorSms({
+                  apiKey: config.get('TEXTBEE_API_KEY', { infer: true }),
+                  dispositivoId: config.get('TEXTBEE_DEVICE_ID', {
+                    infer: true,
+                  }),
+                })
+              : new ConsolaEnviadorCodigo();
         return new EnviadorPorCanal({
           CORREO: correo,
           TELEFONO: sms,
