@@ -138,3 +138,20 @@ export class SesionInvalidaError extends ErrorDeNegocio {
     );
   }
 }
+
+/** HU-02: el mensaje es el mismo falle la identificación o el contacto, para no revelar cuál. */
+export class CredencialesInvalidasError extends ErrorDeNegocio {
+  constructor() {
+    super('CREDENCIALES_INVALIDAS', 'no_autorizado', 'Credenciales inválidas');
+  }
+}
+
+export class SolicitudInicioSesionNoEncontradaError extends ErrorDeNegocio {
+  constructor() {
+    super(
+      'SOLICITUD_INICIO_SESION_NO_ENCONTRADA',
+      'no_encontrado',
+      'No encontramos tu solicitud para iniciar sesión. Vuelve a escribir tus datos.',
+    );
+  }
+}

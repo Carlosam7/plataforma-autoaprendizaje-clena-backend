@@ -10,7 +10,8 @@ export abstract class HasherCodigo {
   abstract coincide(codigo: string, hash: string): Promise<boolean>;
 }
 
-export type PropositoCodigo = 'REGISTRO' | 'CAMBIO_PASSWORD_INICIAL';
+export type PropositoCodigo =
+  'REGISTRO' | 'INICIO_SESION' | 'CAMBIO_PASSWORD_INICIAL';
 
 export interface MensajeCodigo {
   canal: CanalVerificacion;

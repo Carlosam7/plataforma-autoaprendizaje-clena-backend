@@ -15,7 +15,11 @@ export async function configurarApp(app: INestApplication): Promise<void> {
 
   app.setGlobalPrefix(PREFIJO_API);
   app.useGlobalPipes(crearPipeValidacion());
-  app.enableCors({ origin: config.get('CORS_ORIGINS', { infer: true }) });
+  // credentials: el navegador solo envía la cookie del refresh token si CORS lo permite.
+  app.enableCors({
+    origin: config.get('CORS_ORIGINS', { infer: true }),
+    credentials: true,
+  });
 
   const documento = SwaggerModule.createDocument(
     app,

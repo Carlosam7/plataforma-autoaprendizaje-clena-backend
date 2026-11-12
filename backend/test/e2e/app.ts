@@ -52,10 +52,15 @@ export async function crearApp(controladores: Type[] = []): Promise<{
 
 /** Borra cuentas y registros; las semillas (aviso, categorías) se conservan. */
 export async function limpiarBaseDatos(prisma: PrismaService): Promise<void> {
-  // CASCADE arrastra metodo_inicio, consentimiento, codigo_verificacion y refresh_token.
-  await prisma.$executeRawUnsafe(
-    'TRUNCATE TABLE "usuario_publico", "personal" CASCADE',
-  );
+  // DELETE y no TRUNCATE: TRUNCATE ... CASCADE recrea los archivos de 21 tablas y en Docker
+  // a veces tardaba más de 10 s, lo que hacía fallar el beforeEach. Las llaves ON DELETE
+  // CASCADE arrastran metodo_inicio, consentimiento, codigo_verificacion y refresh_token.
+  // shortcut: guia, actividad, imagen, solicitud_ayuda, pregunta_frecuente y termino_glosario
+  // apuntan a personal con RESTRICT; cuando una prueba los cree, bórralos antes aquí.
+  await prisma.$transaction([
+    prisma.usuarioPublico.deleteMany(),
+    prisma.personal.deleteMany(),
+  ]);
 }
 
 /**
@@ -106,4 +111,15 @@ export async function sesionUsuarioPublico(
     .get(EmisorSesion)
     .iniciar({ id: usuario.numeroIdentificacion, rol: 'USUARIO_PUBLICO' });
   return sesion.accessToken;
+}
+
+/** La cookie `refresh_token=<valor>` que puso la respuesta, lista para enviarla en `Cookie`. */
+export function cookieRefresh(respuesta: {
+  headers: Record<string, unknown>;
+}): string {
+  const cookies =
+    (respuesta.headers['set-cookie'] as string[] | undefined) ?? [];
+  const cookie = cookies.find((c) => c.startsWith('refresh_token='));
+  if (!cookie) throw new Error('La respuesta no puso la cookie refresh_token');
+  return cookie.split(';')[0];
 }
