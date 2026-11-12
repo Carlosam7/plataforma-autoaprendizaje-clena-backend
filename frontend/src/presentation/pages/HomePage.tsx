@@ -1,3 +1,5 @@
+import { Link } from 'react-router';
+
 // Textos del frame «01 · Inicio». Falta la ilustración del hero y los íconos de las guías:
 // son recursos del Figma que se descargan al repo en el siguiente paso.
 const GUIDES = [
@@ -47,12 +49,12 @@ export function HomePage() {
           Conoce las señales de un fraude y aprende a navegar con más seguridad,
           paso a paso.
         </p>
-        <a
+        <Link
           className="self-start inline-flex items-center justify-center min-h-14 px-6 py-4 font-semibold text-btn-primary-fg bg-btn-primary-bg rounded-xl hover:bg-btn-primary-hover no-underline cursor-pointer border-2 border-btn-primary-border"
-          href="/guias"
+          to="/guias"
         >
           Comenzar a aprender →
-        </a>
+        </Link>
         <p className="text-[1.111rem] font-medium text-eyebrow">
           Sin costo. Sin experiencia previa. Sin registro obligatorio.
         </p>
@@ -118,12 +120,12 @@ export function HomePage() {
                 </h3>
                 <p className="text-muted">{g.desc}</p>
                 <p className="font-medium text-muted">{g.time} · A tu ritmo</p>
-                <a
+                <Link
                   className="mt-auto w-full inline-flex items-center justify-center min-h-14 px-6 py-4 font-semibold text-btn-secondary-fg bg-btn-secondary-bg border-2 border-btn-secondary-border rounded-xl hover:border-btn-secondary-hover-border hover:bg-btn-secondary-hover-bg no-underline cursor-pointer"
-                  href={`/guias/${g.title.toLowerCase().replace(/\s+/g, '-')}`}
+                  to={`/guias/${g.title.toLowerCase().replace(/\s+/g, '-')}`}
                 >
                   Comenzar guía
-                </a>
+                </Link>
               </article>
             </li>
           ))}
