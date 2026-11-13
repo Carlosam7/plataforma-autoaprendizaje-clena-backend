@@ -8,4 +8,3 @@ export class ListarCategorias {
     return this.guiasRepository.listarCategorias();
   }
 }
-
