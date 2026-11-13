@@ -16,7 +16,7 @@ export function ProgresoPage() {
         Aquí puedes ver las guías que has completado y las recomendaciones
         personalizadas para seguir avanzando.
       </p>
-      <div className="p-8 bg-card-bg border-2 border-card-border rounded-[20px] max-w-176 mt-2">
+      <div className="p-8 bg-card-bg border-2 border-card-border rounded-2xl max-w-176 mt-2">
         <h2 className="text-[1.333rem] font-bold text-card-title">
           ¿Aún no has iniciado sesión?
         </h2>

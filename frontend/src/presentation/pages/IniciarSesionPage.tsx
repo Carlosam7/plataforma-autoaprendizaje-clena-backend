@@ -57,17 +57,17 @@ export function IniciarSesionPage() {
       {/* Sección principal de Acceso */}
       <main
         id="contenido"
-        className="flex-1 flex flex-col items-center justify-center px-4 sm:px-8 md:px-[96px] py-[32px] md:py-[48px] w-full max-w-[1440px] mx-auto"
+        className="flex-1 flex flex-col items-center justify-center px-4 sm:px-8 md:px-24 py-8 md:py-12 w-full max-w-[1440px] mx-auto"
       >
         <div
-          className="flex flex-col lg:flex-row gap-8 lg:gap-[64px] items-center justify-center w-full"
+          className="flex flex-col lg:flex-row gap-8 lg:gap-16 items-center justify-center w-full"
           data-node-id="4:4571"
           data-name="Acceso seguro"
         >
           {/* Columna Izquierda: 552px en escritorio */}
           <section
             aria-labelledby="titulo-aprender-cuenta"
-            className="bg-[#e7f2ee] flex flex-col gap-[24px] items-start p-6 sm:p-8 md:p-[40px] rounded-[24px] w-full lg:w-[552px] shrink-0"
+            className="bg-[#e7f2ee] flex flex-col gap-6 items-start p-6 sm:p-8 md:p-10 rounded-3xl w-full lg:w-[552px] shrink-0"
             data-node-id="4:4572"
             data-name="Aprender con cuenta"
           >
@@ -92,7 +92,7 @@ export function IniciarSesionPage() {
               ayuda cuando la necesites.
             </p>
             <div
-              className="font-medium text-[#0d6258] text-[18px] md:text-[20px] flex flex-col gap-[8px]"
+              className="font-medium text-[#0d6258] text-[18px] md:text-[20px] flex flex-col gap-2"
               data-node-id="4:4576"
             >
               <p className="leading-[1.45] m-0">✓ Guarda tus avances</p>
@@ -103,7 +103,7 @@ export function IniciarSesionPage() {
             </div>
             <Link
               to="/guias"
-              className="inline-flex items-center justify-center min-h-[56px] px-[24px] py-[16px] rounded-[12px] bg-white border border-[#d7e2e7] text-[#0d6258] font-semibold text-[18px] leading-[1.45] hover:border-[#0d6258] hover:bg-[#f1f5f9] transition-colors no-underline cursor-pointer"
+              className="inline-flex items-center justify-center min-h-14 px-6 py-4 rounded-xl bg-white border border-[#d7e2e7] text-[#0d6258] font-semibold text-[18px] leading-[1.45] hover:border-[#0d6258] hover:bg-[#f1f5f9] transition-colors no-underline cursor-pointer"
             >
               Continuar sin cuenta
             </Link>
@@ -112,7 +112,7 @@ export function IniciarSesionPage() {
           {/* Columna Derecha: Tarjeta de Iniciar sesión de 632px */}
           <section
             aria-labelledby="titulo-iniciar-sesion"
-            className="bg-white border border-[#d7e2e7] flex flex-col gap-[24px] items-start p-6 sm:p-8 md:p-[40px] rounded-[24px] w-full lg:w-[632px] shrink-0 shadow-sm"
+            className="bg-white border border-[#d7e2e7] flex flex-col gap-6 items-start p-6 sm:p-8 md:p-10 rounded-3xl w-full lg:w-[632px] shrink-0 shadow-sm"
             data-node-id="4:4579"
             data-name="Iniciar sesión"
           >
@@ -136,13 +136,10 @@ export function IniciarSesionPage() {
             <form
               onSubmit={handleSubmit}
               noValidate
-              className="flex flex-col gap-[24px] w-full"
+              className="flex flex-col gap-6 w-full"
             >
               {/* Campo: Correo electrónico */}
-              <div
-                className="flex flex-col gap-[8px] w-full"
-                data-node-id="4:4102"
-              >
+              <div className="flex flex-col gap-2 w-full" data-node-id="4:4102">
                 <label
                   htmlFor="correo"
                   className="font-semibold text-[#17324d] text-[18px] leading-[1.45]"
@@ -163,7 +160,7 @@ export function IniciarSesionPage() {
                     if (errorCorreo) setErrorCorreo(null);
                   }}
                   placeholder="nombre@correo.com"
-                  className="w-full min-h-[60px] p-[16px] bg-white text-[#17324d] text-[18px] border border-[#869ba9] rounded-[12px] placeholder:text-[#526575] focus:outline-none focus:border-[#17324d] focus:ring-2 focus:ring-[#17324d]"
+                  className="w-full min-h-15 p-4 bg-white text-[#17324d] text-[18px] border border-[#869ba9] rounded-xl placeholder:text-[#526575] focus:outline-none focus:border-[#17324d] focus:ring-2 focus:ring-[#17324d]"
                   data-node-id="4:4104"
                 />
               </div>
@@ -180,7 +177,7 @@ export function IniciarSesionPage() {
               {errorCorreo && (
                 <div
                   role="alert"
-                  className="w-full bg-[#fff3d8] flex flex-col gap-[10px] items-start p-[20px] rounded-[12px] text-[#17324d]"
+                  className="w-full bg-[#fff3d8] flex flex-col gap-2.5 items-start p-5 rounded-xl text-[#17324d]"
                   data-node-id="4:6312"
                   data-name="Validación del correo"
                 >
@@ -203,7 +200,7 @@ export function IniciarSesionPage() {
               <button
                 type="submit"
                 disabled={enviando}
-                className="w-full sm:w-auto inline-flex items-center justify-center min-h-[56px] px-[24px] py-[16px] rounded-[12px] bg-[#0d6258] text-white font-semibold text-[18px] leading-[1.45] hover:bg-[#09493f] transition-colors cursor-pointer border-none disabled:opacity-50"
+                className="w-full sm:w-auto inline-flex items-center justify-center min-h-14 px-6 py-4 rounded-xl bg-[#0d6258] text-white font-semibold text-[18px] leading-[1.45] hover:bg-[#09493f] transition-colors cursor-pointer border-none disabled:opacity-50"
                 data-node-id="4:4587"
               >
                 {enviando ? 'Enviando código...' : 'Enviar código de acceso'}
@@ -212,7 +209,7 @@ export function IniciarSesionPage() {
               {/* Botón secundario */}
               <Link
                 to="/registro"
-                className="w-full sm:w-auto inline-flex items-center justify-center min-h-[56px] px-[24px] py-[16px] rounded-[12px] bg-white border border-[#d7e2e7] text-[#0d6258] font-semibold text-[18px] leading-[1.45] hover:border-[#0d6258] hover:bg-[#f1f5f9] transition-colors no-underline cursor-pointer"
+                className="w-full sm:w-auto inline-flex items-center justify-center min-h-14 px-6 py-4 rounded-xl bg-white border border-[#d7e2e7] text-[#0d6258] font-semibold text-[18px] leading-[1.45] hover:border-[#0d6258] hover:bg-[#f1f5f9] transition-colors no-underline cursor-pointer"
                 data-node-id="4:4588"
               >
                 Crear una cuenta
@@ -224,7 +221,7 @@ export function IniciarSesionPage() {
 
       {/* Cierre / Pie institucional según Figma */}
       <footer
-        className="w-full max-w-[1440px] mx-auto px-4 sm:px-8 md:px-[96px] py-[24px] flex flex-wrap gap-[24px] items-center justify-between"
+        className="w-full max-w-[1440px] mx-auto px-4 sm:px-8 md:px-24 py-6 flex flex-wrap gap-6 items-center justify-between"
         data-node-id="4:3973"
         data-name="Cierre"
       >
@@ -236,7 +233,7 @@ export function IniciarSesionPage() {
         </p>
         <Link
           to="/ayuda"
-          className="inline-flex items-center gap-[10px] min-h-[50px] px-[20px] py-[14px] rounded-[28px] bg-white border border-[#0d6258] text-[#0d6258] font-semibold text-[18px] hover:bg-[#e7f2ee] transition-colors no-underline"
+          className="inline-flex items-center gap-2.5 min-h-12.5 px-5 py-3.5 rounded-full bg-white border border-[#0d6258] text-[#0d6258] font-semibold text-[18px] hover:bg-[#e7f2ee] transition-colors no-underline"
           data-node-id="4:4108"
           data-name="Ayuda"
         >

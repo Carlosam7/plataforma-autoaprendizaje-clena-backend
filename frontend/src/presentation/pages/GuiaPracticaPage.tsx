@@ -56,7 +56,7 @@ export function GuiaPracticaPage() {
         </p>
         <Link
           to={`/guias/${slug}`}
-          className="inline-flex items-center justify-center min-h-[56px] px-8 font-semibold text-white bg-[#0d6258] rounded-xl hover:bg-[#09473f] no-underline"
+          className="inline-flex items-center justify-center min-h-14 px-8 font-semibold text-white bg-[#0d6258] rounded-xl hover:bg-[#09473f] no-underline"
         >
           Volver a la guía
         </Link>
@@ -154,7 +154,7 @@ export function GuiaPracticaPage() {
         aria-label="Pregunta interactiva y mensaje simulado"
       >
         {/* Columna Izquierda: Pregunta y opciones */}
-        <div className="lg:col-span-7 bg-white border border-[#d7e2e7] rounded-[20px] p-6 md:p-8 flex flex-col gap-6 shadow-sm">
+        <div className="lg:col-span-7 bg-white border border-[#d7e2e7] rounded-2xl p-6 md:p-8 flex flex-col gap-6 shadow-sm">
           {/* Barra de avance en preguntas */}
           <div
             className="flex flex-col gap-2"
@@ -273,7 +273,7 @@ export function GuiaPracticaPage() {
                 type="button"
                 onClick={comprobarRespuesta}
                 disabled={!opcionSeleccionada}
-                className={`inline-flex items-center justify-center min-h-[56px] px-8 py-4 font-semibold text-[1.111rem] rounded-xl transition-colors focus:outline-none focus:ring-4 focus:ring-[#0d6258]/30 ${
+                className={`inline-flex items-center justify-center min-h-14 px-8 py-4 font-semibold text-[1.111rem] rounded-xl transition-colors focus:outline-none focus:ring-4 focus:ring-[#0d6258]/30 ${
                   opcionSeleccionada
                     ? 'bg-[#0d6258] text-white hover:bg-[#09473f] cursor-pointer'
                     : 'bg-[#e3e9ed] text-[#526575] cursor-not-allowed'
@@ -285,7 +285,7 @@ export function GuiaPracticaPage() {
               <button
                 type="button"
                 onClick={avanzarSiguientePregunta}
-                className="inline-flex items-center justify-center min-h-[56px] px-8 py-4 font-semibold text-[1.111rem] text-white bg-[#0d6258] rounded-xl hover:bg-[#09473f] cursor-pointer transition-colors focus:outline-none focus:ring-4 focus:ring-[#0d6258]/30"
+                className="inline-flex items-center justify-center min-h-14 px-8 py-4 font-semibold text-[1.111rem] text-white bg-[#0d6258] rounded-xl hover:bg-[#09473f] cursor-pointer transition-colors focus:outline-none focus:ring-4 focus:ring-[#0d6258]/30"
               >
                 {esUltimaPregunta
                   ? 'Ver mis resultados →'
@@ -296,7 +296,7 @@ export function GuiaPracticaPage() {
         </div>
 
         {/* Columna Derecha: Mensaje simulado asociado a la pregunta */}
-        <div className="lg:col-span-5 bg-[#e7f2ee] border border-[#c2ded3] rounded-[20px] p-6 md:p-8 flex flex-col gap-6">
+        <div className="lg:col-span-5 bg-[#e7f2ee] border border-[#c2ded3] rounded-2xl p-6 md:p-8 flex flex-col gap-6">
           <div className="flex items-center justify-between">
             <p className="text-[0.95rem] font-bold text-[#0d6258] uppercase tracking-wider">
               {preguntaActual.mensajeSimulado.titulo}
@@ -306,7 +306,7 @@ export function GuiaPracticaPage() {
             </span>
           </div>
 
-          <div className="bg-white border border-[#d7e2e7] rounded-[20px] p-6 flex flex-col gap-4 shadow-sm">
+          <div className="bg-white border border-[#d7e2e7] rounded-2xl p-6 flex flex-col gap-4 shadow-sm">
             <p className="font-semibold text-[#17324d] text-[1.111rem]">
               {preguntaActual.mensajeSimulado.remitente}
             </p>

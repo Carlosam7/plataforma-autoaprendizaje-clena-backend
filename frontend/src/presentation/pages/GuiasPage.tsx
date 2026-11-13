@@ -110,7 +110,7 @@ export function GuiasPage() {
 
       {/* Banner explicativo de la categoría Phishing */}
       <section
-        className="bg-[#e7f2ee] border-2 border-[#c2ded3] rounded-[20px] p-6 md:p-8 flex flex-col md:flex-row gap-6 md:gap-8 items-start"
+        className="bg-[#e7f2ee] border-2 border-[#c2ded3] rounded-2xl p-6 md:p-8 flex flex-col md:flex-row gap-6 md:gap-8 items-start"
         aria-label="Información de la categoría Phishing"
       >
         <div className="bg-white border border-[#d7e2e7] rounded-xl p-4 shrink-0">
@@ -145,7 +145,7 @@ export function GuiasPage() {
         ) : guias.length === 0 ? (
           /* AC-HU09-03: mensaje literal cuando no hay guías */
           <div
-            className="bg-white border-2 border-[#d7e2e7] rounded-[20px] p-12 text-center flex flex-col items-center gap-4"
+            className="bg-white border-2 border-[#d7e2e7] rounded-2xl p-12 text-center flex flex-col items-center gap-4"
             role="status"
           >
             <p className="text-[1.333rem] font-bold text-[#17324d]">
@@ -157,7 +157,7 @@ export function GuiasPage() {
             </p>
             <Link
               to="/ayuda"
-              className="mt-2 inline-flex items-center justify-center min-h-[56px] px-8 font-semibold text-[#0d6258] bg-white border-2 border-[#0d6258] rounded-xl hover:bg-[#e7f2ee] no-underline"
+              className="mt-2 inline-flex items-center justify-center min-h-14 px-8 font-semibold text-[#0d6258] bg-white border-2 border-[#0d6258] rounded-xl hover:bg-[#e7f2ee] no-underline"
             >
               Pedir orientación en la sala
             </Link>
@@ -167,7 +167,7 @@ export function GuiasPage() {
             {guias.map((guia) => (
               <article
                 key={guia.slug}
-                className="bg-white border border-[#d7e2e7] rounded-[20px] p-6 flex flex-col gap-4 shadow-sm hover:shadow-md transition-shadow"
+                className="bg-white border border-[#d7e2e7] rounded-2xl p-6 flex flex-col gap-4 shadow-sm hover:shadow-md transition-shadow"
               >
                 <div className="flex items-start justify-between w-full">
                   <div
@@ -195,7 +195,7 @@ export function GuiasPage() {
 
                 <Link
                   to={`/guias/${guia.slug}`}
-                  className="mt-2 w-full inline-flex items-center justify-center min-h-[56px] px-6 py-4 font-semibold text-[#0d6258] bg-white border border-[#d7e2e7] rounded-xl hover:bg-[#eef4f4] hover:border-[#0d6258] no-underline cursor-pointer focus:outline-none focus:ring-4 focus:ring-[#0d6258]/30 transition-colors"
+                  className="mt-2 w-full inline-flex items-center justify-center min-h-14 px-6 py-4 font-semibold text-[#0d6258] bg-white border border-[#d7e2e7] rounded-xl hover:bg-[#eef4f4] hover:border-[#0d6258] no-underline cursor-pointer focus:outline-none focus:ring-4 focus:ring-[#0d6258]/30 transition-colors"
                 >
                   Comenzar guía
                 </Link>
@@ -207,7 +207,7 @@ export function GuiasPage() {
 
       {/* Cierre institucional de apoyo */}
       <section
-        className="bg-[#17324d] text-white rounded-[20px] p-8 md:p-10 flex flex-col md:flex-row gap-6 items-start md:items-center justify-between"
+        className="bg-[#17324d] text-white rounded-2xl p-8 md:p-10 flex flex-col md:flex-row gap-6 items-start md:items-center justify-between"
         aria-label="Acompañamiento y soporte"
       >
         <div className="flex flex-col gap-2 max-w-[700px]">
@@ -221,7 +221,7 @@ export function GuiasPage() {
         </div>
         <Link
           to="/ayuda"
-          className="inline-flex items-center justify-center min-h-[56px] px-8 py-4 font-semibold text-[#17324d] bg-white rounded-xl hover:bg-slate-100 no-underline cursor-pointer shrink-0 focus:outline-none focus:ring-4 focus:ring-white/50"
+          className="inline-flex items-center justify-center min-h-14 px-8 py-4 font-semibold text-[#17324d] bg-white rounded-xl hover:bg-slate-100 no-underline cursor-pointer shrink-0 focus:outline-none focus:ring-4 focus:ring-white/50"
         >
           Solicitar ayuda
         </Link>

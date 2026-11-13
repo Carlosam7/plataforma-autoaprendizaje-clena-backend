@@ -74,7 +74,7 @@ export function HomePage() {
         >
           ¿Qué aprenderás?
         </h2>
-        <div className="grid grid-cols-1 md:grid-cols-[minmax(10rem,1fr)_4fr] gap-6 mt-6 p-6 md:p-8 bg-card-bg border-2 border-card-border rounded-[20px]">
+        <div className="grid grid-cols-1 md:grid-cols-[minmax(10rem,1fr)_4fr] gap-6 mt-6 p-6 md:p-8 bg-card-bg border-2 border-card-border rounded-2xl">
           <div>
             <p className="font-medium text-muted">01 / CATEGORÍA</p>
             <p className="text-[1.556rem] font-bold text-card-title">
@@ -111,7 +111,7 @@ export function HomePage() {
         <ul className="list-none m-0 p-0 mt-6 grid gap-5 grid-cols-[repeat(auto-fit,minmax(15rem,1fr))]">
           {GUIDES.map((g) => (
             <li key={g.n}>
-              <article className="flex flex-col gap-4 h-full p-6 bg-card-bg border-2 border-card-border rounded-[20px]">
+              <article className="flex flex-col gap-4 h-full p-6 bg-card-bg border-2 border-card-border rounded-2xl">
                 <div className="flex justify-between items-start">
                   <div
                     className="w-14 h-14 bg-icon-bg border border-card-border/50 rounded-xl"

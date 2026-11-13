@@ -127,17 +127,17 @@ export function VerificarAccesoPage() {
     >
       <main
         id="contenido"
-        className="flex-1 flex flex-col items-center justify-center px-4 sm:px-8 md:px-[96px] py-[32px] md:py-[48px] w-full max-w-[1440px] mx-auto"
+        className="flex-1 flex flex-col items-center justify-center px-4 sm:px-8 md:px-24 py-8 md:py-12 w-full max-w-[1440px] mx-auto"
       >
         <div
-          className="flex flex-col lg:flex-row gap-8 lg:gap-[64px] items-center justify-center w-full"
+          className="flex flex-col lg:flex-row gap-8 lg:gap-16 items-center justify-center w-full"
           data-node-id="4:4615"
           data-name="Acceso seguro"
         >
           {/* Columna Izquierda: 552px */}
           <section
             aria-labelledby="titulo-aprender-cuenta"
-            className="bg-[#e7f2ee] flex flex-col gap-[24px] items-start p-6 sm:p-8 md:p-[40px] rounded-[24px] w-full lg:w-[552px] shrink-0"
+            className="bg-[#e7f2ee] flex flex-col gap-6 items-start p-6 sm:p-8 md:p-10 rounded-3xl w-full lg:w-[552px] shrink-0"
             data-node-id="4:4616"
             data-name="Aprender con cuenta"
           >
@@ -162,7 +162,7 @@ export function VerificarAccesoPage() {
               ayuda cuando la necesites.
             </p>
             <div
-              className="font-medium text-[#0d6258] text-[18px] md:text-[20px] flex flex-col gap-[8px]"
+              className="font-medium text-[#0d6258] text-[18px] md:text-[20px] flex flex-col gap-2"
               data-node-id="4:4620"
             >
               <p className="leading-[1.45] m-0">✓ Guarda tus avances</p>
@@ -173,7 +173,7 @@ export function VerificarAccesoPage() {
             </div>
             <Link
               to="/guias"
-              className="inline-flex items-center justify-center min-h-[56px] px-[24px] py-[16px] rounded-[12px] bg-white border border-[#d7e2e7] text-[#0d6258] font-semibold text-[18px] leading-[1.45] hover:border-[#0d6258] hover:bg-[#f1f5f9] transition-colors no-underline cursor-pointer"
+              className="inline-flex items-center justify-center min-h-14 px-6 py-4 rounded-xl bg-white border border-[#d7e2e7] text-[#0d6258] font-semibold text-[18px] leading-[1.45] hover:border-[#0d6258] hover:bg-[#f1f5f9] transition-colors no-underline cursor-pointer"
             >
               Continuar sin cuenta
             </Link>
@@ -182,7 +182,7 @@ export function VerificarAccesoPage() {
           {/* Columna Derecha: Tarjeta de 632px */}
           <section
             aria-labelledby="titulo-revisa-correo"
-            className="bg-white border border-[#d7e2e7] flex flex-col gap-[24px] items-start p-6 sm:p-8 md:p-[40px] rounded-[24px] w-full lg:w-[632px] shrink-0 shadow-sm"
+            className="bg-white border border-[#d7e2e7] flex flex-col gap-6 items-start p-6 sm:p-8 md:p-10 rounded-3xl w-full lg:w-[632px] shrink-0 shadow-sm"
             data-node-id="4:4623"
             data-name="Revisa tu correo"
           >
@@ -204,7 +204,7 @@ export function VerificarAccesoPage() {
 
             {/* Correo de destino */}
             <div
-              className="bg-[#e7f2ee] p-[16px] rounded-[12px] w-full"
+              className="bg-[#e7f2ee] p-4 rounded-xl w-full"
               data-node-id="4:4626"
               data-name="Correo de destino"
             >
@@ -218,7 +218,7 @@ export function VerificarAccesoPage() {
 
             <Link
               to="/registro"
-              className="inline-flex items-center justify-center min-h-[56px] px-[24px] py-[16px] rounded-[12px] bg-white border border-[#d7e2e7] text-[#0d6258] font-semibold text-[18px] leading-[1.45] hover:border-[#0d6258] hover:bg-[#f1f5f9] transition-colors no-underline cursor-pointer"
+              className="inline-flex items-center justify-center min-h-14 px-6 py-4 rounded-xl bg-white border border-[#d7e2e7] text-[#0d6258] font-semibold text-[18px] leading-[1.45] hover:border-[#0d6258] hover:bg-[#f1f5f9] transition-colors no-underline cursor-pointer"
             >
               Cambiar correo
             </Link>
@@ -226,7 +226,7 @@ export function VerificarAccesoPage() {
             {errorGeneral && (
               <div
                 role="alert"
-                className="w-full p-4 bg-[#fff3d8] border border-[#f2c66d] rounded-[12px] text-[#17324d] text-[16px] leading-normal"
+                className="w-full p-4 bg-[#fff3d8] border border-[#f2c66d] rounded-xl text-[#17324d] text-[16px] leading-normal"
               >
                 <p className="font-semibold m-0">{errorGeneral}</p>
               </div>
@@ -235,7 +235,7 @@ export function VerificarAccesoPage() {
             {exitoMensaje && (
               <div
                 role="status"
-                className="w-full p-4 bg-[#e7f2ee] border border-[#0d6258] rounded-[12px] text-[#0d6258] font-semibold text-[16px]"
+                className="w-full p-4 bg-[#e7f2ee] border border-[#0d6258] rounded-xl text-[#0d6258] font-semibold text-[16px]"
               >
                 {exitoMensaje}
               </div>
@@ -244,12 +244,9 @@ export function VerificarAccesoPage() {
             <form
               onSubmit={handleVerificar}
               noValidate
-              className="flex flex-col gap-[24px] w-full"
+              className="flex flex-col gap-6 w-full"
             >
-              <div
-                className="flex flex-col gap-[8px] w-full"
-                data-node-id="4:4102"
-              >
+              <div className="flex flex-col gap-2 w-full" data-node-id="4:4102">
                 <label
                   htmlFor="codigo"
                   className="font-semibold text-[#17324d] text-[18px] leading-[1.45]"
@@ -273,7 +270,7 @@ export function VerificarAccesoPage() {
                     setCodigo(soloDigitos);
                   }}
                   placeholder="1  2  3  4  5  6"
-                  className="w-full min-h-[60px] p-[16px] bg-white text-[#17324d] text-center font-mono font-bold tracking-[0.4em] text-[22px] border border-[#869ba9] rounded-[12px] placeholder:text-[#526575] focus:outline-none focus:border-[#17324d] focus:ring-2 focus:ring-[#17324d]"
+                  className="w-full min-h-15 p-4 bg-white text-[#17324d] text-center font-mono font-bold tracking-[0.4em] text-[22px] border border-[#869ba9] rounded-xl placeholder:text-[#526575] focus:outline-none focus:border-[#17324d] focus:ring-2 focus:ring-[#17324d]"
                 />
               </div>
 
@@ -287,7 +284,7 @@ export function VerificarAccesoPage() {
               <button
                 type="submit"
                 disabled={verificando || codigo.length < 6 || !registroId}
-                className="w-full sm:w-auto inline-flex items-center justify-center min-h-[56px] px-[24px] py-[16px] rounded-[12px] bg-[#0d6258] text-white font-semibold text-[18px] leading-[1.45] hover:bg-[#09493f] transition-colors cursor-pointer border-none disabled:opacity-50"
+                className="w-full sm:w-auto inline-flex items-center justify-center min-h-14 px-6 py-4 rounded-xl bg-[#0d6258] text-white font-semibold text-[18px] leading-[1.45] hover:bg-[#09493f] transition-colors cursor-pointer border-none disabled:opacity-50"
               >
                 {verificando
                   ? 'Verificando y entrando...'
@@ -298,7 +295,7 @@ export function VerificarAccesoPage() {
                 type="button"
                 disabled={segundosRestantes > 0 || reenviando || !registroId}
                 onClick={handleReenviar}
-                className="w-full sm:w-auto inline-flex items-center justify-center min-h-[56px] px-[24px] py-[16px] rounded-[12px] bg-white border border-[#d7e2e7] text-[#0d6258] font-semibold text-[18px] leading-[1.45] hover:border-[#0d6258] hover:bg-[#f1f5f9] transition-colors cursor-pointer disabled:opacity-50"
+                className="w-full sm:w-auto inline-flex items-center justify-center min-h-14 px-6 py-4 rounded-xl bg-white border border-[#d7e2e7] text-[#0d6258] font-semibold text-[18px] leading-[1.45] hover:border-[#0d6258] hover:bg-[#f1f5f9] transition-colors cursor-pointer disabled:opacity-50"
               >
                 {reenviando
                   ? 'Reenviando código...'
@@ -320,7 +317,7 @@ export function VerificarAccesoPage() {
 
       {/* Cierre / Pie institucional según Figma */}
       <footer
-        className="w-full max-w-[1440px] mx-auto px-4 sm:px-8 md:px-[96px] py-[24px] flex flex-wrap gap-[24px] items-center justify-between"
+        className="w-full max-w-[1440px] mx-auto px-4 sm:px-8 md:px-24 py-6 flex flex-wrap gap-6 items-center justify-between"
         data-node-id="4:3981"
         data-name="Cierre"
       >
@@ -332,7 +329,7 @@ export function VerificarAccesoPage() {
         </p>
         <Link
           to="/ayuda"
-          className="inline-flex items-center gap-[10px] min-h-[50px] px-[20px] py-[14px] rounded-[28px] bg-white border border-[#0d6258] text-[#0d6258] font-semibold text-[18px] hover:bg-[#e7f2ee] transition-colors no-underline"
+          className="inline-flex items-center gap-2.5 min-h-12.5 px-5 py-3.5 rounded-full bg-white border border-[#0d6258] text-[#0d6258] font-semibold text-[18px] hover:bg-[#e7f2ee] transition-colors no-underline"
           data-node-id="4:4108"
           data-name="Ayuda"
         >

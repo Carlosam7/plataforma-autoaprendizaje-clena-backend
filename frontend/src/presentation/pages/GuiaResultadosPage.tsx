@@ -22,7 +22,7 @@ export function GuiaResultadosPage() {
       id="contenido"
       className="max-w-[1440px] mx-auto px-4 md:px-12 lg:px-24 py-12 md:py-16 flex flex-col items-center"
     >
-      <div className="w-full max-w-[880px] bg-white border border-[#d7e2e7] rounded-[24px] p-8 md:p-12 flex flex-col gap-8 shadow-sm">
+      <div className="w-full max-w-[880px] bg-white border border-[#d7e2e7] rounded-3xl p-8 md:p-12 flex flex-col gap-8 shadow-sm">
         {/* Encabezado del resultado */}
         <div className="flex flex-col gap-3">
           <span className="inline-flex items-center gap-2 text-[1rem] font-bold text-[#0d6258] uppercase tracking-wider">
@@ -100,7 +100,7 @@ export function GuiaResultadosPage() {
           </div>
           <Link
             to="/registro"
-            className="inline-flex items-center justify-center min-h-[48px] px-6 py-2.5 font-semibold text-[#0d6258] bg-white border border-[#0d6258] rounded-xl hover:bg-[#e7f2ee] no-underline shrink-0"
+            className="inline-flex items-center justify-center min-h-12 px-6 py-2.5 font-semibold text-[#0d6258] bg-white border border-[#0d6258] rounded-xl hover:bg-[#e7f2ee] no-underline shrink-0"
           >
             Crear cuenta
           </Link>
@@ -110,21 +110,21 @@ export function GuiaResultadosPage() {
         <div className="flex flex-wrap gap-4 pt-2">
           <Link
             to="/mi-progreso"
-            className="inline-flex items-center justify-center min-h-[56px] px-8 py-4 font-semibold text-white bg-[#0d6258] rounded-xl hover:bg-[#09473f] no-underline cursor-pointer focus:outline-none focus:ring-4 focus:ring-[#0d6258]/30"
+            className="inline-flex items-center justify-center min-h-14 px-8 py-4 font-semibold text-white bg-[#0d6258] rounded-xl hover:bg-[#09473f] no-underline cursor-pointer focus:outline-none focus:ring-4 focus:ring-[#0d6258]/30"
           >
             Ver mi progreso
           </Link>
 
           <Link
             to={`/guias/${slug}/practica`}
-            className="inline-flex items-center justify-center min-h-[56px] px-8 py-4 font-semibold text-[#17324d] bg-white border border-[#d7e2e7] rounded-xl hover:bg-[#f1f5f5] no-underline cursor-pointer focus:outline-none focus:ring-4 focus:ring-[#17324d]/20"
+            className="inline-flex items-center justify-center min-h-14 px-8 py-4 font-semibold text-[#17324d] bg-white border border-[#d7e2e7] rounded-xl hover:bg-[#f1f5f5] no-underline cursor-pointer focus:outline-none focus:ring-4 focus:ring-[#17324d]/20"
           >
             Repetir práctica
           </Link>
 
           <Link
             to="/guias"
-            className="inline-flex items-center justify-center min-h-[56px] px-6 py-4 font-semibold text-[#526575] hover:text-[#17324d] hover:underline no-underline"
+            className="inline-flex items-center justify-center min-h-14 px-6 py-4 font-semibold text-[#526575] hover:text-[#17324d] hover:underline no-underline"
           >
             Explorar otras guías
           </Link>

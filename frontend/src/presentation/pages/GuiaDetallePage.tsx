@@ -49,7 +49,7 @@ export function GuiaDetallePage() {
         </p>
         <Link
           to="/guias"
-          className="inline-flex items-center justify-center min-h-[56px] px-8 font-semibold text-white bg-[#0d6258] rounded-xl hover:bg-[#09473f] no-underline"
+          className="inline-flex items-center justify-center min-h-14 px-8 font-semibold text-white bg-[#0d6258] rounded-xl hover:bg-[#09473f] no-underline"
         >
           Volver a todas las guías
         </Link>
@@ -153,7 +153,7 @@ export function GuiaDetallePage() {
         aria-label="Contenido del paso educativo"
       >
         {/* Columna Izquierda: Tu aprendizaje */}
-        <div className="lg:col-span-6 bg-white border border-[#d7e2e7] rounded-[20px] p-6 md:p-8 flex flex-col gap-6 shadow-sm">
+        <div className="lg:col-span-6 bg-white border border-[#d7e2e7] rounded-2xl p-6 md:p-8 flex flex-col gap-6 shadow-sm">
           <div>
             <p className="text-[0.95rem] font-bold text-[#0d6258] uppercase tracking-wider">
               TU OBJETIVO
@@ -208,14 +208,14 @@ export function GuiaDetallePage() {
         </div>
 
         {/* Columna Derecha: Observa este ejemplo */}
-        <div className="lg:col-span-6 bg-[#e7f2ee] border border-[#c2ded3] rounded-[20px] p-6 md:p-8 flex flex-col gap-5">
+        <div className="lg:col-span-6 bg-[#e7f2ee] border border-[#c2ded3] rounded-2xl p-6 md:p-8 flex flex-col gap-5">
           <p className="text-[0.95rem] font-bold text-[#0d6258] uppercase tracking-wider">
             OBSERVA ESTE EJEMPLO
           </p>
 
           {/* Si el paso trae una imagen del backend, la mostramos */}
           {pasoActual.bloques?.find((b) => b.tipo === 'imagen') && (
-            <figure className="bg-white border border-[#d7e2e7] rounded-[20px] p-4 flex flex-col items-center gap-3 shadow-sm">
+            <figure className="bg-white border border-[#d7e2e7] rounded-2xl p-4 flex flex-col items-center gap-3 shadow-sm">
               <img
                 src={
                   (
@@ -246,7 +246,7 @@ export function GuiaDetallePage() {
           )}
 
           {pasoActual.ejemplo ? (
-            <div className="bg-white border border-[#d7e2e7] rounded-[20px] p-6 flex flex-col gap-4 shadow-sm">
+            <div className="bg-white border border-[#d7e2e7] rounded-2xl p-6 flex flex-col gap-4 shadow-sm">
               <div className="flex flex-col gap-1">
                 <p className="font-semibold text-[#17324d] text-[1.111rem]">
                   {pasoActual.ejemplo.titulo}
@@ -282,7 +282,7 @@ export function GuiaDetallePage() {
               </p>
             </div>
           ) : (
-            <div className="bg-white border border-[#d7e2e7] rounded-[20px] p-8 text-center text-[#526575]">
+            <div className="bg-white border border-[#d7e2e7] rounded-2xl p-8 text-center text-[#526575]">
               <p className="text-[1.111rem]">
                 Sigue las indicaciones del panel izquierdo para comprender este
                 concepto.
@@ -305,7 +305,7 @@ export function GuiaDetallePage() {
           type="button"
           onClick={irPasoAnterior}
           disabled={pasoIndex === 0}
-          className={`inline-flex items-center justify-center min-h-[56px] px-6 py-4 font-semibold text-[1.111rem] rounded-xl border border-[#d7e2e7] transition-colors focus:outline-none focus:ring-4 focus:ring-[#0d6258]/30 ${
+          className={`inline-flex items-center justify-center min-h-14 px-6 py-4 font-semibold text-[1.111rem] rounded-xl border border-[#d7e2e7] transition-colors focus:outline-none focus:ring-4 focus:ring-[#0d6258]/30 ${
             pasoIndex === 0
               ? 'bg-[#e3e9ed] text-[#526575] cursor-not-allowed border-transparent'
               : 'bg-white text-[#17324d] hover:bg-[#f1f5f5] cursor-pointer'
@@ -321,7 +321,7 @@ export function GuiaDetallePage() {
         <button
           type="button"
           onClick={irPasoSiguiente}
-          className="inline-flex items-center justify-center min-h-[56px] px-8 py-4 font-semibold text-[1.111rem] text-white bg-[#0d6258] rounded-xl hover:bg-[#09473f] cursor-pointer transition-colors focus:outline-none focus:ring-4 focus:ring-[#0d6258]/30"
+          className="inline-flex items-center justify-center min-h-14 px-8 py-4 font-semibold text-[1.111rem] text-white bg-[#0d6258] rounded-xl hover:bg-[#09473f] cursor-pointer transition-colors focus:outline-none focus:ring-4 focus:ring-[#0d6258]/30"
         >
           {esUltimoPaso
             ? preguntas.length > 0

@@ -17,7 +17,7 @@ export function AyudaPage() {
         un monitor de la Sala de Internet del CLENA puede acercarse y
         acompañarte.
       </p>
-      <div className="p-8 bg-card-bg border-2 border-card-border rounded-[20px] max-w-176 mt-2">
+      <div className="p-8 bg-card-bg border-2 border-card-border rounded-2xl max-w-176 mt-2">
         <h2 className="text-[1.333rem] font-bold text-card-title">
           ¿En qué necesitas orientación hoy?
         </h2>

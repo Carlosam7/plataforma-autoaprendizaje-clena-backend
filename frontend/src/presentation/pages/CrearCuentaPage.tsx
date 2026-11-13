@@ -144,17 +144,17 @@ export function CrearCuentaPage() {
       {/* Sección principal de Registro */}
       <main
         id="contenido"
-        className="flex-1 flex flex-col items-center justify-center px-4 sm:px-8 md:px-[96px] py-[32px] md:py-[48px] w-full max-w-[1440px] mx-auto"
+        className="flex-1 flex flex-col items-center justify-center px-4 sm:px-8 md:px-24 py-8 md:py-12 w-full max-w-[1440px] mx-auto"
       >
         <div
-          className="flex flex-col lg:flex-row gap-8 lg:gap-[64px] items-start justify-center w-full"
+          className="flex flex-col lg:flex-row gap-8 lg:gap-16 items-start justify-center w-full"
           data-node-id="4:4591"
           data-name="Acceso seguro"
         >
           {/* Columna Izquierda: Información de acompañamiento */}
           <section
             aria-labelledby="titulo-aprender-cuenta"
-            className="bg-[#e7f2ee] flex flex-col gap-[24px] items-start p-6 sm:p-8 md:p-[40px] rounded-[24px] w-full lg:w-[480px] shrink-0 lg:sticky lg:top-8"
+            className="bg-[#e7f2ee] flex flex-col gap-6 items-start p-6 sm:p-8 md:p-10 rounded-3xl w-full lg:w-[480px] shrink-0 lg:sticky lg:top-8"
             data-node-id="4:4592"
             data-name="Aprender con cuenta"
           >
@@ -179,7 +179,7 @@ export function CrearCuentaPage() {
               ayuda cuando la necesites.
             </p>
             <div
-              className="font-medium text-[#0d6258] text-[18px] md:text-[20px] flex flex-col gap-[8px]"
+              className="font-medium text-[#0d6258] text-[18px] md:text-[20px] flex flex-col gap-2"
               data-node-id="4:4596"
             >
               <p className="leading-[1.45] m-0">✓ Guarda tus avances</p>
@@ -190,7 +190,7 @@ export function CrearCuentaPage() {
             </div>
             <Link
               to="/guias"
-              className="inline-flex items-center justify-center min-h-[56px] px-[24px] py-[16px] rounded-[12px] bg-white border border-[#d7e2e7] text-[#0d6258] font-semibold text-[18px] leading-[1.45] hover:border-[#0d6258] hover:bg-[#f1f5f9] transition-colors no-underline cursor-pointer"
+              className="inline-flex items-center justify-center min-h-14 px-6 py-4 rounded-xl bg-white border border-[#d7e2e7] text-[#0d6258] font-semibold text-[18px] leading-[1.45] hover:border-[#0d6258] hover:bg-[#f1f5f9] transition-colors no-underline cursor-pointer"
               data-node-id="4:4597"
             >
               Continuar sin cuenta
@@ -200,7 +200,7 @@ export function CrearCuentaPage() {
           {/* Columna Derecha: Tarjeta de formulario */}
           <section
             aria-labelledby="titulo-crea-cuenta"
-            className="bg-white border border-[#d7e2e7] flex flex-col gap-[24px] items-start p-6 sm:p-8 md:p-[40px] rounded-[24px] w-full lg:w-[680px] shrink-0 shadow-sm"
+            className="bg-white border border-[#d7e2e7] flex flex-col gap-6 items-start p-6 sm:p-8 md:p-10 rounded-3xl w-full lg:w-[680px] shrink-0 shadow-sm"
             data-node-id="4:4599"
             data-name="Crea tu cuenta"
           >
@@ -224,7 +224,7 @@ export function CrearCuentaPage() {
             {errorGeneral && (
               <div
                 role="alert"
-                className="w-full p-4 bg-[#fff3d8] border-2 border-[#f2c66d] rounded-[12px] text-[#17324d] text-[17px] leading-normal font-medium"
+                className="w-full p-4 bg-[#fff3d8] border-2 border-[#f2c66d] rounded-xl text-[#17324d] text-[17px] leading-normal font-medium"
               >
                 <p className="m-0">{errorGeneral}</p>
               </div>
@@ -233,13 +233,10 @@ export function CrearCuentaPage() {
             <form
               onSubmit={handleSubmit}
               noValidate
-              className="flex flex-col gap-[24px] w-full"
+              className="flex flex-col gap-6 w-full"
             >
               {/* Campo 1: Nombre completo */}
-              <div
-                className="flex flex-col gap-[8px] w-full"
-                data-node-id="4:4602"
-              >
+              <div className="flex flex-col gap-2 w-full" data-node-id="4:4602">
                 <label
                   htmlFor="nombre"
                   className="font-semibold text-[#17324d] text-[18px] leading-[1.45]"
@@ -256,7 +253,7 @@ export function CrearCuentaPage() {
                   value={nombre}
                   onChange={(e) => setNombre(e.target.value)}
                   placeholder="Ej. Carmen Rodríguez"
-                  className="w-full min-h-[56px] p-[16px] bg-white text-[#17324d] text-[18px] border border-[#869ba9] rounded-[12px] placeholder:text-[#526575] focus:outline-none focus:border-[#17324d] focus:ring-2 focus:ring-[#17324d]"
+                  className="w-full min-h-14 p-4 bg-white text-[#17324d] text-[18px] border border-[#869ba9] rounded-xl placeholder:text-[#526575] focus:outline-none focus:border-[#17324d] focus:ring-2 focus:ring-[#17324d]"
                   data-node-id="4:4604"
                 />
                 <span className="text-[15px] text-[#526575]">
@@ -265,7 +262,7 @@ export function CrearCuentaPage() {
               </div>
 
               {/* Campo 2: Documento de identificación */}
-              <div className="flex flex-col gap-[8px] w-full">
+              <div className="flex flex-col gap-2 w-full">
                 <label
                   htmlFor="numeroIdentificacion"
                   className="font-semibold text-[#17324d] text-[18px] leading-[1.45]"
@@ -283,7 +280,7 @@ export function CrearCuentaPage() {
                   value={numeroIdentificacion}
                   onChange={(e) => setNumeroIdentificacion(e.target.value)}
                   placeholder="Ej. 41234567"
-                  className="w-full min-h-[56px] p-[16px] bg-white text-[#17324d] text-[18px] border border-[#869ba9] rounded-[12px] placeholder:text-[#526575] focus:outline-none focus:border-[#17324d] focus:ring-2 focus:ring-[#17324d]"
+                  className="w-full min-h-14 p-4 bg-white text-[#17324d] text-[18px] border border-[#869ba9] rounded-xl placeholder:text-[#526575] focus:outline-none focus:border-[#17324d] focus:ring-2 focus:ring-[#17324d]"
                 />
                 <span className="text-[15px] text-[#526575]">
                   Cédula de ciudadanía, extranjería o pasaporte (sin puntos ni
@@ -292,7 +289,7 @@ export function CrearCuentaPage() {
               </div>
 
               {/* Campo 3: Fecha de nacimiento */}
-              <div className="flex flex-col gap-[8px] w-full">
+              <div className="flex flex-col gap-2 w-full">
                 <label
                   htmlFor="fechaNacimiento"
                   className="font-semibold text-[#17324d] text-[18px] leading-[1.45]"
@@ -308,7 +305,7 @@ export function CrearCuentaPage() {
                   aria-required="true"
                   value={fechaNacimiento}
                   onChange={(e) => setFechaNacimiento(e.target.value)}
-                  className="w-full min-h-[56px] p-[16px] bg-white text-[#17324d] text-[18px] border border-[#869ba9] rounded-[12px] placeholder:text-[#526575] focus:outline-none focus:border-[#17324d] focus:ring-2 focus:ring-[#17324d]"
+                  className="w-full min-h-14 p-4 bg-white text-[#17324d] text-[18px] border border-[#869ba9] rounded-xl placeholder:text-[#526575] focus:outline-none focus:border-[#17324d] focus:ring-2 focus:ring-[#17324d]"
                 />
                 <span className="text-[15px] text-[#526575]">
                   Día, mes y año en que naciste.
@@ -316,7 +313,7 @@ export function CrearCuentaPage() {
               </div>
 
               {/* Sección de Contacto */}
-              <div className="pt-2 border-t border-[#e2e8f0] flex flex-col gap-[16px] w-full">
+              <div className="pt-2 border-t border-[#e2e8f0] flex flex-col gap-4 w-full">
                 <div>
                   <p className="font-semibold text-[#17324d] text-[18px] leading-[1.45] m-0">
                     Medio de contacto (para enviarte tu código)
@@ -329,7 +326,7 @@ export function CrearCuentaPage() {
 
                 {/* Campo 4: Correo electrónico */}
                 <div
-                  className="flex flex-col gap-[8px] w-full"
+                  className="flex flex-col gap-2 w-full"
                   data-node-id="4:4606"
                 >
                   <label
@@ -346,13 +343,13 @@ export function CrearCuentaPage() {
                     value={correo}
                     onChange={(e) => setCorreo(e.target.value)}
                     placeholder="nombre@correo.com"
-                    className="w-full min-h-[56px] p-[16px] bg-white text-[#17324d] text-[18px] border border-[#869ba9] rounded-[12px] placeholder:text-[#526575] focus:outline-none focus:border-[#17324d] focus:ring-2 focus:ring-[#17324d]"
+                    className="w-full min-h-14 p-4 bg-white text-[#17324d] text-[18px] border border-[#869ba9] rounded-xl placeholder:text-[#526575] focus:outline-none focus:border-[#17324d] focus:ring-2 focus:ring-[#17324d]"
                     data-node-id="4:4608"
                   />
                 </div>
 
                 {/* Campo 5: Celular */}
-                <div className="flex flex-col gap-[8px] w-full">
+                <div className="flex flex-col gap-2 w-full">
                   <label
                     htmlFor="telefono"
                     className="font-semibold text-[#17324d] text-[18px] leading-[1.45]"
@@ -367,7 +364,7 @@ export function CrearCuentaPage() {
                     value={telefono}
                     onChange={(e) => setTelefono(e.target.value)}
                     placeholder="Ej. 300 123 4567"
-                    className="w-full min-h-[56px] p-[16px] bg-white text-[#17324d] text-[18px] border border-[#869ba9] rounded-[12px] placeholder:text-[#526575] focus:outline-none focus:border-[#17324d] focus:ring-2 focus:ring-[#17324d]"
+                    className="w-full min-h-14 p-4 bg-white text-[#17324d] text-[18px] border border-[#869ba9] rounded-xl placeholder:text-[#526575] focus:outline-none focus:border-[#17324d] focus:ring-2 focus:ring-[#17324d]"
                   />
                   <span className="text-[15px] text-[#526575]">
                     Celular colombiano de 10 dígitos para recibir código por
@@ -377,12 +374,12 @@ export function CrearCuentaPage() {
 
                 {/* Si ingresó ambos: selector de canal */}
                 {mostrarSelectorCanal && (
-                  <fieldset className="flex flex-col gap-[8px] p-4 bg-[#f8fafc] border border-[#d7e2e7] rounded-[12px] w-full">
+                  <fieldset className="flex flex-col gap-2 p-4 bg-[#f8fafc] border border-[#d7e2e7] rounded-xl w-full">
                     <legend className="font-semibold text-[#17324d] text-[16px] px-1">
                       ¿Dónde prefieres recibir el código de acceso?
                     </legend>
                     <div className="flex flex-col sm:flex-row gap-4 mt-1">
-                      <label className="flex items-center gap-3 cursor-pointer text-[#17324d] text-[16px] font-medium min-h-[44px]">
+                      <label className="flex items-center gap-3 cursor-pointer text-[#17324d] text-[16px] font-medium min-h-11">
                         <input
                           type="radio"
                           name="canalVerificacion"
@@ -393,7 +390,7 @@ export function CrearCuentaPage() {
                         />
                         Por correo electrónico
                       </label>
-                      <label className="flex items-center gap-3 cursor-pointer text-[#17324d] text-[16px] font-medium min-h-[44px]">
+                      <label className="flex items-center gap-3 cursor-pointer text-[#17324d] text-[16px] font-medium min-h-11">
                         <input
                           type="radio"
                           name="canalVerificacion"
@@ -410,7 +407,7 @@ export function CrearCuentaPage() {
               </div>
 
               {/* Consentimiento y Aviso de Privacidad (Ley 1581 de 2012) */}
-              <div className="pt-2 border-t border-[#e2e8f0] flex flex-col gap-[8px] w-full">
+              <div className="pt-2 border-t border-[#e2e8f0] flex flex-col gap-2 w-full">
                 <label className="flex items-start gap-3 cursor-pointer text-[#17324d] text-[16px] leading-[1.45]">
                   <input
                     type="checkbox"
@@ -439,7 +436,7 @@ export function CrearCuentaPage() {
               <button
                 type="submit"
                 disabled={enviando}
-                className="w-full sm:w-auto inline-flex items-center justify-center min-h-[56px] px-[24px] py-[16px] rounded-[12px] bg-[#0d6258] text-white font-semibold text-[18px] leading-[1.45] hover:bg-[#09493f] transition-colors cursor-pointer border-none disabled:opacity-50 mt-2"
+                className="w-full sm:w-auto inline-flex items-center justify-center min-h-14 px-6 py-4 rounded-xl bg-[#0d6258] text-white font-semibold text-[18px] leading-[1.45] hover:bg-[#09493f] transition-colors cursor-pointer border-none disabled:opacity-50 mt-2"
                 data-node-id="4:4611"
               >
                 {enviando
@@ -450,7 +447,7 @@ export function CrearCuentaPage() {
               {/* Botón secundario */}
               <Link
                 to="/iniciar-sesion"
-                className="w-full sm:w-auto inline-flex items-center justify-center min-h-[56px] px-[24px] py-[16px] rounded-[12px] bg-white border border-[#d7e2e7] text-[#0d6258] font-semibold text-[18px] leading-[1.45] hover:border-[#0d6258] hover:bg-[#f1f5f9] transition-colors no-underline cursor-pointer"
+                className="w-full sm:w-auto inline-flex items-center justify-center min-h-14 px-6 py-4 rounded-xl bg-white border border-[#d7e2e7] text-[#0d6258] font-semibold text-[18px] leading-[1.45] hover:border-[#0d6258] hover:bg-[#f1f5f9] transition-colors no-underline cursor-pointer"
                 data-node-id="4:4613"
               >
                 Ya tengo una cuenta
@@ -472,7 +469,7 @@ export function CrearCuentaPage() {
 
       {/* Cierre / Pie institucional según Figma */}
       <footer
-        className="w-full max-w-[1440px] mx-auto px-4 sm:px-8 md:px-[96px] py-[24px] flex flex-wrap gap-[24px] items-center justify-between"
+        className="w-full max-w-[1440px] mx-auto px-4 sm:px-8 md:px-24 py-6 flex flex-wrap gap-6 items-center justify-between"
         data-node-id="4:3977"
         data-name="Cierre"
       >
@@ -484,7 +481,7 @@ export function CrearCuentaPage() {
         </p>
         <Link
           to="/ayuda"
-          className="inline-flex items-center gap-[10px] min-h-[50px] px-[20px] py-[14px] rounded-[28px] bg-white border border-[#0d6258] text-[#0d6258] font-semibold text-[18px] hover:bg-[#e7f2ee] transition-colors no-underline"
+          className="inline-flex items-center gap-2.5 min-h-12.5 px-5 py-3.5 rounded-full bg-white border border-[#0d6258] text-[#0d6258] font-semibold text-[18px] hover:bg-[#e7f2ee] transition-colors no-underline"
           data-node-id="4:4108"
           data-name="Ayuda"
         >
