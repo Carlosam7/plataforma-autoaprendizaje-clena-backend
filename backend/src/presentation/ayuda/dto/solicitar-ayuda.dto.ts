@@ -10,6 +10,7 @@ import {
   MaxLength,
   Min,
 } from 'class-validator';
+
 import type { SolicitarAyudaComando } from '../../../application/ayuda/solicitar-ayuda.use-case.js';
 import {
   TEMAS_AYUDA,
@@ -57,4 +58,17 @@ export class IdSolicitudDto {
   @ApiProperty({ format: 'uuid' })
   @IsUUID('all', { message: 'No encontramos esa solicitud de ayuda.' })
   id!: string;
+}
+
+export class ResolverSolicitudDto {
+  @ApiPropertyOptional({
+    type: String,
+    nullable: true,
+    example: 'No encontraba el botón «Adjuntar».',
+    description: 'Nota breve opcional sobre cómo se resolvió',
+  })
+  @IsOptional()
+  @IsString({ message: 'El comentario debe ser un texto.' })
+  @MaxLength(500, { message: 'El comentario puede tener máximo 500 letras.' })
+  comentario?: string | null;
 }

@@ -5,6 +5,7 @@ import {
 import {
   CriterioSolicitudes,
   SolicitudAyudaRepository,
+  SolicitudEnCola,
 } from '../../domain/ayuda/solicitud-ayuda.repository.js';
 import { ResultadoPaginado } from '../shared/resultado-paginado.js';
 
@@ -19,6 +20,32 @@ export interface SolicitudEnColaResumen {
   paso: number | null;
   /** Con ella el frontend calcula el tiempo de espera. */
   creadaEn: Date;
+  /** Nombre del monitor que la atiende o la atendió; null mientras espera (HU-30). */
+  atendidaPor: string | null;
+  tomadaEn: Date | null;
+  resueltaEn: Date | null;
+  comentarioResolucion: string | null;
+}
+
+export function resumenEnCola({
+  solicitud,
+  guia,
+  pasoOrden,
+  atendidaPor,
+}: SolicitudEnCola): SolicitudEnColaResumen {
+  return {
+    id: solicitud.id,
+    equipo: solicitud.equipo,
+    tema: solicitud.tema,
+    estado: solicitud.estado,
+    guia,
+    paso: pasoOrden,
+    creadaEn: solicitud.creadaEn,
+    atendidaPor,
+    tomadaEn: solicitud.tomadaEn,
+    resueltaEn: solicitud.resueltaEn,
+    comentarioResolucion: solicitud.comentarioResolucion,
+  };
 }
 
 /** Las solicitudes de ayuda para el personal, de la más antigua a la más reciente. */
@@ -30,15 +57,7 @@ export class ListarSolicitudesAyudaUseCase {
   ): Promise<ResultadoPaginado<SolicitudEnColaResumen>> {
     const { elementos, total } = await this.solicitudes.listar(criterio);
     return {
-      datos: elementos.map(({ solicitud, guia, pasoOrden }) => ({
-        id: solicitud.id,
-        equipo: solicitud.equipo,
-        tema: solicitud.tema,
-        estado: solicitud.estado,
-        guia,
-        paso: pasoOrden,
-        creadaEn: solicitud.creadaEn,
-      })),
+      datos: elementos.map(resumenEnCola),
       total,
       pagina: criterio.pagina,
       limite: criterio.limite,
