@@ -60,7 +60,7 @@ class GuiaDeSolicitudDto {
   titulo!: string;
 }
 
-class SolicitudEnColaDto implements SolicitudEnColaResumen {
+export class SolicitudEnColaDto implements SolicitudEnColaResumen {
   @ApiProperty({ format: 'uuid' })
   id!: string;
 
@@ -85,6 +85,27 @@ class SolicitudEnColaDto implements SolicitudEnColaResumen {
 
   @ApiProperty({ description: 'Para calcular el tiempo de espera' })
   creadaEn!: Date;
+
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    example: 'Luis Díaz',
+    description: 'Nombre del monitor que la atiende o la atendió (HU-30)',
+  })
+  atendidaPor!: string | null;
+
+  @ApiProperty({ type: Date, nullable: true })
+  tomadaEn!: Date | null;
+
+  @ApiProperty({ type: Date, nullable: true })
+  resueltaEn!: Date | null;
+
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    example: 'No encontraba el botón «Adjuntar».',
+  })
+  comentarioResolucion!: string | null;
 }
 
 export class SolicitudesPaginadasDto
