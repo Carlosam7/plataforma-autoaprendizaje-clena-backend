@@ -19,3 +19,9 @@ export const UsuarioActual = createParamDecorator(
     return usuario;
   },
 );
+
+/** En una ruta @SesionOpcional(): el usuario si llegó un token válido, o null si es anónimo. */
+export const UsuarioOpcional = createParamDecorator(
+  (_dato: unknown, ctx: ExecutionContext): UsuarioAutenticado | null =>
+    ctx.switchToHttp().getRequest<PeticionAutenticada>().usuario ?? null,
+);
