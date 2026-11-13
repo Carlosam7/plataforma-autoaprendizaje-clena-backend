@@ -169,7 +169,7 @@ export function VerificarAccesoPage() {
     >
       <main
         id="contenido"
-        className="flex-1 flex flex-col items-center justify-center px-4 sm:px-8 md:px-24 py-8 md:py-12 w-full max-w-[1440px] mx-auto"
+        className="flex-1 flex flex-col items-center justify-center px-4 sm:px-8 md:px-24 py-8 md:py-12 w-full max-w-360 mx-auto"
       >
         <div
           className="flex flex-col lg:flex-row gap-8 lg:gap-16 items-center justify-center w-full"
@@ -179,7 +179,7 @@ export function VerificarAccesoPage() {
           {/* Columna Izquierda: 552px */}
           <section
             aria-labelledby="titulo-aprender-cuenta"
-            className="bg-[#e7f2ee] flex flex-col gap-6 items-start p-6 sm:p-8 md:p-10 rounded-3xl w-full lg:w-[552px] shrink-0"
+            className="bg-[#e7f2ee] flex flex-col gap-6 items-start p-6 sm:p-8 md:p-10 rounded-3xl w-full lg:w-138 shrink-0"
             data-node-id="4:4616"
             data-name="Aprender con cuenta"
           >
@@ -224,7 +224,7 @@ export function VerificarAccesoPage() {
           {/* Columna Derecha: Tarjeta de 632px */}
           <section
             aria-labelledby="titulo-revisa-codigo"
-            className="bg-white border border-[#d7e2e7] flex flex-col gap-6 items-start p-6 sm:p-8 md:p-10 rounded-3xl w-full lg:w-[632px] shrink-0 shadow-sm"
+            className="bg-white border border-[#d7e2e7] flex flex-col gap-6 items-start p-6 sm:p-8 md:p-10 rounded-3xl w-full lg:w-158 shrink-0 shadow-sm"
             data-node-id="4:4623"
             data-name="Revisa tu correo o celular"
           >
@@ -362,7 +362,7 @@ export function VerificarAccesoPage() {
 
       {/* Cierre / Pie institucional según Figma */}
       <footer
-        className="w-full max-w-[1440px] mx-auto px-4 sm:px-8 md:px-24 py-6 flex flex-wrap gap-6 items-center justify-between"
+        className="w-full max-w-360 mx-auto px-4 sm:px-8 md:px-24 py-6 flex flex-wrap gap-6 items-center justify-between"
         data-node-id="4:3981"
         data-name="Cierre"
       >
