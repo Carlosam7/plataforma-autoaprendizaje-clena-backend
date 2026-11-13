@@ -6,6 +6,7 @@ import { PrismaModule } from './infrastructure/database/prisma.module.js';
 import { LoggingModule } from './infrastructure/logging/logging.module.js';
 import { AuthModule } from './modules/auth.module.js';
 import { CategoriaModule } from './modules/categoria.module.js';
+import { GuiaModule } from './modules/guia.module.js';
 import { PersonalModule } from './modules/personal.module.js';
 import { SistemaModule } from './modules/sistema.module.js';
 import { ExcepcionesFilter } from './presentation/filters/excepciones.filter.js';
@@ -23,6 +24,7 @@ import { HealthController } from './presentation/health/health.controller.js';
     PrismaModule,
     SistemaModule,
     CategoriaModule,
+    GuiaModule,
     AuthModule,
     PersonalModule,
   ],
