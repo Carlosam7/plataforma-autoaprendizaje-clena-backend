@@ -8,6 +8,7 @@ import { AuthModule } from './modules/auth.module.js';
 import { CategoriaModule } from './modules/categoria.module.js';
 import { GuiaModule } from './modules/guia.module.js';
 import { PersonalModule } from './modules/personal.module.js';
+import { PracticaModule } from './modules/practica.module.js';
 import { SistemaModule } from './modules/sistema.module.js';
 import { ExcepcionesFilter } from './presentation/filters/excepciones.filter.js';
 import { HealthController } from './presentation/health/health.controller.js';
@@ -27,6 +28,7 @@ import { HealthController } from './presentation/health/health.controller.js';
     GuiaModule,
     AuthModule,
     PersonalModule,
+    PracticaModule,
   ],
   controllers: [HealthController],
   // APP_FILTER (y no useGlobalFilters en main.ts) para que también aplique en los tests e2e.

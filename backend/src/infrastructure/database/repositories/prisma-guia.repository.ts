@@ -46,7 +46,7 @@ export class PrismaGuiaRepository implements GuiaRepository {
       include: {
         categoria: { select: { slug: true } },
         pasos: { orderBy: { orden: 'asc' } },
-        actividad: { select: { id: true } },
+        actividad: { select: { _count: { select: { preguntas: true } } } },
       },
     });
     if (!fila) return null;
@@ -57,7 +57,8 @@ export class PrismaGuiaRepository implements GuiaRepository {
         titulo: p.titulo,
         contenido: ContenidoPaso.desdeJson(p.contenido),
       })),
-      tieneActividad: fila.actividad !== null,
+      // Una actividad sin preguntas todavía no se puede hacer (HU-21).
+      tieneActividad: (fila.actividad?._count.preguntas ?? 0) > 0,
     };
   }
 
