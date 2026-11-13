@@ -1,5 +1,8 @@
-export type NivelGuia = 'BASICO' | 'INTERMEDIO' | 'AVANZADO';
-export type EstadoGuia = 'BORRADOR' | 'PUBLICADA' | 'OCULTA';
+export const NIVELES_GUIA = ['BASICO', 'INTERMEDIO', 'AVANZADO'] as const;
+export type NivelGuia = (typeof NIVELES_GUIA)[number];
+
+export const ESTADOS_GUIA = ['BORRADOR', 'PUBLICADA', 'OCULTA'] as const;
+export type EstadoGuia = (typeof ESTADOS_GUIA)[number];
 
 /** Guía del catálogo, sin sus pasos (HU-09). */
 export class Guia {

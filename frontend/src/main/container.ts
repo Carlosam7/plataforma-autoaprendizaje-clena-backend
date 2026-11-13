@@ -10,16 +10,29 @@ import { VerificarCodigoRegistro } from '@/application/auth/VerificarCodigoRegis
 import { CalcularResultadoPractica } from '@/application/guias/CalcularResultadoPractica';
 import { ListarGuias } from '@/application/guias/ListarGuias';
 import { ObtenerDetalleGuia } from '@/application/guias/ObtenerDetalleGuia';
+import { CambiarPasswordInicial } from '@/application/personal/CambiarPasswordInicial';
+import { CerrarSesionPersonal } from '@/application/personal/CerrarSesionPersonal';
+import { CrearPersonal } from '@/application/personal/CrearPersonal';
+import { DesactivarPersonal } from '@/application/personal/DesactivarPersonal';
+import { EditarPersonal } from '@/application/personal/EditarPersonal';
+import { ListarPersonal } from '@/application/personal/ListarPersonal';
+import { ObtenerSesionPersonal } from '@/application/personal/ObtenerSesionPersonal';
+import { ReactivarPersonal } from '@/application/personal/ReactivarPersonal';
+import { SolicitarCodigoPasswordInicial } from '@/application/personal/SolicitarCodigoPasswordInicial';
+import { SolicitarInicioSesionPersonal } from '@/application/personal/SolicitarInicioSesionPersonal';
+import { VerificarInicioSesionPersonal } from '@/application/personal/VerificarInicioSesionPersonal';
 import { DomPreferencesApplier } from '@/infrastructure/accessibility/DomPreferencesApplier';
 import { LocalStoragePreferencesRepository } from '@/infrastructure/accessibility/LocalStoragePreferencesRepository';
 import { HttpAuthRepository } from '@/infrastructure/auth/HttpAuthRepository';
 import { HttpGuiasRepository } from '@/infrastructure/guias/HttpGuiasRepository';
+import { HttpPersonalRepository } from '@/infrastructure/personal/HttpPersonalRepository';
 
 // Único lugar donde se eligen implementaciones.
 const preferencesRepository = new LocalStoragePreferencesRepository();
 const preferencesApplier = new DomPreferencesApplier();
 const authRepository = new HttpAuthRepository();
 const guiasRepository = new HttpGuiasRepository();
+const personalRepository = new HttpPersonalRepository();
 
 export const container = {
   accessibility: {
@@ -53,5 +66,25 @@ export const container = {
     obtenerDetalle: new ObtenerDetalleGuia(guiasRepository),
     calcularResultado: new CalcularResultadoPractica(),
     guiasRepository,
+  },
+  personal: {
+    solicitarInicioSesion: new SolicitarInicioSesionPersonal(
+      personalRepository,
+    ),
+    verificarInicioSesion: new VerificarInicioSesionPersonal(
+      personalRepository,
+    ),
+    solicitarCodigoPassword: new SolicitarCodigoPasswordInicial(
+      personalRepository,
+    ),
+    cambiarPasswordInicial: new CambiarPasswordInicial(personalRepository),
+    listar: new ListarPersonal(personalRepository),
+    crear: new CrearPersonal(personalRepository),
+    editar: new EditarPersonal(personalRepository),
+    desactivar: new DesactivarPersonal(personalRepository),
+    reactivar: new ReactivarPersonal(personalRepository),
+    obtenerSesion: new ObtenerSesionPersonal(personalRepository),
+    cerrarSesion: new CerrarSesionPersonal(personalRepository),
+    personalRepository,
   },
 };
