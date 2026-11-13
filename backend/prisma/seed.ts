@@ -76,6 +76,10 @@ type BloqueSemilla =
 
 interface GuiaSemilla {
   slug: string;
+  /** Slug de la categoría; sin él, «seguridad-digital». */
+  categoria?: string;
+  /** Sin él, BASICO. */
+  nivel?: 'BASICO' | 'INTERMEDIO' | 'AVANZADO';
   titulo: string;
   objetivo: string;
   duracionEstimadaMin: number;
@@ -113,8 +117,8 @@ const imagen = (archivo: string, textoAlternativo: string): BloqueSemilla => ({
   textoAlternativo,
 });
 
-// HU-09 / HU-10: guías publicadas de ejemplo, con textos de máximo tres oraciones por bloque.
-// Las otras cuatro categorías quedan sin guías para mostrar «Pronto habrá guías en esta sección».
+// Guías publicadas de ejemplo de las cinco categorías (HU-09, HU-10, HU-17 a HU-20), con textos
+// de máximo tres oraciones por bloque. No usan marcas ni datos de personas reales.
 const GUIAS: GuiaSemilla[] = [
   {
     slug: 'smishing',
@@ -390,6 +394,728 @@ const GUIAS: GuiaSemilla[] = [
       },
     ],
   },
+
+  // ─── HU-17: correo electrónico ─────────────────────────────────────────────
+  {
+    slug: 'crear-cuenta-de-correo',
+    categoria: 'correo-electronico',
+    titulo: 'Crear una cuenta de correo',
+    objetivo:
+      'Al terminar sabrás crear tu propia cuenta de correo electrónico.',
+    duracionEstimadaMin: 12,
+    palabrasClave: [
+      'email',
+      'registrarse',
+      'cuenta nueva',
+      'usuario',
+      'contraseña',
+    ],
+    pasos: [
+      {
+        titulo: 'Elige un servicio de correo',
+        bloques: [
+          texto(
+            'Abre el navegador y entra a la página del servicio de correo que quieras usar. Busca el botón «Crear cuenta» o «Registrarse» y tócalo.',
+          ),
+          consejo('Si no sabes cuál elegir, pregunta a un monitor de la sala.'),
+        ],
+      },
+      {
+        titulo: 'Escribe tus datos',
+        bloques: [
+          texto(
+            'Escribe tu nombre y tu apellido en las casillas. Luego elige el nombre de tu correo: es la parte de tu dirección que va antes de la arroba (@).',
+          ),
+          consejo(
+            'Usa un nombre fácil de dictar, como tu nombre y tu apellido juntos.',
+          ),
+        ],
+      },
+      {
+        titulo: 'Crea una contraseña',
+        bloques: [
+          texto(
+            'Inventa una contraseña que solo tú conozcas. Combina letras, números y algún símbolo.',
+          ),
+          alerta('No uses tu fecha de nacimiento ni tu número de cédula.'),
+        ],
+      },
+      {
+        titulo: 'Guarda tus datos',
+        bloques: [
+          texto(
+            'Anota tu dirección de correo y tu contraseña en un papel que guardes en casa. Con esos dos datos puedes entrar desde cualquier computador.',
+          ),
+          alerta('No dejes ese papel en la sala ni se lo muestres a nadie.'),
+        ],
+      },
+    ],
+    actividad: {
+      titulo: 'Practica: crear una cuenta de correo',
+      preguntas: [
+        {
+          enunciado: '¿Cuál de estas contraseñas es más segura?',
+          explicacion:
+            'Una fecha se adivina fácil. Una mezcla de letras, números y símbolos es mucho más difícil de adivinar.',
+          opciones: [
+            'Tu fecha de nacimiento',
+            'Una mezcla de letras, números y un símbolo',
+          ],
+          correcta: 1,
+        },
+        {
+          enunciado:
+            '¿Qué necesitas para entrar a tu correo desde otro computador?',
+          explicacion:
+            'Tu dirección y tu contraseña son la llave de tu cuenta. Con ellas entras desde cualquier equipo.',
+          opciones: [
+            'Tu dirección de correo y tu contraseña',
+            'Solo tu nombre completo',
+          ],
+          correcta: 0,
+        },
+      ],
+    },
+  },
+  {
+    slug: 'enviar-correo-con-adjunto',
+    categoria: 'correo-electronico',
+    titulo: 'Enviar un correo con un archivo adjunto',
+    objetivo:
+      'Al terminar sabrás escribir un correo y enviarlo con una foto o un documento.',
+    duracionEstimadaMin: 10,
+    palabrasClave: [
+      'email',
+      'mandar',
+      'foto',
+      'documento',
+      'archivo',
+      'mensaje',
+      'redactar',
+    ],
+    pasos: [
+      {
+        titulo: 'Empieza un mensaje nuevo',
+        bloques: [
+          texto(
+            'Entra a tu correo y busca el botón «Redactar» o «Nuevo mensaje». Al tocarlo se abre una ventana para escribir.',
+          ),
+        ],
+      },
+      {
+        titulo: 'Escribe para quién es',
+        bloques: [
+          texto(
+            'En la casilla «Para» escribe la dirección de correo de la persona. En «Asunto» escribe en pocas palabras de qué trata el mensaje.',
+          ),
+          alerta(
+            'Revisa la dirección letra por letra: si hay un error, el correo no llega.',
+          ),
+        ],
+      },
+      {
+        titulo: 'Escribe el mensaje',
+        bloques: [
+          texto(
+            'En el espacio grande escribe lo que quieres decir. Empieza con un saludo y termina con tu nombre.',
+          ),
+        ],
+      },
+      {
+        titulo: 'Adjunta el archivo',
+        bloques: [
+          texto(
+            'Toca el dibujo del clip, que significa «Adjuntar». Busca la foto o el documento en el computador y tócalo dos veces. Espera a que aparezca su nombre en el mensaje.',
+          ),
+          consejo(
+            'Si el archivo es pesado puede tardar un poco: no cierres la ventana.',
+          ),
+        ],
+      },
+      {
+        titulo: 'Envía',
+        bloques: [
+          texto(
+            'Toca el botón «Enviar». El correo queda guardado en la carpeta «Enviados», donde puedes revisarlo después.',
+          ),
+        ],
+      },
+    ],
+    actividad: {
+      titulo: 'Practica: enviar un correo con adjunto',
+      preguntas: [
+        {
+          enunciado: '¿Qué dibujo se usa para adjuntar un archivo a un correo?',
+          explicacion:
+            'El clip significa «Adjuntar». La papelera sirve para borrar.',
+          opciones: ['Un clip', 'Una papelera'],
+          correcta: 0,
+        },
+        {
+          enunciado: '¿Dónde puedes revisar un correo que ya enviaste?',
+          explicacion:
+            'Todo lo que envías queda guardado en la carpeta «Enviados».',
+          opciones: ['En la carpeta «Enviados»', 'En la carpeta «Papelera»'],
+          correcta: 0,
+        },
+      ],
+    },
+  },
+  {
+    slug: 'responder-y-reenviar-correos',
+    categoria: 'correo-electronico',
+    titulo: 'Responder y reenviar un correo',
+    objetivo:
+      'Al terminar sabrás contestar un correo y enviárselo a otra persona.',
+    duracionEstimadaMin: 8,
+    palabrasClave: [
+      'email',
+      'contestar',
+      'respuesta',
+      'reenvío',
+      'mensaje',
+      'bandeja de entrada',
+    ],
+    pasos: [
+      {
+        titulo: 'Abre el correo',
+        bloques: [
+          texto(
+            'En la «Bandeja de entrada» están los correos que te llegan. Toca el que quieres contestar para abrirlo.',
+          ),
+        ],
+      },
+      {
+        titulo: 'Responde',
+        bloques: [
+          texto(
+            'Toca «Responder». La dirección de quien te escribió ya aparece puesta. Escribe tu respuesta y toca «Enviar».',
+          ),
+        ],
+      },
+      {
+        titulo: 'Reenvía',
+        bloques: [
+          texto(
+            'Para mostrarle ese correo a otra persona, toca «Reenviar». Escribe la dirección de esa persona en «Para» y toca «Enviar».',
+          ),
+          alerta(
+            'Antes de reenviar, piensa si quien te escribió querría que otra persona lo lea.',
+          ),
+        ],
+      },
+      {
+        titulo: null,
+        bloques: [
+          texto(
+            'No tienes que contestar todos los correos. Si no conoces a quien escribe o el mensaje te parece raro, es mejor no responder.',
+          ),
+          consejo(
+            'En la categoría «Seguridad digital» aprendes a reconocer mensajes falsos.',
+          ),
+        ],
+      },
+    ],
+  },
+
+  // ─── HU-18: documentos de texto ────────────────────────────────────────────
+  {
+    slug: 'crear-un-documento',
+    categoria: 'documentos',
+    titulo: 'Crear y escribir un documento',
+    objetivo:
+      'Al terminar sabrás abrir el procesador de texto y escribir una carta sencilla.',
+    duracionEstimadaMin: 10,
+    palabrasClave: [
+      'carta',
+      'escribir',
+      'texto',
+      'procesador de texto',
+      'hoja',
+      'teclado',
+    ],
+    pasos: [
+      {
+        titulo: 'Abre el procesador de texto',
+        bloques: [
+          texto(
+            'El procesador de texto es el programa para escribir cartas y documentos. Búscalo en el escritorio o en el menú de inicio y tócalo dos veces.',
+          ),
+          consejo('Si no lo encuentras, pide ayuda a un monitor.'),
+        ],
+      },
+      {
+        titulo: 'Empieza un documento en blanco',
+        bloques: [
+          texto(
+            'Elige «Documento en blanco». Aparece una hoja vacía con una rayita que parpadea: ahí se escribe.',
+          ),
+        ],
+      },
+      {
+        titulo: 'Escribe',
+        bloques: [
+          texto(
+            'Escribe con el teclado. Para dejar un espacio entre palabras usa la barra larga. Para empezar un renglón nuevo usa la tecla «Enter».',
+          ),
+        ],
+      },
+      {
+        titulo: 'Corrige',
+        bloques: [
+          texto(
+            'Si te equivocas, usa la tecla de borrar, que tiene una flecha hacia la izquierda. Borra letra por letra y vuelve a escribir.',
+          ),
+          consejo('Equivocarse es normal: todo se puede corregir.'),
+        ],
+      },
+    ],
+    actividad: {
+      titulo: 'Practica: escribir un documento',
+      preguntas: [
+        {
+          enunciado: '¿Qué tecla usas para empezar un renglón nuevo?',
+          explicacion:
+            'Con «Enter» bajas al renglón siguiente. La barra larga deja un espacio entre palabras.',
+          opciones: ['La tecla «Enter»', 'La barra larga'],
+          correcta: 0,
+        },
+        {
+          enunciado: 'Escribiste mal una palabra. ¿Qué haces?',
+          explicacion:
+            'No hay que empezar de nuevo: la tecla de borrar quita letra por letra.',
+          opciones: [
+            'Empiezo el documento de nuevo',
+            'Borro las letras con la tecla de borrar y las escribo otra vez',
+          ],
+          correcta: 1,
+        },
+      ],
+    },
+  },
+  {
+    slug: 'guardar-un-documento',
+    categoria: 'documentos',
+    titulo: 'Guardar un documento en una carpeta',
+    objetivo:
+      'Al terminar sabrás guardar tu documento con un nombre y en un lugar donde lo puedas encontrar.',
+    duracionEstimadaMin: 8,
+    palabrasClave: [
+      'archivo',
+      'guardar como',
+      'nombre',
+      'memoria USB',
+      'no perder',
+    ],
+    pasos: [
+      {
+        titulo: 'Busca «Guardar»',
+        bloques: [
+          texto(
+            'Arriba a la izquierda toca «Archivo» y luego «Guardar como». También sirve el dibujo del disquete.',
+          ),
+        ],
+      },
+      {
+        titulo: 'Elige dónde guardarlo',
+        bloques: [
+          texto(
+            'Se abre una ventana con las carpetas del computador. Elige «Documentos», o tu memoria USB si trajiste una.',
+          ),
+          alerta(
+            'Los computadores de la sala se usan entre todos: lleva tu documento en una memoria USB o envíatelo por correo.',
+          ),
+        ],
+      },
+      {
+        titulo: 'Ponle un nombre',
+        bloques: [
+          texto(
+            'En la casilla «Nombre» escribe uno que diga de qué trata, como «Carta para la EPS». Luego toca «Guardar».',
+          ),
+          consejo('Un buen nombre te ahorra tiempo cuando lo busques.'),
+        ],
+      },
+      {
+        titulo: 'Guarda mientras trabajas',
+        bloques: [
+          texto(
+            'Mientras escribes, guarda de vez en cuando. Así no pierdes el trabajo si se va la luz o se cierra el programa.',
+          ),
+        ],
+      },
+    ],
+    actividad: {
+      titulo: 'Practica: guardar un documento',
+      preguntas: [
+        {
+          enunciado: '¿Cuál es un buen nombre para guardar una carta?',
+          explicacion:
+            'Un nombre que dice de qué trata el documento ayuda a encontrarlo después.',
+          opciones: ['«Carta para la EPS»', '«Documento1»'],
+          correcta: 0,
+        },
+        {
+          enunciado:
+            'Estás en un computador de la sala. ¿Cómo te llevas tu documento?',
+          explicacion:
+            'Los computadores de la sala los usan muchas personas. Con una memoria USB o tu correo, el documento va contigo.',
+          opciones: [
+            'Lo dejo guardado en el escritorio de ese computador',
+            'Lo guardo en mi memoria USB o me lo envío por correo',
+          ],
+          correcta: 1,
+        },
+      ],
+    },
+  },
+  {
+    slug: 'abrir-un-documento-guardado',
+    categoria: 'documentos',
+    titulo: 'Abrir un documento guardado',
+    objetivo:
+      'Al terminar sabrás encontrar y abrir un documento que guardaste antes.',
+    duracionEstimadaMin: 6,
+    palabrasClave: [
+      'archivo',
+      'buscar',
+      'encontrar',
+      'carpeta',
+      'recuperar',
+      'memoria USB',
+    ],
+    pasos: [
+      {
+        titulo: 'Abre la carpeta',
+        bloques: [
+          texto(
+            'Abre la carpeta donde guardaste el documento, por ejemplo «Documentos». Si está en una memoria USB, conéctala primero.',
+          ),
+        ],
+      },
+      {
+        titulo: 'Encuentra el documento',
+        bloques: [
+          texto(
+            'Busca el nombre que le pusiste. Si hay muchos archivos, suelen estar en orden alfabético.',
+          ),
+          consejo(
+            'Si no lo ves, escribe su nombre en la casilla de búsqueda de la carpeta.',
+          ),
+        ],
+      },
+      {
+        titulo: 'Ábrelo',
+        bloques: [
+          texto(
+            'Toca el documento dos veces seguidas. Se abre en el procesador de texto, listo para leer o seguir escribiendo.',
+          ),
+        ],
+      },
+      {
+        titulo: null,
+        bloques: [
+          texto('Si cambias algo, vuelve a guardar antes de cerrar.'),
+          alerta('Si cierras sin guardar, los cambios se pierden.'),
+        ],
+      },
+    ],
+    actividad: {
+      titulo: 'Practica: abrir un documento',
+      preguntas: [
+        {
+          enunciado: '¿Cómo se abre un documento desde su carpeta?',
+          explicacion:
+            'Con dos toques seguidos el documento se abre en el procesador de texto.',
+          opciones: [
+            'Tocándolo dos veces seguidas',
+            'Tocándolo una vez y esperando',
+          ],
+          correcta: 0,
+        },
+      ],
+    },
+  },
+
+  // ─── HU-19: búsqueda en internet ───────────────────────────────────────────
+  // El módulo de información confiable (HU-27) todavía no existe: cada guía cierra invitando
+  // a la categoría «Seguridad digital», donde va a quedar.
+  {
+    slug: 'buscar-en-internet',
+    categoria: 'busqueda-internet',
+    titulo: 'Abrir el navegador y buscar',
+    objetivo:
+      'Al terminar sabrás usar un buscador para encontrar información en internet.',
+    duracionEstimadaMin: 7,
+    palabrasClave: [
+      'buscador',
+      'consultar',
+      'averiguar',
+      'página web',
+      'internet',
+    ],
+    pasos: [
+      {
+        titulo: 'Abre el navegador',
+        bloques: [
+          texto(
+            'El navegador es el programa para entrar a internet. Búscalo en el escritorio y tócalo dos veces.',
+          ),
+        ],
+      },
+      {
+        titulo: 'Escribe lo que buscas',
+        bloques: [
+          texto(
+            'En la casilla del centro escribe lo que quieres saber, por ejemplo «horario biblioteca Barranquilla». Luego oprime la tecla «Enter».',
+          ),
+        ],
+      },
+      {
+        titulo: 'Mira los resultados',
+        bloques: [
+          texto(
+            'Aparece una lista de páginas. Cada una tiene un título en azul y un texto corto que la describe.',
+          ),
+        ],
+      },
+      {
+        titulo: 'Entra a una página',
+        bloques: [
+          texto(
+            'Toca el título de la página que te interese. Para volver a la lista, toca la flecha hacia la izquierda, arriba en la pantalla.',
+          ),
+          consejo(
+            'No todo lo que aparece es cierto. En la categoría «Seguridad digital» aprendes a reconocer la información confiable.',
+          ),
+        ],
+      },
+    ],
+  },
+  {
+    slug: 'elegir-palabras-para-buscar',
+    categoria: 'busqueda-internet',
+    nivel: 'INTERMEDIO',
+    titulo: 'Elegir buenas palabras para buscar',
+    objetivo:
+      'Al terminar sabrás escribir búsquedas cortas que encuentran justo lo que necesitas.',
+    duracionEstimadaMin: 6,
+    palabrasClave: [
+      'palabras clave',
+      'buscador',
+      'consulta',
+      'resultados',
+      'encontrar',
+    ],
+    pasos: [
+      {
+        titulo: 'Usa pocas palabras',
+        bloques: [
+          texto(
+            'El buscador entiende mejor las búsquedas cortas. En vez de una pregunta larga, escribe solo las palabras importantes.',
+          ),
+          consejo(
+            'Ejemplo: «requisitos pasaporte Colombia» en vez de «qué necesito para sacar el pasaporte».',
+          ),
+        ],
+      },
+      {
+        titulo: 'Di el lugar',
+        bloques: [
+          texto(
+            'Si buscas algo cerca, agrega tu ciudad o tu barrio. «Farmacia de turno Barranquilla» encuentra mejor que solo «farmacia».',
+          ),
+        ],
+      },
+      {
+        titulo: 'Cambia las palabras',
+        bloques: [
+          texto(
+            'Si no encuentras lo que buscas, prueba con otras palabras que signifiquen lo mismo. Por ejemplo, «médico» en lugar de «doctor».',
+          ),
+        ],
+      },
+      {
+        titulo: null,
+        bloques: [
+          texto(
+            'Que una página aparezca de primera no significa que diga la verdad. Mira siempre quién la publica.',
+          ),
+          consejo(
+            'En la categoría «Seguridad digital» aprendes a reconocer la información confiable.',
+          ),
+        ],
+      },
+    ],
+  },
+  {
+    slug: 'anuncios-y-resultados',
+    categoria: 'busqueda-internet',
+    nivel: 'INTERMEDIO',
+    titulo: 'Distinguir anuncios de resultados',
+    objetivo:
+      'Al terminar sabrás reconocer cuáles resultados de una búsqueda son publicidad.',
+    duracionEstimadaMin: 6,
+    palabrasClave: [
+      'publicidad',
+      'patrocinado',
+      'buscador',
+      'propaganda',
+      'promoción',
+    ],
+    pasos: [
+      {
+        titulo: 'Busca la palabra «Anuncio»',
+        bloques: [
+          texto(
+            'Los primeros resultados de una búsqueda a veces son publicidad. Se reconocen porque dicen «Anuncio» o «Patrocinado» en letra pequeña.',
+          ),
+        ],
+      },
+      {
+        titulo: 'Un anuncio es pagado',
+        bloques: [
+          texto(
+            'Una empresa paga para que su página salga de primera. Eso no quiere decir que sea la mejor ni la más confiable.',
+          ),
+          alerta(
+            'Algunos anuncios imitan páginas de bancos o de entidades del Estado.',
+          ),
+        ],
+      },
+      {
+        titulo: 'Baja en la lista',
+        bloques: [
+          texto(
+            'Los resultados que no son anuncios están más abajo. Baja con la rueda del ratón y compáralos antes de entrar a una página.',
+          ),
+        ],
+      },
+      {
+        titulo: 'Revisa la dirección',
+        bloques: [
+          texto(
+            'Antes de tocar un resultado, lee la dirección que aparece junto al título. Las entidades del Estado colombiano terminan en «.gov.co».',
+          ),
+          consejo(
+            'En la categoría «Seguridad digital» aprendes más sobre cómo reconocer la información confiable.',
+          ),
+        ],
+      },
+    ],
+  },
+
+  // ─── HU-20: redes sociales (sin marcas ni personas reales) ─────────────────
+  {
+    slug: 'usar-mensajeria-web',
+    categoria: 'redes-sociales',
+    titulo: 'Usar la mensajería desde el computador',
+    objetivo:
+      'Al terminar sabrás leer y enviar mensajes desde el computador y cerrar la sesión al terminar.',
+    duracionEstimadaMin: 9,
+    palabrasClave: [
+      'chat',
+      'mensajes',
+      'conversación',
+      'red social',
+      'escribir',
+      'contactos',
+    ],
+    pasos: [
+      {
+        titulo: 'Entra a la página',
+        bloques: [
+          texto(
+            'Abre el navegador y entra a la página de la red social o del servicio de mensajes que usas. Escribe tu usuario y tu contraseña para entrar.',
+          ),
+          alerta('En la sala nunca marques la casilla «Recordar contraseña».'),
+        ],
+      },
+      {
+        titulo: 'Abre una conversación',
+        bloques: [
+          texto(
+            'A la izquierda está la lista de tus conversaciones. Toca el nombre de la persona para ver sus mensajes.',
+          ),
+        ],
+      },
+      {
+        titulo: 'Escribe y envía',
+        bloques: [
+          texto(
+            'Escribe tu mensaje en la casilla de abajo. Para enviarlo oprime «Enter» o toca la flecha.',
+          ),
+          consejo(
+            'Lee el mensaje antes de enviarlo: después es difícil corregirlo.',
+          ),
+        ],
+      },
+      {
+        titulo: 'Cierra la sesión',
+        bloques: [
+          texto(
+            'Al terminar, busca «Cerrar sesión» en el menú. Así la próxima persona que use el computador no puede leer tus mensajes.',
+          ),
+          alerta('Cerrar la ventana no basta: hay que cerrar la sesión.'),
+        ],
+      },
+    ],
+  },
+  {
+    slug: 'privacidad-en-redes-sociales',
+    categoria: 'redes-sociales',
+    nivel: 'INTERMEDIO',
+    titulo: 'Revisar la privacidad de tu red social',
+    objetivo: 'Al terminar sabrás elegir quién puede ver lo que publicas.',
+    duracionEstimadaMin: 8,
+    palabrasClave: [
+      'configuración',
+      'ajustes',
+      'perfil',
+      'publicaciones',
+      'quién puede ver',
+    ],
+    pasos: [
+      {
+        titulo: 'Abre la configuración',
+        bloques: [
+          texto(
+            'Entra a tu red social y busca el menú, que suele ser tu foto o tres rayitas. Toca «Configuración» y luego «Privacidad».',
+          ),
+        ],
+      },
+      {
+        titulo: 'Elige quién ve tus publicaciones',
+        bloques: [
+          texto(
+            'Busca la opción «Quién puede ver lo que publicas». Elige «Amigos» o «Contactos» en vez de «Público».',
+          ),
+          consejo(
+            'Con «Público», cualquier persona en internet puede ver tus fotos.',
+          ),
+        ],
+      },
+      {
+        titulo: 'Revisa tus datos',
+        bloques: [
+          texto(
+            'Mira qué datos tuyos están a la vista, como tu teléfono o tu dirección. Deja visibles solo los que quieras compartir.',
+          ),
+          alerta(
+            'No publiques tu número de cédula, tu dirección ni fotos de tus documentos.',
+          ),
+        ],
+      },
+      {
+        titulo: 'Acepta solo a quien conoces',
+        bloques: [
+          texto(
+            'Si alguien que no conoces te pide ser tu contacto, puedes decir que no. No es mala educación: es cuidarte.',
+          ),
+        ],
+      },
+    ],
+  },
 ];
 
 const DIRECTORIO_IMAGENES = join(process.cwd(), 'archivos', 'semilla', 'guias');
@@ -629,20 +1355,33 @@ async function main(): Promise<void> {
     const autorId = await sembrarAutorContenidos(prisma);
     let imagenes = 0;
     let preguntas = 0;
-    for (const { slug, pasos, actividad, ...datos } of GUIAS) {
+    for (const {
+      slug,
+      categoria = 'seguridad-digital',
+      nivel = 'BASICO',
+      pasos,
+      actividad,
+      ...datos
+    } of GUIAS) {
+      const categoriaId = CATEGORIAS.find((c) => c.slug === categoria)?.id;
+      if (!categoriaId) {
+        throw new Error(
+          `La guía ${slug} tiene una categoría desconocida: ${categoria}`,
+        );
+      }
       const guia = await prisma.guia.upsert({
         where: { slug },
         create: {
           slug,
           ...datos,
-          categoriaId: 1,
-          nivel: 'BASICO',
+          categoriaId,
+          nivel,
           estado: 'PUBLICADA',
           publicadaEn: new Date('2026-11-01T00:00:00.000Z'),
           creadaPorId: autorId,
           actualizadaPorId: autorId,
         },
-        update: datos,
+        update: { ...datos, categoriaId, nivel },
       });
       imagenes += await sembrarPasos(prisma, guia.id, pasos, autorId);
       if (actividad) {
