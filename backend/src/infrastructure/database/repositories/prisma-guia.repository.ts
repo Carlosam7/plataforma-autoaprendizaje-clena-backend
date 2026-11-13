@@ -1,7 +1,9 @@
 import { Injectable } from '@nestjs/common';
+import { ContenidoPaso } from '../../../domain/guia/contenido-paso.js';
 import { Guia } from '../../../domain/guia/guia.js';
 import {
   CriterioGuiasPublicadas,
+  DetalleGuia,
   GuiaRepository,
 } from '../../../domain/guia/guia.repository.js';
 import { Pagina } from '../../../domain/shared/pagina.js';
@@ -35,21 +37,52 @@ export class PrismaGuiaRepository implements GuiaRepository {
       }),
       this.prisma.guia.count({ where }),
     ]);
+    return { elementos: filas.map(aGuia), total };
+  }
+
+  async buscarPublicada(slug: string): Promise<DetalleGuia | null> {
+    const fila = await this.prisma.guia.findFirst({
+      where: { slug, estado: 'PUBLICADA' },
+      include: {
+        categoria: { select: { slug: true } },
+        pasos: { orderBy: { orden: 'asc' } },
+        actividad: { select: { id: true } },
+      },
+    });
+    if (!fila) return null;
     return {
-      elementos: filas.map(
-        (f) =>
-          new Guia(
-            f.id,
-            f.slug,
-            f.categoria.slug,
-            f.titulo,
-            f.objetivo,
-            f.nivel,
-            f.duracionEstimadaMin,
-            f.estado,
-          ),
-      ),
-      total,
+      guia: aGuia(fila),
+      pasos: fila.pasos.map((p) => ({
+        orden: p.orden,
+        titulo: p.titulo,
+        contenido: ContenidoPaso.desdeJson(p.contenido),
+      })),
+      tieneActividad: fila.actividad !== null,
     };
   }
+
+  async buscarIdPublicada(slug: string): Promise<string | null> {
+    const fila = await this.prisma.guia.findFirst({
+      where: { slug, estado: 'PUBLICADA' },
+      select: { id: true },
+    });
+    return fila?.id ?? null;
+  }
+}
+
+function aGuia(
+  f: Prisma.GuiaGetPayload<{
+    include: { categoria: { select: { slug: true } } };
+  }>,
+): Guia {
+  return new Guia(
+    f.id,
+    f.slug,
+    f.categoria.slug,
+    f.titulo,
+    f.objetivo,
+    f.nivel,
+    f.duracionEstimadaMin,
+    f.estado,
+  );
 }
