@@ -58,10 +58,12 @@ export async function limpiarBaseDatos(prisma: PrismaService): Promise<void> {
   // guia, imagen y solicitud_ayuda apuntan a personal con RESTRICT: se borran antes (guia
   // arrastra pasos, consultas y actividades). Eso incluye las guías y la solicitud semilla;
   // las pruebas crean las suyas.
+  // calificacion no cuelga de nada con CASCADE (usuario y guía la dejan en NULL): se borra aparte.
   // shortcut: pregunta_frecuente y termino_glosario también apuntan a personal con RESTRICT;
   // cuando una prueba los cree, bórralos antes aquí.
   await prisma.$transaction([
     prisma.usuarioPublico.deleteMany(),
+    prisma.calificacion.deleteMany(),
     prisma.solicitudAyuda.deleteMany(),
     prisma.guia.deleteMany(),
     prisma.imagen.deleteMany(),
