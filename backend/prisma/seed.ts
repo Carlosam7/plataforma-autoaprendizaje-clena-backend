@@ -79,6 +79,8 @@ interface GuiaSemilla {
   titulo: string;
   objetivo: string;
   duracionEstimadaMin: number;
+  /** HU-11: palabras con las que la gente buscaría la guía y que no están en el título. */
+  palabrasClave: string[];
   pasos: { titulo: string | null; bloques: BloqueSemilla[] }[];
   actividad?: ActividadSemilla;
 }
@@ -120,6 +122,15 @@ const GUIAS: GuiaSemilla[] = [
     objetivo:
       'Al terminar sabrás reconocer las señales de un mensaje de texto engañoso.',
     duracionEstimadaMin: 8,
+    palabrasClave: [
+      'mensaje',
+      'texto',
+      'estafa',
+      'fraude',
+      'enlace',
+      'banco',
+      'celular',
+    ],
     pasos: [
       {
         titulo: 'Haz una pausa',
@@ -229,6 +240,15 @@ const GUIAS: GuiaSemilla[] = [
     objetivo:
       'Al terminar sabrás qué hacer si alguien te llama pidiendo tus datos o códigos.',
     duracionEstimadaMin: 7,
+    palabrasClave: [
+      'teléfono',
+      'llamada',
+      'estafa',
+      'fraude',
+      'banco',
+      'código',
+      'clave',
+    ],
     pasos: [
       {
         titulo: 'Respira y no sientas prisa',
@@ -268,6 +288,15 @@ const GUIAS: GuiaSemilla[] = [
     objetivo:
       'Al terminar sabrás revisar un código QR antes de abrir el enlace que trae.',
     duracionEstimadaMin: 6,
+    palabrasClave: [
+      'QR',
+      'escanear',
+      'cámara',
+      'estafa',
+      'fraude',
+      'enlace',
+      'pago',
+    ],
     pasos: [
       {
         titulo: 'El código QR es un enlace',
@@ -309,6 +338,15 @@ const GUIAS: GuiaSemilla[] = [
     objetivo:
       'Al terminar sabrás reconocer una ventana o llamada falsa de soporte técnico.',
     duracionEstimadaMin: 10,
+    palabrasClave: [
+      'virus',
+      'computador',
+      'ventana',
+      'alerta',
+      'estafa',
+      'fraude',
+      'ayuda',
+    ],
     pasos: [
       {
         titulo: 'Una ventana que asusta',
