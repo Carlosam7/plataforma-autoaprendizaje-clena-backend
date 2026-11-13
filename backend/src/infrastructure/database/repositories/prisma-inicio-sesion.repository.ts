@@ -9,6 +9,11 @@ import { NumeroIdentificacion } from '../../../domain/auth/value-objects/numero-
 import { Telefono } from '../../../domain/auth/value-objects/telefono.js';
 import { Prisma } from '../prisma/generated/client.js';
 import { PrismaService } from '../prisma.service.js';
+import {
+  emitirCodigo,
+  reservarIntento,
+  ultimoCodigoSinUsar,
+} from './codigos-metodo-inicio.js';
 
 /*
  * El inicio de sesión del usuario público usa las tablas del registro:
@@ -62,59 +67,18 @@ export class PrismaInicioSesionRepository implements InicioSesionRepository {
     return fila ? aCuenta(fila) : null;
   }
 
-  async ultimoCodigoSinUsar(
+  ultimoCodigoSinUsar(
     metodoInicioId: string,
   ): Promise<CodigoInicioSesion | null> {
-    const fila = await this.prisma.codigoVerificacion.findFirst({
-      where: { metodoInicioId, proposito: PROPOSITO, usadoEn: null },
-      orderBy: { creadoEn: 'desc' },
-    });
-    if (!fila) return null;
-    return CodigoInicioSesion.reconstituir({
-      id: fila.id,
-      metodoInicioId,
-      codigoHash: fila.codigoHash,
-      intentosFallidos: fila.intentos,
-      creadoEn: fila.creadoEn,
-      expiraEn: fila.expiraEn,
-      usadoEn: fila.usadoEn,
-    });
+    return ultimoCodigoSinUsar(this.prisma, metodoInicioId, PROPOSITO);
   }
 
-  async emitirCodigo(codigo: CodigoInicioSesion): Promise<void> {
-    await this.prisma.$transaction([
-      // Solo vale el último código enviado.
-      this.prisma.codigoVerificacion.updateMany({
-        where: {
-          metodoInicioId: codigo.metodoInicioId,
-          proposito: PROPOSITO,
-          usadoEn: null,
-        },
-        data: { usadoEn: codigo.creadoEn },
-      }),
-      this.prisma.codigoVerificacion.create({
-        data: {
-          id: codigo.id,
-          metodoInicioId: codigo.metodoInicioId,
-          proposito: PROPOSITO,
-          codigoHash: codigo.codigoHash,
-          intentos: codigo.intentosFallidos,
-          expiraEn: codigo.expiraEn,
-          creadoEn: codigo.creadoEn,
-        },
-      }),
-    ]);
+  emitirCodigo(codigo: CodigoInicioSesion): Promise<void> {
+    return emitirCodigo(this.prisma, codigo, PROPOSITO);
   }
 
-  async reservarIntento(
-    codigoId: string,
-    maxIntentos: number,
-  ): Promise<boolean> {
-    const { count } = await this.prisma.codigoVerificacion.updateMany({
-      where: { id: codigoId, usadoEn: null, intentos: { lt: maxIntentos } },
-      data: { intentos: { increment: 1 } },
-    });
-    return count > 0;
+  reservarIntento(codigoId: string, maxIntentos: number): Promise<boolean> {
+    return reservarIntento(this.prisma, codigoId, maxIntentos);
   }
 
   async confirmar(codigo: CodigoInicioSesion): Promise<void> {
