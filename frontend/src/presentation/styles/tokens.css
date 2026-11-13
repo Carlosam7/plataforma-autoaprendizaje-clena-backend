@@ -1,0 +1,153 @@
+/* Tokens extraídos del Figma, frame «Sistema visual · Kamá».
+   Inter 18 px · controles de 56 px · espaciado de 8 px. */
+:root {
+  --font: 'Inter', system-ui, sans-serif;
+
+  /* Paleta oficial */
+  --navy: #17324d;
+  --primary: #0d6258;
+  --white: #ffffff;
+  --bg: #f8fafc;
+  --surface: #ffffff;
+  --accent: #f2c66d;
+  --ink: #172b3a;
+
+  /* Neutros y superficies usados en los componentes */
+  --border: #d7e2e7;
+  --border-input: #869ba9;
+  --muted: #526575;
+  --tint: #eef4f4; /* franja de accesibilidad */
+  --track: #dce7e7; /* riel de la barra de progreso */
+  --icon-bg: #e7f2ee; /* fondo de íconos de guía */
+  --icon-fg: #0d6258;
+  --notice: #fff3d8; /* avisos */
+
+  /* Estados de botón */
+  --primary-hover: #09493f;
+  --focus: #17324d;
+  --disabled-bg: #e2e8ec;
+  --disabled-fg: #526575;
+
+  /* Semánticos para temas y alto contraste */
+  --header-bg: #ffffff;
+  --header-border: #e2e8ec;
+  --nav-link: var(--navy);
+  --nav-logo: var(--primary);
+  --hero-title: var(--navy);
+  --hero-text: var(--muted);
+  --eyebrow: var(--primary);
+
+  --btn-primary-bg: var(--primary);
+  --btn-primary-fg: #ffffff;
+  --btn-primary-border: transparent;
+  --btn-primary-hover: var(--primary-hover);
+
+  --btn-secondary-bg: #ffffff;
+  --btn-secondary-fg: var(--primary);
+  --btn-secondary-border: var(--border);
+  --btn-secondary-hover-border: var(--primary);
+  --btn-secondary-hover-bg: #f1f5f9;
+
+  --a11y-bar-bg: var(--tint);
+  --a11y-bar-text: var(--primary);
+  --a11y-btn-fg: var(--navy);
+  --a11y-btn-bg: transparent;
+  --a11y-btn-border: transparent;
+  --a11y-btn-active-bg: #ffffff;
+  --a11y-btn-active-fg: var(--navy);
+  --a11y-btn-active-border: var(--navy);
+
+  --card-bg: var(--surface);
+  --card-border: var(--border);
+  --card-title: var(--navy);
+  --card-text: var(--ink);
+
+  --footer-bg: var(--navy);
+  --footer-fg: #ffffff;
+  --footer-border: transparent;
+
+  /* Forma */
+  --radius-sm: 8px;
+  --radius: 12px; /* botones, campos, avisos */
+  --radius-card: 20px; /* tarjetas */
+  --radius-pill: 28px; /* «Necesito ayuda» */
+  --control-h: 56px;
+  --touch-h: 44px;
+  --gutter: 96px; /* margen lateral en escritorio */
+}
+
+/* Letra: base de 18 px. «Grande» sube 1,2× y «muy grande» 1,44× */
+html {
+  font-size: 112.5%;
+}
+:root[data-font-size='grande'] {
+  font-size: 135%;
+}
+:root[data-font-size='muy_grande'] {
+  font-size: 162%;
+}
+
+/* Modo Alto Contraste (Opción 2: Monocromático Blanco & Negro Puro · Estándar Universal Acromático):
+   Fondo negro azabache absoluto, textos blancos puros y bordes nítidos de máximo contraste (21:1). */
+:root[data-contrast='high'] {
+  --bg: #000000;
+  --surface: #000000;
+  --ink: #ffffff;
+  --navy: #ffffff;
+  --primary: #ffffff;
+  --muted: #f0f0f0;
+  --border: #ffffff;
+  --border-input: #ffffff;
+  --icon-bg: #1a1a1a;
+  --icon-fg: #ffffff;
+  --notice: #1a1a1a;
+
+  --focus: #ffffff;
+
+  --header-bg: #000000;
+  --header-border: #ffffff;
+  --nav-link: #ffffff;
+  --nav-logo: #ffffff;
+
+  --hero-title: #ffffff;
+  --hero-text: #ffffff;
+  --eyebrow: #ffffff;
+
+  --btn-primary-bg: #ffffff;
+  --btn-primary-fg: #000000;
+  --btn-primary-border: #ffffff;
+  --btn-primary-hover: #e5e5e5;
+
+  --btn-secondary-bg: #000000;
+  --btn-secondary-fg: #ffffff;
+  --btn-secondary-border: #ffffff;
+  --btn-secondary-hover-border: #ffffff;
+  --btn-secondary-hover-bg: #1a1a1a;
+
+  --a11y-bar-bg: #000000;
+  --a11y-bar-text: #ffffff;
+  --a11y-btn-fg: #ffffff;
+  --a11y-btn-bg: #000000;
+  --a11y-btn-border: #ffffff;
+  --a11y-btn-active-bg: #ffffff;
+  --a11y-btn-active-fg: #000000;
+  --a11y-btn-active-border: #ffffff;
+
+  --card-bg: #000000;
+  --card-border: #ffffff;
+  --card-title: #ffffff;
+  --card-text: #ffffff;
+
+  --footer-bg: #000000;
+  --footer-fg: #ffffff;
+  --footer-border: #ffffff;
+
+  --disabled-bg: #222222;
+  --disabled-fg: #777777;
+}
+
+@media (max-width: 720px) {
+  :root {
+    --gutter: 24px;
+  }
+}

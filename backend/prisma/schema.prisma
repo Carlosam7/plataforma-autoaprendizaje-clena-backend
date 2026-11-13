@@ -1,0 +1,556 @@
+// Modelo de datos — Plataforma Kamá (DOCUMENTACION/Modelo de datos — Kamá.pdf, v1.0).
+// Detalle de infraestructura: el dominio no importa nada de aquí; los repositorios de
+// src/infrastructure traducen entre estos modelos y las entidades de dominio.
+// CHECKs, índices parciales/de expresión y UNIQUE DEFERRABLE que Prisma no declara
+// viven en SQL escrito a mano dentro de la migración inicial.
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/infrastructure/database/prisma/generated"
+  moduleFormat = "esm"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Tipos enumerados ────────────────────────────────────────────────────────
+
+enum TipoMetodoInicio {
+  CORREO
+  TELEFONO
+
+  @@map("tipo_metodo_inicio")
+}
+
+enum RolPersonal {
+  PERSONAL
+  ADMINISTRADOR
+
+  @@map("rol_personal")
+}
+
+enum PropositoCodigo {
+  REGISTRO
+  INICIO_SESION
+  ELIMINAR_CUENTA
+  RESTABLECER_PASSWORD
+  CAMBIO_PASSWORD_INICIAL
+
+  @@map("proposito_codigo")
+}
+
+enum TamanoLetra {
+  NORMAL
+  GRANDE
+  MUY_GRANDE
+
+  @@map("tamano_letra")
+}
+
+enum NivelGuia {
+  BASICO
+  INTERMEDIO
+  AVANZADO
+
+  @@map("nivel_guia")
+}
+
+enum EstadoGuia {
+  BORRADOR
+  PUBLICADA
+  OCULTA
+
+  @@map("estado_guia")
+}
+
+enum EstadoSolicitud {
+  PENDIENTE
+  EN_ATENCION
+  RESUELTA
+  CANCELADA
+
+  @@map("estado_solicitud")
+}
+
+enum TemaAyuda {
+  CORREO
+  BUSQUEDA_INTERNET
+  DOCUMENTOS
+  REDES_SOCIALES
+  SEGURIDAD_DIGITAL
+  USO_DEL_EQUIPO
+  IMPRESION
+  OTRO
+
+  @@map("tema_ayuda")
+}
+
+enum ValorCalificacion {
+  ME_AYUDO
+  MAS_O_MENOS
+  NO_ME_AYUDO
+
+  @@map("valor_calificacion")
+}
+
+enum OrigenCalificacion {
+  CIERRE_SESION
+  FIN_GUIA
+
+  @@map("origen_calificacion")
+}
+
+// ─── Identidad y acceso ──────────────────────────────────────────────────────
+
+model UsuarioPublico {
+  numeroIdentificacion String      @id @map("numero_identificacion") @db.VarChar(20)
+  nombre               String      @db.VarChar(120)
+  fechaNacimiento      DateTime    @map("fecha_nacimiento") @db.Date
+  tamanoLetra          TamanoLetra @default(NORMAL) @map("tamano_letra")
+  altoContraste        Boolean     @default(false) @map("alto_contraste")
+  nivelExperiencia     NivelGuia?  @map("nivel_experiencia")
+  tutorialVisto        Boolean     @default(false) @map("tutorial_visto")
+  creadoEn             DateTime    @default(now()) @map("creado_en") @db.Timestamptz
+  actualizadoEn        DateTime    @updatedAt @map("actualizado_en") @db.Timestamptz
+
+  metodosInicio    MetodoInicio[]
+  consentimientos  Consentimiento[]
+  refreshTokens    RefreshToken[]
+  intentos         Intento[]
+  progresos        ProgresoGuia[]
+  pasosLeidos      PasoLeido[]
+  solicitudesAyuda SolicitudAyuda[]
+  consultasGuia    ConsultaGuia[]
+  calificaciones   Calificacion[]
+
+  @@map("usuario_publico")
+}
+
+model MetodoInicio {
+  id           String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  usuarioId    String           @map("usuario_id") @db.VarChar(20)
+  tipo         TipoMetodoInicio
+  valor        String           @db.VarChar(255)
+  verificadoEn DateTime?        @map("verificado_en") @db.Timestamptz
+  creadoEn     DateTime         @default(now()) @map("creado_en") @db.Timestamptz
+
+  usuario             UsuarioPublico       @relation(fields: [usuarioId], references: [numeroIdentificacion], onDelete: Cascade)
+  codigosVerificacion CodigoVerificacion[]
+
+  @@unique([tipo, valor])
+  @@unique([usuarioId, tipo])
+  @@map("metodo_inicio")
+}
+
+model AvisoPrivacidad {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  version      String   @unique @db.VarChar(20)
+  contenido    String
+  vigenteDesde DateTime @map("vigente_desde") @db.Timestamptz
+  creadoEn     DateTime @default(now()) @map("creado_en") @db.Timestamptz
+
+  consentimientos Consentimiento[]
+
+  @@map("aviso_privacidad")
+}
+
+model Consentimiento {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  usuarioId         String   @map("usuario_id") @db.VarChar(20)
+  avisoPrivacidadId String   @map("aviso_privacidad_id") @db.Uuid
+  aceptadoEn        DateTime @default(now()) @map("aceptado_en") @db.Timestamptz
+
+  usuario         UsuarioPublico  @relation(fields: [usuarioId], references: [numeroIdentificacion], onDelete: Cascade)
+  avisoPrivacidad AvisoPrivacidad @relation(fields: [avisoPrivacidadId], references: [id], onDelete: Restrict)
+
+  @@unique([usuarioId, avisoPrivacidadId])
+  @@map("consentimiento")
+}
+
+// El personal nunca se borra, solo se desactiva: las FK hacia personal son RESTRICT.
+model Personal {
+  id                  String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nombre              String      @db.VarChar(120)
+  correo              String      @unique @db.VarChar(255)
+  passwordHash        String      @map("password_hash") @db.VarChar(255)
+  rol                 RolPersonal
+  activo              Boolean     @default(true)
+  debeCambiarPassword Boolean     @default(true) @map("debe_cambiar_password")
+  creadoPorId         String?     @map("creado_por_id") @db.Uuid
+  ultimoAccesoEn      DateTime?   @map("ultimo_acceso_en") @db.Timestamptz
+  creadoEn            DateTime    @default(now()) @map("creado_en") @db.Timestamptz
+  actualizadoEn       DateTime    @updatedAt @map("actualizado_en") @db.Timestamptz
+
+  creadoPor Personal?  @relation("PersonalCreadoPor", fields: [creadoPorId], references: [id], onDelete: Restrict)
+  creados   Personal[] @relation("PersonalCreadoPor")
+
+  refreshTokens           RefreshToken[]
+  codigosVerificacion     CodigoVerificacion[]
+  imagenesSubidas         Imagen[]             @relation("ImagenSubidaPor")
+  guiasCreadas            Guia[]               @relation("GuiaCreadaPor")
+  guiasActualizadas       Guia[]               @relation("GuiaActualizadaPor")
+  actividadesCreadas      Actividad[]          @relation("ActividadCreadaPor")
+  actividadesActualizadas Actividad[]          @relation("ActividadActualizadaPor")
+  solicitudesAtendidas    SolicitudAyuda[]
+  faqCreadas              PreguntaFrecuente[]  @relation("PreguntaFrecuenteCreadaPor")
+  faqActualizadas         PreguntaFrecuente[]  @relation("PreguntaFrecuenteActualizadaPor")
+  terminosCreados         TerminoGlosario[]    @relation("TerminoGlosarioCreadoPor")
+  terminosActualizados    TerminoGlosario[]    @relation("TerminoGlosarioActualizadoPor")
+
+  @@map("personal")
+}
+
+// CHECK (num_nonnulls(usuario_publico_id, personal_id) = 1) en SQL.
+model RefreshToken {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  usuarioPublicoId String?   @map("usuario_publico_id") @db.VarChar(20)
+  personalId       String?   @map("personal_id") @db.Uuid
+  tokenHash        String    @unique @map("token_hash") @db.VarChar(255)
+  expiraEn         DateTime  @map("expira_en") @db.Timestamptz
+  revocadoEn       DateTime? @map("revocado_en") @db.Timestamptz
+  reemplazadoPorId String?   @unique @map("reemplazado_por_id") @db.Uuid
+  creadoEn         DateTime  @default(now()) @map("creado_en") @db.Timestamptz
+
+  usuarioPublico UsuarioPublico? @relation(fields: [usuarioPublicoId], references: [numeroIdentificacion], onDelete: Cascade)
+  personal       Personal?       @relation(fields: [personalId], references: [id], onDelete: Cascade)
+  reemplazadoPor RefreshToken?   @relation("RotacionRefreshToken", fields: [reemplazadoPorId], references: [id], onDelete: SetNull)
+  reemplaza      RefreshToken?   @relation("RotacionRefreshToken")
+
+  @@index([usuarioPublicoId])
+  @@index([personalId])
+  @@map("refresh_token")
+}
+
+// CHECK (num_nonnulls(metodo_inicio_id, personal_id) = 1) en SQL.
+model CodigoVerificacion {
+  id             String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  proposito      PropositoCodigo
+  metodoInicioId String?         @map("metodo_inicio_id") @db.Uuid
+  personalId     String?         @map("personal_id") @db.Uuid
+  codigoHash     String          @map("codigo_hash") @db.VarChar(255)
+  intentos       Int             @default(0) @db.SmallInt
+  expiraEn       DateTime        @map("expira_en") @db.Timestamptz
+  usadoEn        DateTime?       @map("usado_en") @db.Timestamptz
+  creadoEn       DateTime        @default(now()) @map("creado_en") @db.Timestamptz
+
+  metodoInicio MetodoInicio? @relation(fields: [metodoInicioId], references: [id], onDelete: Cascade)
+  personal     Personal?     @relation(fields: [personalId], references: [id], onDelete: Cascade)
+
+  @@index([metodoInicioId, proposito])
+  @@index([personalId, proposito])
+  @@map("codigo_verificacion")
+}
+
+// ─── Catálogo de guías ───────────────────────────────────────────────────────
+
+// Las cinco categorías solo las crea el script de semillas.
+model Categoria {
+  id     Int    @id @db.SmallInt
+  slug   String @unique @db.VarChar(40)
+  nombre String @db.VarChar(60)
+  icono  String @db.VarChar(60)
+  orden  Int    @db.SmallInt
+
+  guias Guia[]
+
+  @@map("categoria")
+}
+
+// CHECK (duracion_estimada_min > 0) e índice GIN de búsqueda (HU-11) en SQL.
+model Guia {
+  id                  String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  categoriaId         Int        @map("categoria_id") @db.SmallInt
+  // Identifica la guía en URLs y QR (HU-09, HU-45). No cambia al editar el título.
+  slug                String     @unique @db.VarChar(80)
+  titulo              String     @db.VarChar(150)
+  objetivo            String     @db.VarChar(300)
+  descripcion         String?
+  nivel               NivelGuia
+  duracionEstimadaMin Int        @map("duracion_estimada_min") @db.SmallInt
+  palabrasClave       String[]   @default([]) @map("palabras_clave")
+  estado              EstadoGuia @default(BORRADOR)
+  publicadaEn         DateTime?  @map("publicada_en") @db.Timestamptz
+  creadaPorId         String     @map("creada_por_id") @db.Uuid
+  actualizadaPorId    String     @map("actualizada_por_id") @db.Uuid
+  creadoEn            DateTime   @default(now()) @map("creado_en") @db.Timestamptz
+  actualizadoEn       DateTime   @updatedAt @map("actualizado_en") @db.Timestamptz
+
+  categoria      Categoria @relation(fields: [categoriaId], references: [id], onDelete: Restrict)
+  creadaPor      Personal  @relation("GuiaCreadaPor", fields: [creadaPorId], references: [id], onDelete: Restrict)
+  actualizadaPor Personal  @relation("GuiaActualizadaPor", fields: [actualizadaPorId], references: [id], onDelete: Restrict)
+
+  pasos            Paso[]
+  actividad        Actividad?
+  progresos        ProgresoGuia[]
+  solicitudesAyuda SolicitudAyuda[]
+  consultas        ConsultaGuia[]
+  calificaciones   Calificacion[]
+
+  @@index([categoriaId, estado, nivel])
+  @@map("guia")
+}
+
+// UNIQUE (guia_id, orden) se convierte en DEFERRABLE INITIALLY DEFERRED en SQL (HU-15).
+// CHECK (jsonb_typeof(contenido -> 'bloques') = 'array') en SQL.
+model Paso {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  guiaId        String   @map("guia_id") @db.Uuid
+  orden         Int      @db.SmallInt
+  // Opcional: sin título el paso se muestra solo como «Paso 2 de 6» (HU-10).
+  titulo        String?  @db.VarChar(120)
+  contenido     Json     @db.JsonB
+  creadoEn      DateTime @default(now()) @map("creado_en") @db.Timestamptz
+  actualizadoEn DateTime @updatedAt @map("actualizado_en") @db.Timestamptz
+
+  guia Guia @relation(fields: [guiaId], references: [id], onDelete: Cascade)
+
+  progresosUltimoPaso ProgresoGuia[]
+  lecturas            PasoLeido[]
+  solicitudesAyuda    SolicitudAyuda[]
+
+  @@unique([guiaId, orden], map: "paso_guia_id_orden_key")
+  @@map("paso")
+}
+
+// CHECK de tipo_mime y tamano_bytes <= 5 MB en SQL.
+model Imagen {
+  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  claveAlmacenamiento String   @unique @map("clave_almacenamiento") @db.VarChar(255)
+  url                 String   @db.VarChar(500)
+  tipoMime            String   @map("tipo_mime") @db.VarChar(20)
+  tamanoBytes         Int      @map("tamano_bytes")
+  textoAlternativo    String   @map("texto_alternativo") @db.VarChar(250)
+  subidaPorId         String   @map("subida_por_id") @db.Uuid
+  creadoEn            DateTime @default(now()) @map("creado_en") @db.Timestamptz
+
+  subidaPor Personal @relation("ImagenSubidaPor", fields: [subidaPorId], references: [id], onDelete: Restrict)
+
+  preguntas        Pregunta[]
+  terminosGlosario TerminoGlosario[]
+
+  @@map("imagen")
+}
+
+// ─── Práctica y progreso ─────────────────────────────────────────────────────
+
+// CHECK (porcentaje_aprobacion BETWEEN 1 AND 100) en SQL.
+model Actividad {
+  id                   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  guiaId               String   @unique @map("guia_id") @db.Uuid
+  titulo               String   @db.VarChar(150)
+  porcentajeAprobacion Int      @default(70) @map("porcentaje_aprobacion") @db.SmallInt
+  creadaPorId          String   @map("creada_por_id") @db.Uuid
+  actualizadaPorId     String   @map("actualizada_por_id") @db.Uuid
+  creadoEn             DateTime @default(now()) @map("creado_en") @db.Timestamptz
+  actualizadoEn        DateTime @updatedAt @map("actualizado_en") @db.Timestamptz
+
+  guia           Guia     @relation(fields: [guiaId], references: [id], onDelete: Cascade)
+  creadaPor      Personal @relation("ActividadCreadaPor", fields: [creadaPorId], references: [id], onDelete: Restrict)
+  actualizadaPor Personal @relation("ActividadActualizadaPor", fields: [actualizadaPorId], references: [id], onDelete: Restrict)
+
+  preguntas Pregunta[]
+  intentos  Intento[]
+
+  @@map("actividad")
+}
+
+// UNIQUE (actividad_id, orden) se convierte en DEFERRABLE INITIALLY DEFERRED en SQL.
+model Pregunta {
+  id          String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  actividadId String  @map("actividad_id") @db.Uuid
+  orden       Int     @db.SmallInt
+  enunciado   String  @db.VarChar(500)
+  explicacion String  @db.VarChar(500)
+  imagenId    String? @map("imagen_id") @db.Uuid
+
+  actividad Actividad @relation(fields: [actividadId], references: [id], onDelete: Cascade)
+  imagen    Imagen?   @relation(fields: [imagenId], references: [id], onDelete: SetNull)
+
+  opciones   Opcion[]
+  respuestas RespuestaIntento[]
+
+  @@unique([actividadId, orden], map: "pregunta_actividad_id_orden_key")
+  @@map("pregunta")
+}
+
+// Índice único parcial (pregunta_id) WHERE es_correcta en SQL.
+model Opcion {
+  id         String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  preguntaId String  @map("pregunta_id") @db.Uuid
+  orden      Int     @db.SmallInt
+  texto      String  @db.VarChar(250)
+  esCorrecta Boolean @map("es_correcta")
+
+  pregunta Pregunta @relation(fields: [preguntaId], references: [id], onDelete: Cascade)
+
+  respuestas RespuestaIntento[]
+
+  @@unique([preguntaId, orden])
+  @@map("opcion")
+}
+
+model Intento {
+  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  actividadId         String    @map("actividad_id") @db.Uuid
+  usuarioId           String?   @map("usuario_id") @db.VarChar(20)
+  totalPreguntas      Int       @map("total_preguntas") @db.SmallInt
+  respuestasCorrectas Int       @default(0) @map("respuestas_correctas") @db.SmallInt
+  porcentaje          Int?      @db.SmallInt
+  aprobado            Boolean?
+  iniciadoEn          DateTime  @default(now()) @map("iniciado_en") @db.Timestamptz
+  finalizadoEn        DateTime? @map("finalizado_en") @db.Timestamptz
+
+  actividad Actividad       @relation(fields: [actividadId], references: [id], onDelete: Cascade)
+  usuario   UsuarioPublico? @relation(fields: [usuarioId], references: [numeroIdentificacion], onDelete: Cascade)
+
+  respuestas RespuestaIntento[]
+
+  @@index([usuarioId, actividadId])
+  @@index([actividadId, finalizadoEn])
+  @@map("intento")
+}
+
+model RespuestaIntento {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  intentoId    String   @map("intento_id") @db.Uuid
+  preguntaId   String   @map("pregunta_id") @db.Uuid
+  opcionId     String   @map("opcion_id") @db.Uuid
+  esCorrecta   Boolean  @map("es_correcta")
+  respondidaEn DateTime @default(now()) @map("respondida_en") @db.Timestamptz
+
+  intento  Intento  @relation(fields: [intentoId], references: [id], onDelete: Cascade)
+  pregunta Pregunta @relation(fields: [preguntaId], references: [id], onDelete: Cascade)
+  opcion   Opcion   @relation(fields: [opcionId], references: [id], onDelete: Cascade)
+
+  @@unique([intentoId, preguntaId])
+  @@index([preguntaId])
+  @@map("respuesta_intento")
+}
+
+model ProgresoGuia {
+  usuarioId     String    @map("usuario_id") @db.VarChar(20)
+  guiaId        String    @map("guia_id") @db.Uuid
+  ultimoPasoId  String?   @map("ultimo_paso_id") @db.Uuid
+  completada    Boolean   @default(false)
+  completadaEn  DateTime? @map("completada_en") @db.Timestamptz
+  actualizadoEn DateTime  @updatedAt @map("actualizado_en") @db.Timestamptz
+
+  usuario    UsuarioPublico @relation(fields: [usuarioId], references: [numeroIdentificacion], onDelete: Cascade)
+  guia       Guia           @relation(fields: [guiaId], references: [id], onDelete: Cascade)
+  ultimoPaso Paso?          @relation(fields: [ultimoPasoId], references: [id], onDelete: SetNull)
+
+  @@id([usuarioId, guiaId])
+  @@map("progreso_guia")
+}
+
+model PasoLeido {
+  usuarioId String   @map("usuario_id") @db.VarChar(20)
+  pasoId    String   @map("paso_id") @db.Uuid
+  leidoEn   DateTime @default(now()) @map("leido_en") @db.Timestamptz
+
+  usuario UsuarioPublico @relation(fields: [usuarioId], references: [numeroIdentificacion], onDelete: Cascade)
+  paso    Paso           @relation(fields: [pasoId], references: [id], onDelete: Cascade)
+
+  @@id([usuarioId, pasoId])
+  @@map("paso_leido")
+}
+
+// ─── Ayuda presencial y autoayuda ────────────────────────────────────────────
+
+// Índice único parcial lower(trim(equipo)) WHERE estado activo en SQL (HU-29).
+model SolicitudAyuda {
+  id                   String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  equipo               String          @db.VarChar(100)
+  tema                 TemaAyuda
+  estado               EstadoSolicitud @default(PENDIENTE)
+  guiaId               String?         @map("guia_id") @db.Uuid
+  pasoId               String?         @map("paso_id") @db.Uuid
+  usuarioId            String?         @map("usuario_id") @db.VarChar(20)
+  atendidaPorId        String?         @map("atendida_por_id") @db.Uuid
+  comentarioResolucion String?         @map("comentario_resolucion") @db.VarChar(500)
+  creadaEn             DateTime        @default(now()) @map("creada_en") @db.Timestamptz
+  tomadaEn             DateTime?       @map("tomada_en") @db.Timestamptz
+  resueltaEn           DateTime?       @map("resuelta_en") @db.Timestamptz
+  canceladaEn          DateTime?       @map("cancelada_en") @db.Timestamptz
+
+  guia        Guia?           @relation(fields: [guiaId], references: [id], onDelete: SetNull)
+  paso        Paso?           @relation(fields: [pasoId], references: [id], onDelete: SetNull)
+  usuario     UsuarioPublico? @relation(fields: [usuarioId], references: [numeroIdentificacion], onDelete: SetNull)
+  atendidaPor Personal?       @relation(fields: [atendidaPorId], references: [id], onDelete: Restrict)
+
+  @@index([estado, creadaEn])
+  @@index([creadaEn, tema])
+  @@index([usuarioId])
+  @@map("solicitud_ayuda")
+}
+
+model PreguntaFrecuente {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tema             String   @db.VarChar(80)
+  pregunta         String   @db.VarChar(250)
+  respuesta        String
+  orden            Int      @db.SmallInt
+  visible          Boolean  @default(true)
+  creadaPorId      String   @map("creada_por_id") @db.Uuid
+  actualizadaPorId String   @map("actualizada_por_id") @db.Uuid
+  creadoEn         DateTime @default(now()) @map("creado_en") @db.Timestamptz
+  actualizadoEn    DateTime @updatedAt @map("actualizado_en") @db.Timestamptz
+
+  creadaPor      Personal @relation("PreguntaFrecuenteCreadaPor", fields: [creadaPorId], references: [id], onDelete: Restrict)
+  actualizadaPor Personal @relation("PreguntaFrecuenteActualizadaPor", fields: [actualizadaPorId], references: [id], onDelete: Restrict)
+
+  @@index([visible, tema, orden])
+  @@map("pregunta_frecuente")
+}
+
+// Unicidad de termino sin tildes ni mayúsculas: índice lower(f_unaccent(termino)) en SQL.
+model TerminoGlosario {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  termino          String   @db.VarChar(80)
+  definicion       String   @db.VarChar(500)
+  imagenId         String?  @map("imagen_id") @db.Uuid
+  creadoPorId      String   @map("creado_por_id") @db.Uuid
+  actualizadoPorId String   @map("actualizado_por_id") @db.Uuid
+  creadoEn         DateTime @default(now()) @map("creado_en") @db.Timestamptz
+  actualizadoEn    DateTime @updatedAt @map("actualizado_en") @db.Timestamptz
+
+  imagen         Imagen?  @relation(fields: [imagenId], references: [id], onDelete: SetNull)
+  creadoPor      Personal @relation("TerminoGlosarioCreadoPor", fields: [creadoPorId], references: [id], onDelete: Restrict)
+  actualizadoPor Personal @relation("TerminoGlosarioActualizadoPor", fields: [actualizadoPorId], references: [id], onDelete: Restrict)
+
+  @@map("termino_glosario")
+}
+
+// ─── Analítica ───────────────────────────────────────────────────────────────
+
+model ConsultaGuia {
+  id           BigInt   @id @default(autoincrement())
+  guiaId       String   @map("guia_id") @db.Uuid
+  usuarioId    String?  @map("usuario_id") @db.VarChar(20)
+  consultadaEn DateTime @default(now()) @map("consultada_en") @db.Timestamptz
+
+  guia    Guia            @relation(fields: [guiaId], references: [id], onDelete: Cascade)
+  usuario UsuarioPublico? @relation(fields: [usuarioId], references: [numeroIdentificacion], onDelete: SetNull)
+
+  @@index([guiaId, consultadaEn])
+  @@index([usuarioId])
+  @@map("consulta_guia")
+}
+
+model Calificacion {
+  id         String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  valor      ValorCalificacion
+  comentario String?            @db.VarChar(300)
+  origen     OrigenCalificacion
+  guiaId     String?            @map("guia_id") @db.Uuid
+  usuarioId  String?            @map("usuario_id") @db.VarChar(20)
+  creadaEn   DateTime           @default(now()) @map("creada_en") @db.Timestamptz
+
+  guia    Guia?           @relation(fields: [guiaId], references: [id], onDelete: SetNull)
+  usuario UsuarioPublico? @relation(fields: [usuarioId], references: [numeroIdentificacion], onDelete: SetNull)
+
+  @@index([usuarioId])
+  @@index([creadaEn, guiaId])
+  @@map("calificacion")
+}

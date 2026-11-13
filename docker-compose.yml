@@ -1,0 +1,58 @@
+# Levanta PostgreSQL, backend y frontend: `docker compose up --build`.
+# Las credenciales tienen valores por defecto para desarrollo; en producción
+# defínelas en un archivo .env junto a este docker-compose.yml.
+services:
+  postgres:
+    image: postgres:15
+    container_name: clena-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DATABASE_NAME:-clena}
+      POSTGRES_USER: ${DATABASE_USER:-clena}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:-clena}
+    ports:
+      - "127.0.0.1:${DATABASE_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    environment:
+      PORT: 3000
+      # Mientras no haya proveedor real de correo/SMS los códigos se escriben en los
+      # logs (NOTIFICACIONES_CORREO/NOTIFICACIONES_SMS=consola), y eso solo se permite fuera de producción.
+      NODE_ENV: ${NODE_ENV:-development}
+      DATABASE_URL: postgresql://${DATABASE_USER:-clena}:${DATABASE_PASSWORD:-clena}@postgres:5432/${DATABASE_NAME:-clena}
+      # Valor solo para desarrollo local; en cualquier despliegue real defínelo en .env.
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-solo-desarrollo-local-cambia-este-secreto-ya}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8080,http://localhost:5173}
+      # HU-04: administrador inicial que crean las semillas al arrancar. Valores solo para
+      # desarrollo local (la contraseña se debe cambiar en el primer ingreso); en un despliegue
+      # real defínelos en .env.
+      ADMIN_INICIAL_NOMBRE: ${ADMIN_INICIAL_NOMBRE:-Administrador CLENA}
+      ADMIN_INICIAL_CORREO: ${ADMIN_INICIAL_CORREO:-admin@clena.example}
+      ADMIN_INICIAL_PASSWORD: ${ADMIN_INICIAL_PASSWORD:-CambiaEsta2026}
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:

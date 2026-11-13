@@ -9,5 +9,18 @@ export default defineConfig({
     globals: true,
     root: './',
     include: ['**/*.spec.ts'],
+    exclude: ['**/node_modules/**', '**/dist/**', '**/*.e2e-spec.ts'],
+    coverage: {
+      provider: 'v8',
+      // El enunciado exige 70 % en las capas de dominio y aplicación.
+      include: ['src/**/domain/**/*.ts', 'src/**/application/**/*.ts'],
+      exclude: [
+        '**/__tests__/**',
+        '**/*.port.ts',
+        '**/*.repository.ts',
+        '**/configuracion-*.ts',
+      ],
+      thresholds: { lines: 70, functions: 70, branches: 70, statements: 70 },
+    },
   },
 });
