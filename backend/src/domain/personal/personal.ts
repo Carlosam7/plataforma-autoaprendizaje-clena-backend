@@ -84,6 +84,10 @@ export class Personal {
     this.props.activo = true;
   }
 
+  registrarAcceso(ahora: Date): void {
+    this.props.ultimoAccesoEn = ahora;
+  }
+
   /** Reemplaza la contraseña temporal por la que eligió su dueño. */
   cambiarPasswordInicial(passwordHash: string): void {
     if (!this.props.debeCambiarPassword) {

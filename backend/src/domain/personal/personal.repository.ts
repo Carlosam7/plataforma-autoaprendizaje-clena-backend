@@ -15,6 +15,7 @@ export interface CriterioPersonal extends Paginacion {
 
 export abstract class PersonalRepository {
   abstract buscarPorId(id: string): Promise<Personal | null>;
+  abstract buscarPorCorreo(correo: Correo): Promise<Personal | null>;
   /** ¿Otra cuenta (distinta de `exceptoId`) ya usa este correo? */
   abstract existeCorreo(correo: Correo, exceptoId?: string): Promise<boolean>;
   abstract crear(personal: Personal): Promise<void>;

@@ -15,6 +15,9 @@ import { ListarPersonalUseCase } from '../application/personal/listar-personal.u
 import { ObtenerPersonalUseCase } from '../application/personal/obtener-personal.use-case.js';
 import { ReactivarPersonalUseCase } from '../application/personal/reactivar-personal.use-case.js';
 import { SolicitarCodigoPasswordInicialUseCase } from '../application/personal/solicitar-codigo-password-inicial.use-case.js';
+import { SolicitarInicioSesionPersonalUseCase } from '../application/personal/solicitar-inicio-sesion-personal.use-case.js';
+import { VerificarInicioSesionPersonalUseCase } from '../application/personal/verificar-inicio-sesion-personal.use-case.js';
+import { EmisorSesion } from '../application/auth/emisor-sesion.port.js';
 import { GeneradorId } from '../application/shared/generador-id.port.js';
 import { Reloj } from '../application/shared/reloj.port.js';
 import { SesionRepository } from '../domain/auth/sesion.repository.js';
@@ -26,14 +29,19 @@ import { PrismaPersonalRepository } from '../infrastructure/database/repositorie
 import { BcryptHasherPassword } from '../infrastructure/seguridad/bcrypt-hasher-password.js';
 import { PasswordInicialController } from '../presentation/personal/password-inicial.controller.js';
 import { PersonalController } from '../presentation/personal/personal.controller.js';
+import { SesionPersonalController } from '../presentation/personal/sesion-personal.controller.js';
 import { AuthModule } from './auth.module.js';
 
 type Config = ConfigService<VariablesEntorno, true>;
 
-// Composition root de HU-04: cuentas del personal del CLENA.
+// Composition root de HU-04 y HU-06: cuentas del personal del CLENA y su inicio de sesión.
 @Module({
   imports: [AuthModule],
-  controllers: [PasswordInicialController, PersonalController],
+  controllers: [
+    PasswordInicialController,
+    PersonalController,
+    SesionPersonalController,
+  ],
   providers: [
     { provide: PersonalRepository, useClass: PrismaPersonalRepository },
     {
@@ -126,6 +134,41 @@ type Config = ConfigService<VariablesEntorno, true>;
       useFactory: (
         ...deps: ConstructorParameters<typeof CambiarPasswordInicialUseCase>
       ) => new CambiarPasswordInicialUseCase(...deps),
+    },
+    {
+      provide: SolicitarInicioSesionPersonalUseCase,
+      inject: [
+        PersonalRepository,
+        CodigoPersonalRepository,
+        HasherPassword,
+        GeneradorCodigo,
+        HasherCodigo,
+        EnviadorCodigo,
+        GeneradorId,
+        Reloj,
+        ConfiguracionPersonal,
+      ],
+      useFactory: (
+        ...deps: ConstructorParameters<
+          typeof SolicitarInicioSesionPersonalUseCase
+        >
+      ) => new SolicitarInicioSesionPersonalUseCase(...deps),
+    },
+    {
+      provide: VerificarInicioSesionPersonalUseCase,
+      inject: [
+        PersonalRepository,
+        CodigoPersonalRepository,
+        HasherCodigo,
+        EmisorSesion,
+        Reloj,
+        ConfiguracionPersonal,
+      ],
+      useFactory: (
+        ...deps: ConstructorParameters<
+          typeof VerificarInicioSesionPersonalUseCase
+        >
+      ) => new VerificarInicioSesionPersonalUseCase(...deps),
     },
   ],
 })
