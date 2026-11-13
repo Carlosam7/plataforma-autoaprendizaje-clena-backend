@@ -1,0 +1,91 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-navy: var(--navy);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-accent: var(--accent);
+  --color-ink: var(--ink);
+  --color-surface: var(--surface);
+  --color-bg: var(--bg);
+
+  --color-border-subtle: var(--border);
+  --color-border-input: var(--border-input);
+  --color-muted: var(--muted);
+  --color-tint: var(--tint);
+  --color-track: var(--track);
+  --color-icon-bg: var(--icon-bg);
+  --color-icon-fg: var(--icon-fg);
+  --color-notice: var(--notice);
+
+  --color-focus: var(--focus);
+  --color-disabled-bg: var(--disabled-bg);
+  --color-disabled-fg: var(--disabled-fg);
+
+  --color-header-bg: var(--header-bg);
+  --color-header-border: var(--header-border);
+  --color-nav-link: var(--nav-link);
+  --color-nav-logo: var(--nav-logo);
+
+  --color-hero-title: var(--hero-title);
+  --color-hero-text: var(--hero-text);
+  --color-eyebrow: var(--eyebrow);
+
+  --color-btn-primary-bg: var(--btn-primary-bg);
+  --color-btn-primary-fg: var(--btn-primary-fg);
+  --color-btn-primary-border: var(--btn-primary-border);
+  --color-btn-primary-hover: var(--btn-primary-hover);
+
+  --color-btn-secondary-bg: var(--btn-secondary-bg);
+  --color-btn-secondary-fg: var(--btn-secondary-fg);
+  --color-btn-secondary-border: var(--btn-secondary-border);
+  --color-btn-secondary-hover-border: var(--btn-secondary-hover-border);
+  --color-btn-secondary-hover-bg: var(--btn-secondary-hover-bg);
+
+  --color-a11y-bar-bg: var(--a11y-bar-bg);
+  --color-a11y-bar-text: var(--a11y-bar-text);
+  --color-a11y-btn-fg: var(--a11y-btn-fg);
+  --color-a11y-btn-bg: var(--a11y-btn-bg);
+  --color-a11y-btn-border: var(--a11y-btn-border);
+  --color-a11y-btn-active-bg: var(--a11y-btn-active-bg);
+  --color-a11y-btn-active-fg: var(--a11y-btn-active-fg);
+  --color-a11y-btn-active-border: var(--a11y-btn-active-border);
+
+  --color-card-bg: var(--card-bg);
+  --color-card-border: var(--card-border);
+  --color-card-title: var(--card-title);
+  --color-card-text: var(--card-text);
+
+  --color-footer-bg: var(--footer-bg);
+  --color-footer-fg: var(--footer-fg);
+  --color-footer-border: var(--footer-border);
+
+  --font-sans: 'Inter', system-ui, sans-serif;
+
+  --spacing-gutter: var(--gutter);
+}
+
+body {
+  margin: 0;
+  background-color: var(--bg);
+  color: var(--ink);
+  font-family: var(--font);
+  font-weight: 400;
+  line-height: 1.45;
+}
+
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
+  border-radius: var(--radius-sm);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
