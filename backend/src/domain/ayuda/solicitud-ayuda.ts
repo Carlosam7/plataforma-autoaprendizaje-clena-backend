@@ -1,5 +1,10 @@
 import { DatoInvalidoError } from '../shared/error-de-negocio.js';
-import { SolicitudCerradaError } from './errores.js';
+import {
+  SolicitudCerradaError,
+  SolicitudDeOtroMonitorError,
+  SolicitudSinTomarError,
+  SolicitudYaTomadaError,
+} from './errores.js';
 
 /** La lista corta de temas que elige quien pide ayuda (HU-29). */
 export const TEMAS_AYUDA = [
@@ -23,6 +28,7 @@ export const ESTADOS_SOLICITUD = [
 export type EstadoSolicitud = (typeof ESTADOS_SOLICITUD)[number];
 
 const LARGO_MAXIMO_EQUIPO = 100;
+const LARGO_MAXIMO_COMENTARIO = 500;
 
 export interface SolicitudAyudaProps {
   id: string;
@@ -36,12 +42,21 @@ export interface SolicitudAyudaProps {
   /** Cédula del usuario público; null si pidió ayuda sin cuenta. */
   usuarioId: string | null;
   creadaEn: Date;
+  /** Cuenta del personal que la atiende o la atendió (HU-30). */
+  atendidaPorId: string | null;
+  tomadaEn: Date | null;
+  resueltaEn: Date | null;
+  /** Nota breve opcional de quien la resolvió. */
+  comentarioResolucion: string | null;
   canceladaEn: Date | null;
 }
 
 /**
- * Pedido de ayuda presencial a un monitor de la sala (HU-29). Está activa mientras espera
- * (PENDIENTE) o la atienden (EN_ATENCION); solo puede haber una activa por equipo.
+ * Pedido de ayuda presencial a un monitor de la sala (HU-29, HU-30). Está activa mientras
+ * espera (PENDIENTE) o la atienden (EN_ATENCION); solo puede haber una activa por equipo.
+ *
+ *   PENDIENTE ──tomar──► EN_ATENCION ──resolver──► RESUELTA
+ *       └──────cancelar──────┴──────────────────► CANCELADA
  */
 export class SolicitudAyuda {
   private constructor(private readonly props: SolicitudAyudaProps) {}
@@ -76,6 +91,10 @@ export class SolicitudAyuda {
       pasoId: datos.guiaId ? datos.pasoId : null,
       usuarioId: datos.usuarioId,
       creadaEn: datos.ahora,
+      atendidaPorId: null,
+      tomadaEn: null,
+      resueltaEn: null,
+      comentarioResolucion: null,
       canceladaEn: null,
     });
   }
@@ -108,6 +127,18 @@ export class SolicitudAyuda {
   get creadaEn(): Date {
     return this.props.creadaEn;
   }
+  get atendidaPorId(): string | null {
+    return this.props.atendidaPorId;
+  }
+  get tomadaEn(): Date | null {
+    return this.props.tomadaEn;
+  }
+  get resueltaEn(): Date | null {
+    return this.props.resueltaEn;
+  }
+  get comentarioResolucion(): string | null {
+    return this.props.comentarioResolucion;
+  }
   get canceladaEn(): Date | null {
     return this.props.canceladaEn;
   }
@@ -116,6 +147,38 @@ export class SolicitudAyuda {
     return (
       this.props.estado === 'PENDIENTE' || this.props.estado === 'EN_ATENCION'
     );
+  }
+
+  /** HU-30: un monitor se hace cargo; queda a su nombre para que otro no la tome. */
+  tomar(monitorId: string, ahora: Date): void {
+    if (this.props.estado === 'EN_ATENCION') {
+      // Doble clic del mismo monitor: ya es suya, no es un error.
+      if (this.props.atendidaPorId === monitorId) return;
+      throw new SolicitudYaTomadaError();
+    }
+    if (this.props.estado !== 'PENDIENTE') throw new SolicitudCerradaError();
+    this.props.estado = 'EN_ATENCION';
+    this.props.atendidaPorId = monitorId;
+    this.props.tomadaEn = ahora;
+  }
+
+  /** HU-30: el monitor que la tomó ya ayudó a la persona; puede dejar una nota breve. */
+  resolver(monitorId: string, comentario: string | null, ahora: Date): void {
+    if (this.props.estado === 'PENDIENTE') throw new SolicitudSinTomarError();
+    if (this.props.estado !== 'EN_ATENCION') throw new SolicitudCerradaError();
+    if (this.props.atendidaPorId !== monitorId) {
+      throw new SolicitudDeOtroMonitorError();
+    }
+    const nota = comentario?.trim() || null;
+    if (nota && nota.length > LARGO_MAXIMO_COMENTARIO) {
+      throw new DatoInvalidoError(
+        'comentario',
+        `El comentario puede tener máximo ${LARGO_MAXIMO_COMENTARIO} letras.`,
+      );
+    }
+    this.props.estado = 'RESUELTA';
+    this.props.comentarioResolucion = nota;
+    this.props.resueltaEn = ahora;
   }
 
   /** Quien pidió ayuda resolvió la duda por su cuenta; sirve aunque un monitor ya vaya en camino. */

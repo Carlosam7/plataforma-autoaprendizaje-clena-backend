@@ -20,6 +20,8 @@ export interface SolicitudEnCola {
   guia: { slug: string; titulo: string } | null;
   /** Número del paso («Paso 3»). */
   pasoOrden: number | null;
+  /** Nombre del monitor que la atiende o la atendió (HU-30). */
+  atendidaPor: string | null;
 }
 
 export abstract class SolicitudAyudaRepository {
@@ -34,8 +36,18 @@ export abstract class SolicitudAyudaRepository {
 
   abstract buscarPorId(id: string): Promise<SolicitudAyuda | null>;
 
-  /** Guarda el cambio de estado. */
-  abstract guardar(solicitud: SolicitudAyuda): Promise<void>;
+  /** La solicitud como la ve el monitor; null si no existe. */
+  abstract buscarEnCola(id: string): Promise<SolicitudEnCola | null>;
+
+  /**
+   * Guarda el cambio de estado solo si la solicitud sigue en `estadoAnterior`. Devuelve
+   * false, sin guardar nada, si otra petición la cambió entre tanto: así dos monitores no
+   * toman la misma, ni se resuelve una que la persona acaba de cancelar.
+   */
+  abstract guardar(
+    solicitud: SolicitudAyuda,
+    estadoAnterior: EstadoSolicitud,
+  ): Promise<boolean>;
 
   /** Puesto en la cola: cuántas solicitudes PENDIENTE llegaron antes, más una. */
   abstract posicionEnCola(solicitud: SolicitudAyuda): Promise<number>;
