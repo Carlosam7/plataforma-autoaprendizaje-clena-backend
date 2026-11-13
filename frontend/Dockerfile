@@ -8,7 +8,8 @@ RUN pnpm install --frozen-lockfile
 COPY . .
 RUN pnpm build
 
-# shortcut: nginx default config has no SPA fallback, add `try_files $uri /index.html` when React Router lands.
 FROM nginx:alpine
+# Reenvía /api al backend y sirve index.html en las rutas de React Router.
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/dist /usr/share/nginx/html
 EXPOSE 80

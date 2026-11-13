@@ -1,4 +1,7 @@
-# Levanta PostgreSQL, backend y frontend: `docker compose up --build`.
+# Levanta PostgreSQL, backend y frontend con un solo comando: `docker compose up`.
+# backend y frontend usan `pull_policy: build`: cada `up` reconstruye la imagen (la caché
+# de capas lo hace rápido), así nunca corre una imagen vieja sin las migraciones nuevas.
+# La app queda en http://localhost:8080; nginx reenvía /api al backend.
 # Las credenciales tienen valores por defecto para desarrollo; en producción
 # defínelas en un archivo .env junto a este docker-compose.yml.
 services:
@@ -24,6 +27,7 @@ services:
 
   backend:
     build: ./backend
+    pull_policy: build
     restart: unless-stopped
     environment:
       PORT: 3000
@@ -45,14 +49,25 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    # Sano cuando ya aplicó las migraciones, cargó las semillas y responde /health.
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - wget -qO- http://127.0.0.1:3000/api/v1/health > /dev/null || exit 1
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 120s
 
   frontend:
     build: ./frontend
+    pull_policy: build
     restart: unless-stopped
     ports:
       - "8080:80"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
 
 volumes:
   postgres_data:

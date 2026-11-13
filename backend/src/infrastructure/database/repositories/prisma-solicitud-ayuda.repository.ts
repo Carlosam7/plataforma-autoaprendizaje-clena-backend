@@ -1,5 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import { SolicitudAyuda } from '../../../domain/ayuda/solicitud-ayuda.js';
+import {
+  EstadoSolicitud,
+  SolicitudAyuda,
+} from '../../../domain/ayuda/solicitud-ayuda.js';
 import {
   CriterioSolicitudes,
   SolicitudAyudaRepository,
@@ -9,6 +12,13 @@ import { Pagina } from '../../../domain/shared/pagina.js';
 import { descripcionConflictoUnicidad } from '../errores-prisma.js';
 import { Prisma } from '../prisma/generated/client.js';
 import { PrismaService } from '../prisma.service.js';
+
+/** Lo que el monitor ve junto a la solicitud: la guía, el paso y quién la atiende. */
+const INCLUIR_EN_COLA = {
+  guia: { select: { slug: true, titulo: true } },
+  paso: { select: { orden: true } },
+  atendidaPor: { select: { nombre: true } },
+} satisfies Prisma.SolicitudAyudaInclude;
 
 @Injectable()
 export class PrismaSolicitudAyudaRepository implements SolicitudAyudaRepository {
@@ -52,11 +62,32 @@ export class PrismaSolicitudAyudaRepository implements SolicitudAyudaRepository 
     return fila && aSolicitud(fila);
   }
 
-  async guardar(solicitud: SolicitudAyuda): Promise<void> {
-    await this.prisma.solicitudAyuda.update({
-      where: { id: solicitud.id },
-      data: { estado: solicitud.estado, canceladaEn: solicitud.canceladaEn },
+  async buscarEnCola(id: string): Promise<SolicitudEnCola | null> {
+    const fila = await this.prisma.solicitudAyuda.findUnique({
+      where: { id },
+      include: INCLUIR_EN_COLA,
     });
+    return fila && aEnCola(fila);
+  }
+
+  async guardar(
+    solicitud: SolicitudAyuda,
+    estadoAnterior: EstadoSolicitud,
+  ): Promise<boolean> {
+    // El estado anterior va en el WHERE: es una sola operación en la base de datos, así
+    // que de dos monitores que toman la misma solicitud a la vez solo uno la cambia.
+    const { count } = await this.prisma.solicitudAyuda.updateMany({
+      where: { id: solicitud.id, estado: estadoAnterior },
+      data: {
+        estado: solicitud.estado,
+        atendidaPorId: solicitud.atendidaPorId,
+        tomadaEn: solicitud.tomadaEn,
+        resueltaEn: solicitud.resueltaEn,
+        comentarioResolucion: solicitud.comentarioResolucion,
+        canceladaEn: solicitud.canceladaEn,
+      },
+    });
+    return count > 0;
   }
 
   async posicionEnCola(solicitud: SolicitudAyuda): Promise<number> {
@@ -94,10 +125,7 @@ export class PrismaSolicitudAyudaRepository implements SolicitudAyudaRepository 
     const [filas, total] = await this.prisma.$transaction([
       this.prisma.solicitudAyuda.findMany({
         where,
-        include: {
-          guia: { select: { slug: true, titulo: true } },
-          paso: { select: { orden: true } },
-        },
+        include: INCLUIR_EN_COLA,
         // El id desempata para que la paginación sea estable.
         orderBy: [{ [ordenarPor]: direccion }, { id: 'asc' }],
         skip: (pagina - 1) * limite,
@@ -105,14 +133,7 @@ export class PrismaSolicitudAyudaRepository implements SolicitudAyudaRepository 
       }),
       this.prisma.solicitudAyuda.count({ where }),
     ]);
-    return {
-      elementos: filas.map((f) => ({
-        solicitud: aSolicitud(f),
-        guia: f.guia,
-        pasoOrden: f.paso?.orden ?? null,
-      })),
-      total,
-    };
+    return { elementos: filas.map(aEnCola), total };
   }
 }
 
@@ -128,6 +149,21 @@ function aSolicitud(
     pasoId: f.pasoId,
     usuarioId: f.usuarioId,
     creadaEn: f.creadaEn,
+    atendidaPorId: f.atendidaPorId,
+    tomadaEn: f.tomadaEn,
+    resueltaEn: f.resueltaEn,
+    comentarioResolucion: f.comentarioResolucion,
     canceladaEn: f.canceladaEn,
   });
+}
+
+function aEnCola(
+  f: Prisma.SolicitudAyudaGetPayload<{ include: typeof INCLUIR_EN_COLA }>,
+): SolicitudEnCola {
+  return {
+    solicitud: aSolicitud(f),
+    guia: f.guia,
+    pasoOrden: f.paso?.orden ?? null,
+    atendidaPor: f.atendidaPor?.nombre ?? null,
+  };
 }

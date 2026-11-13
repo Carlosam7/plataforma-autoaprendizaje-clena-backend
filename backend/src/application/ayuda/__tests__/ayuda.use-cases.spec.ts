@@ -1,7 +1,10 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
   SolicitudCerradaError,
+  SolicitudDeOtroMonitorError,
+  SolicitudModificadaError,
   SolicitudNoEncontradaError,
+  SolicitudYaTomadaError,
 } from '../../../domain/ayuda/errores.js';
 import { SolicitudAyuda } from '../../../domain/ayuda/solicitud-ayuda.js';
 import {
@@ -14,6 +17,10 @@ import {
   GeneradorIdSecuencial,
   RelojFijo,
 } from '../../auth/__tests__/fakes.js';
+import {
+  ResolverSolicitudAyudaUseCase,
+  TomarSolicitudAyudaUseCase,
+} from '../atender-solicitud-ayuda.use-cases.js';
 import { CancelarSolicitudAyudaUseCase } from '../cancelar-solicitud-ayuda.use-case.js';
 import { ListarSolicitudesAyudaUseCase } from '../listar-solicitudes-ayuda.use-case.js';
 import { ObtenerSolicitudAyudaUseCase } from '../obtener-solicitud-ayuda.use-case.js';
@@ -38,8 +45,24 @@ class SolicitudAyudaRepositoryEnMemoria extends SolicitudAyudaRepository {
   buscarPorId(id: string): Promise<SolicitudAyuda | null> {
     return Promise.resolve(this.solicitudes.find((s) => s.id === id) ?? null);
   }
-  guardar(): Promise<void> {
-    return Promise.resolve();
+  buscarEnCola(id: string): Promise<SolicitudEnCola | null> {
+    const solicitud = this.solicitudes.find((s) => s.id === id);
+    return Promise.resolve(solicitud ? this.enCola(solicitud) : null);
+  }
+  /** true: simula que otra petición cambió la solicitud justo antes de guardar. */
+  otraPeticionGano = false;
+  guardar(): Promise<boolean> {
+    return Promise.resolve(!this.otraPeticionGano);
+  }
+  private enCola(solicitud: SolicitudAyuda): SolicitudEnCola {
+    return {
+      solicitud,
+      guia: solicitud.guiaId ? { slug: 'smishing', titulo: 'Smishing' } : null,
+      pasoOrden: solicitud.pasoId ? 3 : null,
+      atendidaPor: solicitud.atendidaPorId
+        ? MONITORES[solicitud.atendidaPorId]
+        : null,
+    };
   }
   posicionEnCola(solicitud: SolicitudAyuda): Promise<number> {
     const pendientes = this.solicitudes.filter((s) => s.estado === 'PENDIENTE');
@@ -56,19 +79,17 @@ class SolicitudAyudaRepositoryEnMemoria extends SolicitudAyudaRepository {
   listar(criterio: CriterioSolicitudes): Promise<Pagina<SolicitudEnCola>> {
     this.recibido = criterio;
     return Promise.resolve({
-      elementos: this.solicitudes.map((solicitud) => ({
-        solicitud,
-        guia: solicitud.guiaId
-          ? { slug: 'smishing', titulo: 'Smishing' }
-          : null,
-        pasoOrden: solicitud.pasoId ? 3 : null,
-      })),
+      elementos: this.solicitudes.map((s) => this.enCola(s)),
       total: this.solicitudes.length,
     });
   }
 }
 
 const AHORA = new Date('2026-11-13T15:00:00.000Z');
+const MONITORES: Record<string, string> = {
+  ana: 'Ana Pérez',
+  luis: 'Luis Díaz',
+};
 const USUARIO = { id: '41234567', rol: 'USUARIO_PUBLICO' as const };
 
 describe('HU-29 · Solicitar ayuda presencial', () => {
@@ -269,12 +290,107 @@ describe('HU-29 · Solicitar ayuda presencial', () => {
             guia: { slug: 'smishing', titulo: 'Smishing' },
             paso: 3,
             creadaEn: AHORA,
+            atendidaPor: null,
+            tomadaEn: null,
+            resueltaEn: null,
+            comentarioResolucion: null,
           },
         ],
         total: 1,
         pagina: 1,
         limite: 20,
       });
+    });
+  });
+  describe('HU-30 · Atender la cola de solicitudes', () => {
+    let tomar: TomarSolicitudAyudaUseCase;
+    let resolver: ResolverSolicitudAyudaUseCase;
+    let id: string;
+
+    beforeEach(async () => {
+      tomar = new TomarSolicitudAyudaUseCase(solicitudes, reloj);
+      resolver = new ResolverSolicitudAyudaUseCase(solicitudes, reloj);
+      ({ id } = await solicitar.ejecutar(
+        { equipo: '12', tema: 'CORREO', guiaSlug: 'smishing', pasoOrden: 3 },
+        null,
+      ));
+    });
+
+    it('al tomarla pasa a «En atención» con el nombre del monitor', async () => {
+      expect(await tomar.ejecutar(id, 'ana')).toEqual({
+        id,
+        equipo: '12',
+        tema: 'CORREO',
+        estado: 'EN_ATENCION',
+        guia: { slug: 'smishing', titulo: 'Smishing' },
+        paso: 3,
+        creadaEn: AHORA,
+        atendidaPor: 'Ana Pérez',
+        tomadaEn: AHORA,
+        resueltaEn: null,
+        comentarioResolucion: null,
+      });
+      // Quien la pidió ve que ya la atienden: sale de la cola.
+      expect(await obtener.ejecutar(id)).toMatchObject({
+        estado: 'EN_ATENCION',
+        posicion: null,
+      });
+    });
+
+    it('otro monitor no puede tomar la misma', async () => {
+      await tomar.ejecutar(id, 'ana');
+      await expect(tomar.ejecutar(id, 'luis')).rejects.toThrow(
+        SolicitudYaTomadaError,
+      );
+    });
+
+    it('si dos monitores la toman a la vez, el que llega tarde recibe un conflicto', async () => {
+      solicitudes.otraPeticionGano = true;
+      await expect(tomar.ejecutar(id, 'luis')).rejects.toThrow(
+        SolicitudModificadaError,
+      );
+    });
+
+    it('quien la tomó la resuelve con un comentario; otro monitor no puede', async () => {
+      await tomar.ejecutar(id, 'ana');
+      await expect(resolver.ejecutar(id, 'luis')).rejects.toThrow(
+        SolicitudDeOtroMonitorError,
+      );
+
+      const resuelta = await resolver.ejecutar(id, 'ana', 'No veía el botón.');
+      expect(resuelta).toMatchObject({
+        estado: 'RESUELTA',
+        atendidaPor: 'Ana Pérez',
+        resueltaEn: AHORA,
+        comentarioResolucion: 'No veía el botón.',
+      });
+    });
+
+    it('una vez resuelta, el equipo puede volver a pedir ayuda', async () => {
+      await tomar.ejecutar(id, 'ana');
+      await resolver.ejecutar(id, 'ana');
+      const nueva = await solicitar.ejecutar(
+        { equipo: '12', tema: 'OTRO' },
+        null,
+      );
+      expect(nueva.yaExistia).toBe(false);
+    });
+
+    it('si la persona cancela justo cuando la van a resolver, no se pisa la cancelación', async () => {
+      await tomar.ejecutar(id, 'ana');
+      solicitudes.otraPeticionGano = true;
+      await expect(resolver.ejecutar(id, 'ana')).rejects.toThrow(
+        SolicitudModificadaError,
+      );
+    });
+
+    it('fallan si la solicitud no existe', async () => {
+      await expect(tomar.ejecutar('no-existe', 'ana')).rejects.toThrow(
+        SolicitudNoEncontradaError,
+      );
+      await expect(resolver.ejecutar('no-existe', 'ana')).rejects.toThrow(
+        SolicitudNoEncontradaError,
+      );
     });
   });
 });

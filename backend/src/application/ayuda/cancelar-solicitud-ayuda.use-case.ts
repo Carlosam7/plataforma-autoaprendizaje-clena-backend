@@ -1,4 +1,7 @@
-import { SolicitudNoEncontradaError } from '../../domain/ayuda/errores.js';
+import {
+  SolicitudModificadaError,
+  SolicitudNoEncontradaError,
+} from '../../domain/ayuda/errores.js';
 import { SolicitudAyudaRepository } from '../../domain/ayuda/solicitud-ayuda.repository.js';
 import { Reloj } from '../shared/reloj.port.js';
 
@@ -12,7 +15,10 @@ export class CancelarSolicitudAyudaUseCase {
   async ejecutar(id: string): Promise<void> {
     const solicitud = await this.solicitudes.buscarPorId(id);
     if (!solicitud) throw new SolicitudNoEncontradaError();
+    const estadoAnterior = solicitud.estado;
     solicitud.cancelar(this.reloj.ahora());
-    await this.solicitudes.guardar(solicitud);
+    if (!(await this.solicitudes.guardar(solicitud, estadoAnterior))) {
+      throw new SolicitudModificadaError();
+    }
   }
 }

@@ -1,4 +1,8 @@
 import { Module } from '@nestjs/common';
+import {
+  ResolverSolicitudAyudaUseCase,
+  TomarSolicitudAyudaUseCase,
+} from '../application/ayuda/atender-solicitud-ayuda.use-cases.js';
 import { CancelarSolicitudAyudaUseCase } from '../application/ayuda/cancelar-solicitud-ayuda.use-case.js';
 import { ListarSolicitudesAyudaUseCase } from '../application/ayuda/listar-solicitudes-ayuda.use-case.js';
 import { ObtenerSolicitudAyudaUseCase } from '../application/ayuda/obtener-solicitud-ayuda.use-case.js';
@@ -9,7 +13,7 @@ import { SolicitudAyudaRepository } from '../domain/ayuda/solicitud-ayuda.reposi
 import { PrismaSolicitudAyudaRepository } from '../infrastructure/database/repositories/prisma-solicitud-ayuda.repository.js';
 import { SolicitudAyudaController } from '../presentation/ayuda/solicitud-ayuda.controller.js';
 
-// Composition root de la ayuda presencial (HU-29).
+// Composition root de la ayuda presencial (HU-29, HU-30).
 @Module({
   controllers: [SolicitudAyudaController],
   providers: [
@@ -35,6 +39,20 @@ import { SolicitudAyudaController } from '../presentation/ayuda/solicitud-ayuda.
       useFactory: (
         ...deps: ConstructorParameters<typeof CancelarSolicitudAyudaUseCase>
       ) => new CancelarSolicitudAyudaUseCase(...deps),
+      inject: [SolicitudAyudaRepository, Reloj],
+    },
+    {
+      provide: TomarSolicitudAyudaUseCase,
+      useFactory: (
+        ...deps: ConstructorParameters<typeof TomarSolicitudAyudaUseCase>
+      ) => new TomarSolicitudAyudaUseCase(...deps),
+      inject: [SolicitudAyudaRepository, Reloj],
+    },
+    {
+      provide: ResolverSolicitudAyudaUseCase,
+      useFactory: (
+        ...deps: ConstructorParameters<typeof ResolverSolicitudAyudaUseCase>
+      ) => new ResolverSolicitudAyudaUseCase(...deps),
       inject: [SolicitudAyudaRepository, Reloj],
     },
     {
