@@ -1,26 +1,32 @@
+import { Link } from 'react-router';
+
 // Textos del frame «01 · Inicio». Falta la ilustración del hero y los íconos de las guías:
 // son recursos del Figma que se descargan al repo en el siguiente paso.
 const GUIDES = [
   {
     n: '01',
+    slug: 'smishing',
     title: 'Smishing',
     desc: 'Mensajes falsos por SMS o WhatsApp.',
     time: '8 minutos',
   },
   {
     n: '02',
+    slug: 'vishing',
     title: 'Vishing',
     desc: 'Llamadas telefónicas que buscan engañarte.',
     time: '7 minutos',
   },
   {
     n: '03',
+    slug: 'quishing',
     title: 'Quishing',
     desc: 'Engaños que se esconden en códigos QR.',
     time: '6 minutos',
   },
   {
     n: '04',
+    slug: 'falso-soporte-tecnico',
     title: 'Falso soporte técnico',
     desc: 'Alertas falsas y solicitudes de acceso al computador.',
     time: '10 minutos',
@@ -47,12 +53,12 @@ export function HomePage() {
           Conoce las señales de un fraude y aprende a navegar con más seguridad,
           paso a paso.
         </p>
-        <a
+        <Link
           className="self-start inline-flex items-center justify-center min-h-14 px-6 py-4 font-semibold text-btn-primary-fg bg-btn-primary-bg rounded-xl hover:bg-btn-primary-hover no-underline cursor-pointer border-2 border-btn-primary-border"
-          href="/guias"
+          to="/guias"
         >
           Comenzar a aprender →
-        </a>
+        </Link>
         <p className="text-[1.111rem] font-medium text-eyebrow">
           Sin costo. Sin experiencia previa. Sin registro obligatorio.
         </p>
@@ -68,7 +74,7 @@ export function HomePage() {
         >
           ¿Qué aprenderás?
         </h2>
-        <div className="grid grid-cols-1 md:grid-cols-[minmax(10rem,1fr)_4fr] gap-6 mt-6 p-6 md:p-8 bg-card-bg border-2 border-card-border rounded-[20px]">
+        <div className="grid grid-cols-1 md:grid-cols-[minmax(10rem,1fr)_4fr] gap-6 mt-6 p-6 md:p-8 bg-card-bg border-2 border-card-border rounded-2xl">
           <div>
             <p className="font-medium text-muted">01 / CATEGORÍA</p>
             <p className="text-[1.556rem] font-bold text-card-title">
@@ -105,7 +111,7 @@ export function HomePage() {
         <ul className="list-none m-0 p-0 mt-6 grid gap-5 grid-cols-[repeat(auto-fit,minmax(15rem,1fr))]">
           {GUIDES.map((g) => (
             <li key={g.n}>
-              <article className="flex flex-col gap-4 h-full p-6 bg-card-bg border-2 border-card-border rounded-[20px]">
+              <article className="flex flex-col gap-4 h-full p-6 bg-card-bg border-2 border-card-border rounded-2xl">
                 <div className="flex justify-between items-start">
                   <div
                     className="w-14 h-14 bg-icon-bg border border-card-border/50 rounded-xl"
@@ -118,12 +124,12 @@ export function HomePage() {
                 </h3>
                 <p className="text-muted">{g.desc}</p>
                 <p className="font-medium text-muted">{g.time} · A tu ritmo</p>
-                <a
+                <Link
                   className="mt-auto w-full inline-flex items-center justify-center min-h-14 px-6 py-4 font-semibold text-btn-secondary-fg bg-btn-secondary-bg border-2 border-btn-secondary-border rounded-xl hover:border-btn-secondary-hover-border hover:bg-btn-secondary-hover-bg no-underline cursor-pointer"
-                  href={`/guias/${g.title.toLowerCase().replace(/\s+/g, '-')}`}
+                  to={`/guias/${g.slug}`}
                 >
                   Comenzar guía
-                </a>
+                </Link>
               </article>
             </li>
           ))}
