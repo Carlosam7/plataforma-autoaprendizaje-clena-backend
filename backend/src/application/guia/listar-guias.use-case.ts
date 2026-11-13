@@ -1,4 +1,4 @@
-import { NivelGuia } from '../../domain/guia/guia.js';
+import { Guia, NivelGuia } from '../../domain/guia/guia.js';
 import {
   CriterioGuiasPublicadas,
   GuiaRepository,
@@ -27,17 +27,21 @@ export class ListarGuiasUseCase {
   ): Promise<ResultadoPaginado<GuiaResumen>> {
     const { elementos, total } = await this.guias.listarPublicadas(criterio);
     return {
-      datos: elementos.map((g) => ({
-        slug: g.slug,
-        categoria: g.categoriaSlug,
-        titulo: g.titulo,
-        objetivo: g.objetivo,
-        nivel: g.nivel,
-        duracionEstimadaMin: g.duracionEstimadaMin,
-      })),
+      datos: elementos.map(resumenGuia),
       total,
       pagina: criterio.pagina,
       limite: criterio.limite,
     };
   }
+}
+
+export function resumenGuia(g: Guia): GuiaResumen {
+  return {
+    slug: g.slug,
+    categoria: g.categoriaSlug,
+    titulo: g.titulo,
+    objetivo: g.objetivo,
+    nivel: g.nivel,
+    duracionEstimadaMin: g.duracionEstimadaMin,
+  };
 }
