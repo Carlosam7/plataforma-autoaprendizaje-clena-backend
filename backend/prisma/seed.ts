@@ -525,6 +525,29 @@ async function sembrarActividad(
 }
 
 /**
+ * HU-29: una solicitud de ayuda en espera, para que la cola del personal no salga vacía en
+ * la demo. Si ya existe no se toca: puede que ya la hayan cancelado o atendido.
+ */
+async function sembrarSolicitudAyuda(prisma: PrismaClient): Promise<void> {
+  const id = '00000000-0000-4000-8000-000000000029';
+  const guia = await prisma.guia.findUnique({
+    where: { slug: 'smishing' },
+    select: { id: true, pasos: { where: { orden: 3 }, select: { id: true } } },
+  });
+  await prisma.solicitudAyuda.upsert({
+    where: { id },
+    create: {
+      id,
+      equipo: 'Equipo 7',
+      tema: 'SEGURIDAD_DIGITAL',
+      guiaId: guia?.id,
+      pasoId: guia?.pasos[0]?.id,
+    },
+    update: {},
+  });
+}
+
+/**
  * Autor ficticio de las guías semilla (guia.creada_por_id es obligatorio).
  * Inactivo y con una contraseña aleatoria que nadie conoce: no puede iniciar sesión.
  */
@@ -632,10 +655,12 @@ async function main(): Promise<void> {
       }
     }
 
+    await sembrarSolicitudAyuda(prisma);
+
     const admin = await sembrarAdministradorInicial(prisma);
 
     console.log(
-      `Semillas cargadas: aviso de privacidad ${AVISO_PRIVACIDAD.version}, ${CATEGORIAS.length} categorías, ${GUIAS.length} guías (${imagenes} imágenes, ${preguntas} preguntas de práctica) y ${admin}.`,
+      `Semillas cargadas: aviso de privacidad ${AVISO_PRIVACIDAD.version}, ${CATEGORIAS.length} categorías, ${GUIAS.length} guías (${imagenes} imágenes, ${preguntas} preguntas de práctica), 1 solicitud de ayuda y ${admin}.`,
     );
   } finally {
     await prisma.$disconnect();
