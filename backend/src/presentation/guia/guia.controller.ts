@@ -40,9 +40,9 @@ export class GuiaController {
 
   @Get()
   @ApiOperation({
-    summary: 'Guías publicadas de una categoría (HU-09)',
+    summary: 'Guías publicadas, por categoría o por palabra (HU-09, HU-11)',
     description:
-      'Solo guías publicadas; los borradores y las ocultas no salen.',
+      'Solo guías publicadas; los borradores y las ocultas no salen. Con `q` busca por palabra; se puede combinar con `categoria`.',
   })
   @ApiOkResponse({ type: GuiasPaginadasDto })
   listar(@Query() criterio: ListarGuiasDto): Promise<GuiasPaginadasDto> {

@@ -19,6 +19,16 @@ export class ListarGuiasDto
   @MaxLength(40, { message: 'La categoría puede tener máximo 40 letras.' })
   categoria?: string;
 
+  @ApiPropertyOptional({
+    description:
+      'Lo que se quiere hacer (HU-11). Busca en el título, la descripción y las palabras clave, sin distinguir tildes ni mayúsculas; deben aparecer todas las palabras.',
+    example: 'mandar foto',
+  })
+  @IsOptional()
+  @IsString({ message: 'Escribe el texto que quieres buscar.' })
+  @MaxLength(60, { message: 'La búsqueda puede tener máximo 60 letras.' })
+  q?: string;
+
   // Solo campos permitidos: nunca se ordena por un campo que elija el cliente libremente.
   @ApiPropertyOptional({ enum: CAMPOS_ORDEN_GUIA, default: 'titulo' })
   @IsIn(CAMPOS_ORDEN_GUIA, {
