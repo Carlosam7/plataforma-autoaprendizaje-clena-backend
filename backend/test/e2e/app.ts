@@ -50,17 +50,19 @@ export async function crearApp(controladores: Type[] = []): Promise<{
   return { app, buzon, prisma: app.get(PrismaService) };
 }
 
-/** Borra cuentas, guías y registros; el aviso y las categorías semilla se conservan. */
+/** Borra cuentas, guías, solicitudes y registros; el aviso y las categorías semilla se conservan. */
 export async function limpiarBaseDatos(prisma: PrismaService): Promise<void> {
   // DELETE y no TRUNCATE: TRUNCATE ... CASCADE recrea los archivos de 21 tablas y en Docker
   // a veces tardaba más de 10 s, lo que hacía fallar el beforeEach. Las llaves ON DELETE
   // CASCADE arrastran metodo_inicio, consentimiento, codigo_verificacion y refresh_token.
-  // guia e imagen apuntan a personal con RESTRICT: se borran antes (guia arrastra pasos y
-  // consultas). Eso incluye las guías semilla; las pruebas crean las suyas.
-  // shortcut: actividad, solicitud_ayuda, pregunta_frecuente y termino_glosario también
-  // apuntan a personal con RESTRICT; cuando una prueba los cree, bórralos antes aquí.
+  // guia, imagen y solicitud_ayuda apuntan a personal con RESTRICT: se borran antes (guia
+  // arrastra pasos, consultas y actividades). Eso incluye las guías y la solicitud semilla;
+  // las pruebas crean las suyas.
+  // shortcut: pregunta_frecuente y termino_glosario también apuntan a personal con RESTRICT;
+  // cuando una prueba los cree, bórralos antes aquí.
   await prisma.$transaction([
     prisma.usuarioPublico.deleteMany(),
+    prisma.solicitudAyuda.deleteMany(),
     prisma.guia.deleteMany(),
     prisma.imagen.deleteMany(),
     prisma.personal.deleteMany(),
