@@ -58,6 +58,37 @@ function mapearNivel(nivel: 'BASICO' | 'INTERMEDIO' | 'AVANZADO'): NivelGuia {
   }
 }
 
+const METADATA_CATEGORIAS: Record<
+  string,
+  { descripcion: string; numero: string }
+> = {
+  'seguridad-digital': {
+    numero: '01 / CATEGORÍA',
+    descripcion:
+      'Reconoce los engaños antes de actuar. Algunas personas se hacen pasar por alguien de confianza para pedirte datos o dinero. Aprende a reconocer sus señales en mensajes, llamadas, códigos QR y alertas falsas.',
+  },
+  'correo-electronico': {
+    numero: '02 / CATEGORÍA',
+    descripcion:
+      'Comunícate por escrito con tranquilidad. Aprende a crear tu cuenta, enviar y responder mensajes, adjuntar documentos y fotos, y proteger tu información.',
+  },
+  'busqueda-internet': {
+    numero: '03 / CATEGORÍA',
+    descripcion:
+      'Encuentra respuestas confiables en la web. Aprende a escribir lo que buscas, comparar fuentes de información y evitar enlaces engañosos.',
+  },
+  documentos: {
+    numero: '04 / CATEGORÍA',
+    descripcion:
+      'Escribe, guarda y organiza tus textos. Aprende a redactar cartas, notas y documentos digitales sin miedo a perder lo que has hecho.',
+  },
+  'redes-sociales': {
+    numero: '05 / CATEGORÍA',
+    descripcion:
+      'Conéctate con amigos y familiares cuidando tu privacidad. Aprende a comunicarte por mensajería web y a proteger lo que compartes.',
+  },
+};
+
 export class HttpGuiasRepository implements GuiasRepository {
   private readonly fallback: InMemoryGuiasRepository;
 
@@ -68,25 +99,46 @@ export class HttpGuiasRepository implements GuiasRepository {
     this.fallback = fallback ?? new InMemoryGuiasRepository();
   }
 
-  async obtenerCategoria(slug: string): Promise<Categoria | null> {
-    const slugNormalizado = slug === 'phishing' ? 'seguridad-digital' : slug;
+  async listarCategorias(): Promise<Categoria[]> {
     try {
-      const res = await fetch(`${this.baseUrl}/categorias?limite=50`);
+      const res = await fetch(
+        `${this.baseUrl}/categorias?limite=50&ordenarPor=orden&direccion=asc`,
+        {
+          headers: { Accept: 'application/json' },
+        },
+      );
       if (res.ok) {
         const json = (await res.json()) as {
           datos: { slug: string; nombre: string; icono: string }[];
         };
-        const cat = json.datos.find((c) => c.slug === slugNormalizado);
-        if (cat) {
+        return json.datos.map((cat, index) => {
+          const meta = METADATA_CATEGORIAS[cat.slug] || {
+            numero: `${String(index + 1).padStart(2, '0')} / CATEGORÍA`,
+            descripcion: `Aprende y practica temas de ${cat.nombre.toLowerCase()} a tu propio ritmo.`,
+          };
           return {
             id: `cat-${cat.slug}`,
             slug: cat.slug,
             nombre: cat.nombre,
-            descripcion:
-              'Reconoce los engaños antes de actuar. Algunas personas se hacen pasar por alguien de confianza para pedirte datos o dinero. Aprende a reconocer sus señales en mensajes, llamadas, códigos QR y alertas falsas.',
-            numero: '01 / CATEGORÍA',
+            icono: cat.icono,
+            numero: meta.numero,
+            descripcion: meta.descripcion,
           };
-        }
+        });
+      }
+    } catch {
+      // Usar fallback si el backend no está disponible
+    }
+    return this.fallback.listarCategorias();
+  }
+
+  async obtenerCategoria(slug: string): Promise<Categoria | null> {
+    const slugNormalizado = slug === 'phishing' ? 'seguridad-digital' : slug;
+    try {
+      const categorias = await this.listarCategorias();
+      const encontrada = categorias.find((c) => c.slug === slugNormalizado);
+      if (encontrada) {
+        return encontrada;
       }
     } catch {
       // Usar fallback si el backend no está disponible

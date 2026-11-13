@@ -14,6 +14,7 @@ export type CanalVerificacion = 'CORREO' | 'TELEFONO';
 
 export interface CodigoEnviado {
   registroId: string;
+  solicitudId?: string;
   canal: CanalVerificacion;
   destino: string;
   mensaje: string;
@@ -38,7 +39,13 @@ export interface SolicitudRegistro {
 }
 
 export interface SolicitudInicioSesion {
-  correo: string;
+  numeroIdentificacion: string;
+  contacto: string;
+}
+
+export interface VerificarInicioSesionParams {
+  solicitudId: string;
+  codigo: string;
 }
 
 export interface VerificarRegistroParams {

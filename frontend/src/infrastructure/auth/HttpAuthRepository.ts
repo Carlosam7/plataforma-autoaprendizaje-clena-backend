@@ -10,7 +10,9 @@ import type {
   AuthSession,
   AvisoPrivacidad,
   CodigoEnviado,
+  SolicitudInicioSesion,
   SolicitudRegistro,
+  VerificarInicioSesionParams,
   VerificarRegistroParams,
 } from '@/domain/auth/types';
 
@@ -81,7 +83,9 @@ export class HttpAuthRepository implements AuthRepository {
     }
   }
 
-  async solicitarInicioSesion(correo: string): Promise<CodigoEnviado> {
+  async solicitarInicioSesion(
+    datos: SolicitudInicioSesion,
+  ): Promise<CodigoEnviado> {
     try {
       const res = await fetch(`${this.baseUrl}/auth/login`, {
         method: 'POST',
@@ -91,22 +95,17 @@ export class HttpAuthRepository implements AuthRepository {
         },
         credentials: 'include',
         body: JSON.stringify({
-          numeroIdentificacion: '12345678',
-          contacto: correo,
+          numeroIdentificacion: datos.numeroIdentificacion,
+          contacto: datos.contacto,
         }),
       });
 
       if (!res.ok) {
-        if (res.status === 404 || res.status === 401) {
-          // Si el usuario no existe o credenciales no coinciden
-          await this.manejarErrorHttp(res);
-        }
         await this.manejarErrorHttp(res);
       }
 
       const data = (await res.json()) as {
-        solicitudId?: string;
-        registroId?: string;
+        solicitudId: string;
         canal: 'CORREO' | 'TELEFONO';
         destino: string;
         mensaje: string;
@@ -115,8 +114,8 @@ export class HttpAuthRepository implements AuthRepository {
       };
 
       return {
-        registroId:
-          data.solicitudId || data.registroId || `login-${Date.now()}`,
+        registroId: data.solicitudId,
+        solicitudId: data.solicitudId,
         canal: data.canal,
         destino: data.destino,
         mensaje: data.mensaje,
@@ -124,16 +123,50 @@ export class HttpAuthRepository implements AuthRepository {
         puedeReenviarEn: new Date(data.puedeReenviarEn),
       };
     } catch (err) {
-      if (err instanceof AuthError) throw err;
-      const [usuario, dominio] = correo.split('@');
-      return {
-        registroId: `login-${Date.now()}`,
-        canal: 'CORREO',
-        destino: `${usuario[0]}****@${dominio}`,
-        mensaje: `Te enviamos un código a ${correo}. Escríbelo para iniciar sesión.`,
-        expiraEn: new Date(Date.now() + 600000),
-        puedeReenviarEn: new Date(Date.now() + 60000),
+      this.manejarFalloRed(err);
+    }
+  }
+
+  async verificarInicioSesion(
+    params: VerificarInicioSesionParams,
+  ): Promise<AuthSession> {
+    try {
+      const res = await fetch(`${this.baseUrl}/auth/login/verificar`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          solicitudId: params.solicitudId,
+          codigo: params.codigo,
+        }),
+      });
+
+      if (!res.ok) {
+        await this.manejarErrorHttp(res);
+      }
+
+      const data = (await res.json()) as {
+        usuario: { nombre: string; rol: string };
+        accessToken: string;
+        accessTokenExpiraEn?: string;
+        refreshTokenExpiraEn?: string;
       };
+
+      return {
+        usuario: data.usuario,
+        accessToken: data.accessToken,
+        accessTokenExpiraEn: data.accessTokenExpiraEn
+          ? new Date(data.accessTokenExpiraEn)
+          : undefined,
+        refreshTokenExpiraEn: data.refreshTokenExpiraEn
+          ? new Date(data.refreshTokenExpiraEn)
+          : undefined,
+      };
+    } catch (err) {
+      this.manejarFalloRed(err);
     }
   }
 

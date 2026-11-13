@@ -2,14 +2,53 @@ import type { GuiasRepository } from '../../application/guias/ports';
 import type { Categoria, DetalleGuia, Guia } from '../../domain/guias/types';
 
 export class InMemoryGuiasRepository implements GuiasRepository {
-  private readonly categoriaSeguridad: Categoria = {
-    id: 'cat-seguridad-digital',
-    slug: 'seguridad-digital',
-    nombre: 'Seguridad digital',
-    numero: '01 / CATEGORÍA',
-    descripcion:
-      'Reconoce los engaños antes de actuar. Algunas personas se hacen pasar por alguien de confianza para pedirte datos o dinero. Aprende a reconocer sus señales en mensajes, llamadas, códigos QR y alertas falsas.',
-  };
+  private readonly categorias: Categoria[] = [
+    {
+      id: 'cat-seguridad-digital',
+      slug: 'seguridad-digital',
+      nombre: 'Seguridad digital',
+      icono: 'shield-alert',
+      numero: '01 / CATEGORÍA',
+      descripcion:
+        'Reconoce los engaños antes de actuar. Algunas personas se hacen pasar por alguien de confianza para pedirte datos o dinero. Aprende a reconocer sus señales en mensajes, llamadas, códigos QR y alertas falsas.',
+    },
+    {
+      id: 'cat-correo-electronico',
+      slug: 'correo-electronico',
+      nombre: 'Correo electrónico',
+      icono: 'mail',
+      numero: '02 / CATEGORÍA',
+      descripcion:
+        'Comunícate por escrito con tranquilidad. Aprende a crear tu cuenta, enviar y responder mensajes, adjuntar documentos y fotos, y proteger tu información.',
+    },
+    {
+      id: 'cat-busqueda-internet',
+      slug: 'busqueda-internet',
+      nombre: 'Búsqueda en internet',
+      icono: 'search',
+      numero: '03 / CATEGORÍA',
+      descripcion:
+        'Encuentra respuestas confiables en la web. Aprende a escribir lo que buscas, comparar fuentes de información y evitar enlaces engañosos.',
+    },
+    {
+      id: 'cat-documentos',
+      slug: 'documentos',
+      nombre: 'Documentos de texto',
+      icono: 'file-text',
+      numero: '04 / CATEGORÍA',
+      descripcion:
+        'Escribe, guarda y organiza tus textos. Aprende a redactar cartas, notas y documentos digitales sin miedo a perder lo que has hecho.',
+    },
+    {
+      id: 'cat-redes-sociales',
+      slug: 'redes-sociales',
+      nombre: 'Redes sociales',
+      icono: 'users',
+      numero: '05 / CATEGORÍA',
+      descripcion:
+        'Conéctate con amigos y familiares cuidando tu privacidad. Aprende a comunicarte por mensajería web y a proteger lo que compartes.',
+    },
+  ];
 
   private readonly guias: Map<string, DetalleGuia> = new Map();
 
@@ -17,11 +56,13 @@ export class InMemoryGuiasRepository implements GuiasRepository {
     this.inicializarDatos();
   }
 
+  async listarCategorias(): Promise<Categoria[]> {
+    return [...this.categorias];
+  }
+
   async obtenerCategoria(slug: string): Promise<Categoria | null> {
-    if (slug === 'seguridad-digital' || slug === 'phishing') {
-      return this.categoriaSeguridad;
-    }
-    return null;
+    const slugNormalizado = slug === 'phishing' ? 'seguridad-digital' : slug;
+    return this.categorias.find((c) => c.slug === slugNormalizado) ?? null;
   }
 
   async listarGuiasPublicadas(categoriaSlug?: string): Promise<Guia[]> {
@@ -582,6 +623,214 @@ export class InMemoryGuiasRepository implements GuiasRepository {
           },
         },
       ],
+    });
+
+    // 05 · Correo electrónico: Crear una cuenta de correo
+    this.guias.set('crear-cuenta-de-correo', {
+      guia: {
+        slug: 'crear-cuenta-de-correo',
+        numero: '01',
+        titulo: 'Crear una cuenta de correo',
+        subtitulo: 'Paso a paso para abrir tu correo electrónico',
+        descripcion:
+          'Aprende a crear una cuenta de correo electrónico segura y fácil de usar.',
+        duracionEstimadaMinutos: 10,
+        nivel: 'Básico',
+        estado: 'PUBLICADA',
+        categoriaSlug: 'correo-electronico',
+        objetivo:
+          'Crear una cuenta de correo electrónico propia para comunicarte.',
+      },
+      totalPasos: 3,
+      tieneActividad: false,
+      pasos: [
+        {
+          numero: 1,
+          titulo: 'Elige un proveedor seguro',
+          contenido:
+            'Existen varios servicios confiables para tu correo. Elige uno reconocido y con buena protección.',
+          bloques: [
+            {
+              tipo: 'texto',
+              texto:
+                'Existen varios servicios confiables para tu correo. Elige uno reconocido y con buena protección.',
+            },
+          ],
+        },
+        {
+          numero: 2,
+          titulo: 'Escribe tus datos personales',
+          contenido:
+            'Ingresa tu nombre y escoge una dirección fácil de recordar pero profesional.',
+          bloques: [
+            {
+              tipo: 'texto',
+              texto:
+                'Ingresa tu nombre y escoge una dirección fácil de recordar pero profesional.',
+            },
+          ],
+        },
+        {
+          numero: 3,
+          titulo: 'Crea una contraseña segura',
+          contenido:
+            'Usa una combinación de palabras que recuerdes bien y que nadie más pueda adivinar.',
+          bloques: [
+            {
+              tipo: 'texto',
+              texto:
+                'Usa una combinación de palabras que recuerdes bien y que nadie más pueda adivinar.',
+            },
+          ],
+        },
+      ],
+      preguntas: [],
+    });
+
+    // 06 · Búsqueda en internet: Buscar en internet
+    this.guias.set('buscar-en-internet', {
+      guia: {
+        slug: 'buscar-en-internet',
+        numero: '01',
+        titulo: 'Buscar información en internet',
+        subtitulo: 'Cómo encontrar lo que necesitas',
+        descripcion:
+          'Aprende a usar el buscador web para encontrar información confiable.',
+        duracionEstimadaMinutos: 8,
+        nivel: 'Básico',
+        estado: 'PUBLICADA',
+        categoriaSlug: 'busqueda-internet',
+        objetivo:
+          'Usar buscadores web con confianza para resolver dudas diarias.',
+      },
+      totalPasos: 2,
+      tieneActividad: false,
+      pasos: [
+        {
+          numero: 1,
+          titulo: 'Escribe tu consulta',
+          contenido:
+            'Escribe de forma clara y con pocas palabras lo que necesitas consultar.',
+          bloques: [
+            {
+              tipo: 'texto',
+              texto:
+                'Escribe de forma clara y con pocas palabras lo que necesitas consultar.',
+            },
+          ],
+        },
+        {
+          numero: 2,
+          titulo: 'Revisa los resultados',
+          contenido:
+            'Fíjate en las páginas oficiales antes de hacer clic en cualquier enlace.',
+          bloques: [
+            {
+              tipo: 'texto',
+              texto:
+                'Fíjate en las páginas oficiales antes de hacer clic en cualquier enlace.',
+            },
+          ],
+        },
+      ],
+      preguntas: [],
+    });
+
+    // 07 · Documentos: Crear un documento
+    this.guias.set('crear-un-documento', {
+      guia: {
+        slug: 'crear-un-documento',
+        numero: '01',
+        titulo: 'Crear un documento de texto',
+        subtitulo: 'Aprende a escribir notas y cartas',
+        descripcion:
+          'Conoce cómo abrir el procesador de texto y redactar tu primer documento.',
+        duracionEstimadaMinutos: 8,
+        nivel: 'Básico',
+        estado: 'PUBLICADA',
+        categoriaSlug: 'documentos',
+        objetivo: 'Escribir y guardar documentos de texto con tranquilidad.',
+      },
+      totalPasos: 2,
+      tieneActividad: false,
+      pasos: [
+        {
+          numero: 1,
+          titulo: 'Abrir el procesador de texto',
+          contenido:
+            'Busca el programa de documentos en tu computador y crea una hoja en blanco.',
+          bloques: [
+            {
+              tipo: 'texto',
+              texto:
+                'Busca el programa de documentos en tu computador y crea una hoja en blanco.',
+            },
+          ],
+        },
+        {
+          numero: 2,
+          titulo: 'Escribir y dar formato',
+          contenido:
+            'Escribe tu texto y aprende a cambiar el tamaño de letra si necesitas ver mejor.',
+          bloques: [
+            {
+              tipo: 'texto',
+              texto:
+                'Escribe tu texto y aprende a cambiar el tamaño de letra si necesitas ver mejor.',
+            },
+          ],
+        },
+      ],
+      preguntas: [],
+    });
+
+    // 08 · Redes sociales: Usar mensajería web
+    this.guias.set('usar-mensajeria-web', {
+      guia: {
+        slug: 'usar-mensajeria-web',
+        numero: '01',
+        titulo: 'Usar mensajería web',
+        subtitulo: 'Chatear con tus contactos en el computador',
+        descripcion:
+          'Aprende a conectar WhatsApp o Telegram en tu pantalla de forma segura.',
+        duracionEstimadaMinutos: 7,
+        nivel: 'Básico',
+        estado: 'PUBLICADA',
+        categoriaSlug: 'redes-sociales',
+        objetivo:
+          'Usar aplicaciones de mensajería en el computador sin dejar sesiones abiertas.',
+      },
+      totalPasos: 2,
+      tieneActividad: false,
+      pasos: [
+        {
+          numero: 1,
+          titulo: 'Vincular tu dispositivo',
+          contenido:
+            'Escanea el código QR de la aplicación desde tu celular para iniciar la sesión.',
+          bloques: [
+            {
+              tipo: 'texto',
+              texto:
+                'Escanea el código QR de la aplicación desde tu celular para iniciar la sesión.',
+            },
+          ],
+        },
+        {
+          numero: 2,
+          titulo: 'Cerrar la sesión al terminar',
+          contenido:
+            'Recuerda siempre cerrar la sesión si estás en un computador compartido de la sala.',
+          bloques: [
+            {
+              tipo: 'texto',
+              texto:
+                'Recuerda siempre cerrar la sesión si estás en un computador compartido de la sala.',
+            },
+          ],
+        },
+      ],
+      preguntas: [],
     });
 
     // Normalizar bloques para compatibilidad con el modelo de datos del backend

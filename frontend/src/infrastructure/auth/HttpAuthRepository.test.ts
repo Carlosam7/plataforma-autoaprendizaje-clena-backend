@@ -203,4 +203,77 @@ describe('HttpAuthRepository', () => {
     expect(sesionRenovada.accessToken).toBe('nuevo-access-token');
     expect(sesionRenovada.usuario.nombre).toBe('Carmen');
   });
+
+  it('solicitarInicioSesion realiza POST a /auth/login con identificación y contacto', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      status: 202,
+      json: async () => ({
+        solicitudId: 'sol-login-456',
+        canal: 'CORREO',
+        destino: 'a****@correo.com',
+        mensaje: 'Código enviado a tu correo',
+        expiraEn: '2026-01-01T00:10:00.000Z',
+        puedeReenviarEn: '2026-01-01T00:01:00.000Z',
+      }),
+    } as Response);
+
+    const resultado = await repository.solicitarInicioSesion({
+      numeroIdentificacion: '41234567',
+      contacto: 'ana@correo.com',
+    });
+
+    expect(fetchSpy).toHaveBeenCalledWith(
+      '/api/v1/auth/login',
+      expect.objectContaining({
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({
+          numeroIdentificacion: '41234567',
+          contacto: 'ana@correo.com',
+        }),
+      }),
+    );
+    expect(resultado.solicitudId).toBe('sol-login-456');
+    expect(resultado.registroId).toBe('sol-login-456');
+    expect(resultado.canal).toBe('CORREO');
+  });
+
+  it('verificarInicioSesion realiza POST a /auth/login/verificar y devuelve la sesión', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        usuario: { nombre: 'Carmen Rodríguez', rol: 'USUARIO_PUBLICO' },
+        accessToken: 'access-jwt-123',
+        accessTokenExpiraEn: '2026-01-01T01:00:00.000Z',
+        refreshTokenExpiraEn: '2026-01-08T00:00:00.000Z',
+      }),
+    } as Response);
+
+    const sesion = await repository.verificarInicioSesion({
+      solicitudId: 'sol-login-456',
+      codigo: '483920',
+    });
+
+    expect(fetchSpy).toHaveBeenCalledWith(
+      '/api/v1/auth/login/verificar',
+      expect.objectContaining({
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({
+          solicitudId: 'sol-login-456',
+          codigo: '483920',
+        }),
+      }),
+    );
+    expect(sesion.usuario.nombre).toBe('Carmen Rodríguez');
+    expect(sesion.accessToken).toBe('access-jwt-123');
+  });
 });

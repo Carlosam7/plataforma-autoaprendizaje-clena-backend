@@ -1,49 +1,89 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
+import { AuthError, AuthValidationError } from '@/domain/auth/errors';
 import { container } from '@/main/container';
 
 export function IniciarSesionPage() {
   const navigate = useNavigate();
 
-  const [correo, setCorreo] = useState('');
+  const [numeroIdentificacion, setNumeroIdentificacion] = useState('');
+  const [contacto, setContacto] = useState('');
   const [enviando, setEnviando] = useState(false);
-  const [errorCorreo, setErrorCorreo] = useState<string | null>(null);
+  const [errorIdentificacion, setErrorIdentificacion] = useState<string | null>(
+    null,
+  );
+  const [errorContacto, setErrorContacto] = useState<string | null>(null);
+  const [errorGeneral, setErrorGeneral] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setErrorCorreo(null);
+    setErrorIdentificacion(null);
+    setErrorContacto(null);
+    setErrorGeneral(null);
 
-    const correoLimpio = correo.trim().toLowerCase();
+    const docLimpio = numeroIdentificacion.trim();
+    const contactoLimpio = contacto.trim();
 
-    if (!correoLimpio || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correoLimpio)) {
-      setErrorCorreo(
-        'Escribe una dirección completa, por ejemplo: ana@correo.com.',
-      );
-      return;
+    let hayErrores = false;
+
+    if (!docLimpio) {
+      setErrorIdentificacion('Escribe tu número de identificación.');
+      hayErrores = true;
     }
+
+    if (!contactoLimpio) {
+      setErrorContacto('Escribe tu correo o tu número de celular.');
+      hayErrores = true;
+    }
+
+    if (hayErrores) return;
 
     setEnviando(true);
     try {
-      const resultado =
-        await container.auth.solicitarInicioSesion.ejecutar(correoLimpio);
+      const resultado = await container.auth.solicitarInicioSesion.ejecutar({
+        numeroIdentificacion: docLimpio,
+        contacto: contactoLimpio,
+      });
 
       // Redirigir a verificar código pasando los datos
       navigate('/registro/verificar', {
         state: {
+          solicitudId: resultado.solicitudId || resultado.registroId,
           registroId: resultado.registroId,
           canal: resultado.canal,
           destino: resultado.destino,
           mensaje: resultado.mensaje,
           puedeReenviarEn: resultado.puedeReenviarEn.toISOString(),
           expiraEn: resultado.expiraEn.toISOString(),
+          tipo: 'LOGIN',
+          numeroIdentificacion: docLimpio,
+          contacto: contactoLimpio,
         },
       });
     } catch (err) {
       setEnviando(false);
-      if (err instanceof Error) {
-        setErrorCorreo(err.message);
+      if (err instanceof AuthValidationError) {
+        if (err.campo === 'numeroIdentificacion') {
+          setErrorIdentificacion(err.message);
+        } else if (err.campo === 'contacto') {
+          setErrorContacto(err.message);
+        } else {
+          setErrorGeneral(err.message);
+        }
+      } else if (err instanceof AuthError) {
+        if (err.statusCode === 401 || err.statusCode === 404) {
+          setErrorGeneral(
+            'Los datos no coinciden con ninguna cuenta registrada. Revisa tu número de documento y correo o celular.',
+          );
+        } else {
+          setErrorGeneral(err.message);
+        }
+      } else if (err instanceof Error) {
+        setErrorGeneral(err.message);
       } else {
-        setErrorCorreo('No pudimos procesar tu solicitud. Intenta nuevamente.');
+        setErrorGeneral(
+          'No pudimos procesar tu solicitud. Intenta nuevamente.',
+        );
       }
     }
   };
@@ -128,8 +168,8 @@ export function IniciarSesionPage() {
                 className="font-normal text-[#526575] text-[18px] md:text-[20px] leading-[1.45] mt-2 mb-0"
                 data-node-id="4:4581"
               >
-                Te enviaremos un código a tu correo. No necesitas recordar una
-                contraseña.
+                Te enviaremos un código a tu correo o celular. No necesitas
+                recordar una contraseña.
               </p>
             </div>
 
@@ -138,61 +178,126 @@ export function IniciarSesionPage() {
               noValidate
               className="flex flex-col gap-6 w-full"
             >
-              {/* Campo: Correo electrónico */}
-              <div className="flex flex-col gap-2 w-full" data-node-id="4:4102">
+              {/* Campo: Documento de identificación */}
+              <div className="flex flex-col gap-2 w-full">
                 <label
-                  htmlFor="correo"
+                  htmlFor="numeroIdentificacion"
                   className="font-semibold text-[#17324d] text-[18px] leading-[1.45]"
                 >
-                  Correo electrónico
+                  Número de documento de identidad
                 </label>
                 <input
-                  id="correo"
-                  name="correo"
-                  type="email"
-                  autoComplete="email"
+                  id="numeroIdentificacion"
+                  name="numeroIdentificacion"
+                  type="text"
+                  inputMode="numeric"
                   required
                   aria-required="true"
-                  aria-invalid={Boolean(errorCorreo)}
-                  value={correo}
+                  aria-invalid={Boolean(errorIdentificacion)}
+                  aria-describedby={
+                    errorIdentificacion ? 'error-doc ayuda-doc' : 'ayuda-doc'
+                  }
+                  value={numeroIdentificacion}
                   onChange={(e) => {
-                    setCorreo(e.target.value);
-                    if (errorCorreo) setErrorCorreo(null);
+                    setNumeroIdentificacion(e.target.value);
+                    if (errorIdentificacion) setErrorIdentificacion(null);
+                    if (errorGeneral) setErrorGeneral(null);
                   }}
-                  placeholder="nombre@correo.com"
+                  placeholder="Por ejemplo: 41234567"
+                  className="w-full min-h-15 p-4 bg-white text-[#17324d] text-[18px] border border-[#869ba9] rounded-xl placeholder:text-[#526575] focus:outline-none focus:border-[#17324d] focus:ring-2 focus:ring-[#17324d]"
+                />
+                <p
+                  id="ayuda-doc"
+                  className="font-normal text-[#526575] text-[16px] leading-[1.45] m-0"
+                >
+                  El número de cédula o documento con el que te registraste.
+                </p>
+                {errorIdentificacion && (
+                  <div
+                    id="error-doc"
+                    role="alert"
+                    className="w-full bg-[#fff3d8] flex flex-col gap-1 p-4 rounded-xl text-[#17324d]"
+                  >
+                    <p className="font-semibold text-[18px] m-0">
+                      Revisa tu número de documento
+                    </p>
+                    <p className="font-normal text-[16px] m-0">
+                      {errorIdentificacion}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Campo: Correo o celular */}
+              <div className="flex flex-col gap-2 w-full" data-node-id="4:4102">
+                <label
+                  htmlFor="contacto"
+                  className="font-semibold text-[#17324d] text-[18px] leading-[1.45]"
+                >
+                  Correo electrónico o número de celular
+                </label>
+                <input
+                  id="contacto"
+                  name="contacto"
+                  type="text"
+                  autoComplete="username"
+                  required
+                  aria-required="true"
+                  aria-invalid={Boolean(errorContacto)}
+                  aria-describedby={
+                    errorContacto
+                      ? 'error-contacto ayuda-contacto'
+                      : 'ayuda-contacto'
+                  }
+                  value={contacto}
+                  onChange={(e) => {
+                    setContacto(e.target.value);
+                    if (errorContacto) setErrorContacto(null);
+                    if (errorGeneral) setErrorGeneral(null);
+                  }}
+                  placeholder="Por ejemplo: ana@correo.com o 3001234567"
                   className="w-full min-h-15 p-4 bg-white text-[#17324d] text-[18px] border border-[#869ba9] rounded-xl placeholder:text-[#526575] focus:outline-none focus:border-[#17324d] focus:ring-2 focus:ring-[#17324d]"
                   data-node-id="4:4104"
                 />
+                <p
+                  id="ayuda-contacto"
+                  className="font-normal text-[#526575] text-[16px] leading-[1.45] m-0"
+                  data-node-id="4:4586"
+                >
+                  Escribe tu correo o celular para recibir el código de acceso.
+                </p>
+                {errorContacto && (
+                  <div
+                    id="error-contacto"
+                    role="alert"
+                    className="w-full bg-[#fff3d8] flex flex-col gap-1 p-4 rounded-xl text-[#17324d]"
+                    data-node-id="4:6312"
+                    data-name="Validación del contacto"
+                  >
+                    <p
+                      className="font-semibold text-[18px] m-0"
+                      data-node-id="4:6318"
+                    >
+                      Revisa tu correo o celular
+                    </p>
+                    <p
+                      className="font-normal text-[16px] m-0"
+                      data-node-id="4:6319"
+                    >
+                      {errorContacto}
+                    </p>
+                  </div>
+                )}
               </div>
 
-              {/* Texto de ayuda debajo del campo */}
-              <p
-                className="font-normal text-[#526575] text-[18px] leading-[1.45] m-0"
-                data-node-id="4:4586"
-              >
-                Por ejemplo: ana@correo.com
-              </p>
-
-              {/* Caja de validación de error de correo (Figma nodo 4:6312) */}
-              {errorCorreo && (
+              {/* Error General */}
+              {errorGeneral && (
                 <div
                   role="alert"
-                  className="w-full bg-[#fff3d8] flex flex-col gap-2.5 items-start p-5 rounded-xl text-[#17324d]"
-                  data-node-id="4:6312"
-                  data-name="Validación del correo"
+                  className="w-full bg-[#fff3d8] border border-[#d97706] flex flex-col gap-1 p-4 rounded-xl text-[#17324d]"
                 >
-                  <p
-                    className="font-semibold text-[20px] w-full m-0"
-                    data-node-id="4:6318"
-                  >
-                    Revisa tu correo electrónico.
-                  </p>
-                  <p
-                    className="font-normal text-[18px] w-full m-0"
-                    data-node-id="4:6319"
-                  >
-                    {errorCorreo}
-                  </p>
+                  <p className="font-semibold text-[18px] m-0">Atención</p>
+                  <p className="font-normal text-[16px] m-0">{errorGeneral}</p>
                 </div>
               )}
 

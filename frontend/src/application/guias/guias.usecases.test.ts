@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { DetalleGuia, Guia } from '../../domain/guias/types';
 import { CalcularResultadoPractica } from './CalcularResultadoPractica';
+import { ListarCategorias } from './ListarCategorias';
 import { ListarGuias } from './ListarGuias';
 import { ObtenerDetalleGuia } from './ObtenerDetalleGuia';
 import type { GuiasRepository } from './ports';
@@ -48,6 +49,7 @@ describe('Guias use cases', () => {
 
   it('ListarGuias: solo devuelve guías publicadas (AC-HU09-02)', async () => {
     const repo: GuiasRepository = {
+      listarCategorias: vi.fn(),
       obtenerCategoria: vi.fn(),
       listarGuiasPublicadas: vi.fn().mockResolvedValue(guiasMock),
       obtenerDetalleGuia: vi.fn(),
@@ -59,6 +61,26 @@ describe('Guias use cases', () => {
 
     expect(resultado).toHaveLength(2);
     expect(resultado.map((g) => g.slug)).toEqual(['smishing', 'vishing']);
+  });
+
+  it('ListarCategorias: devuelve las categorías del repositorio', async () => {
+    const categoriasMock = [
+      { slug: 'seguridad-digital', nombre: 'Seguridad digital' },
+      { slug: 'correo-electronico', nombre: 'Correo electrónico' },
+    ];
+    const repo: GuiasRepository = {
+      listarCategorias: vi.fn().mockResolvedValue(categoriasMock),
+      obtenerCategoria: vi.fn(),
+      listarGuiasPublicadas: vi.fn(),
+      obtenerDetalleGuia: vi.fn(),
+      registrarAperturaGuia: vi.fn(),
+    };
+
+    const usecase = new ListarCategorias(repo);
+    const resultado = await usecase.ejecutar();
+
+    expect(resultado).toEqual(categoriasMock);
+    expect(repo.listarCategorias).toHaveBeenCalledOnce();
   });
 
   it('ObtenerDetalleGuia: retorna el detalle y registra la apertura (AC-HU10-05)', async () => {
@@ -81,6 +103,7 @@ describe('Guias use cases', () => {
     };
 
     const repo: GuiasRepository = {
+      listarCategorias: vi.fn(),
       obtenerCategoria: vi.fn(),
       listarGuiasPublicadas: vi.fn(),
       obtenerDetalleGuia: vi.fn().mockResolvedValue(detalleMock),
