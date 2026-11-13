@@ -214,6 +214,16 @@ export function IniciarSesionPage() {
               >
                 Crear una cuenta
               </Link>
+
+              {/* Enlace para personal institucional */}
+              <div className="pt-2 border-t border-[#e2e8f0] w-full text-center">
+                <Link
+                  to="/personal/acceso"
+                  className="text-[#0d6258] hover:underline font-semibold text-[1rem]"
+                >
+                  ¿Eres personal o monitor del CLENA? Ingreso de equipo →
+                </Link>
+              </div>
             </form>
           </section>
         </div>
