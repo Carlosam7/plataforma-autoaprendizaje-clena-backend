@@ -95,14 +95,14 @@ export function GuiasPage() {
   return (
     <main
       id="contenido"
-      className="max-w-[1440px] mx-auto px-4 md:px-12 lg:px-24 py-8 md:py-12 flex flex-col gap-10"
+      className="max-w-360 mx-auto px-4 md:px-12 lg:px-24 py-8 md:py-12 flex flex-col gap-10"
     >
       {/* Encabezado del catálogo de guías */}
       <section className="flex flex-col gap-4">
         <h1 className="text-[2rem] md:text-[2.444rem] font-bold leading-[1.2] text-[#17324d]">
           Cuatro guías para sentirte más seguro
         </h1>
-        <p className="text-[1.111rem] md:text-[1.222rem] text-[#526575] max-w-[800px]">
+        <p className="text-[1.111rem] md:text-[1.222rem] text-[#526575] max-w-200">
           Elige por dónde empezar. Puedes repetir cada guía las veces que
           quieras y avanzar con calma, a tu propio ritmo.
         </p>
@@ -151,7 +151,7 @@ export function GuiasPage() {
             <p className="text-[1.333rem] font-bold text-[#17324d]">
               Pronto habrá guías en esta sección
             </p>
-            <p className="text-[1.111rem] text-[#526575] max-w-[500px]">
+            <p className="text-[1.111rem] text-[#526575] max-w-125">
               Estamos preparando nuevos contenidos educativos para ayudarte a
               navegar con seguridad.
             </p>
@@ -210,7 +210,7 @@ export function GuiasPage() {
         className="bg-[#17324d] text-white rounded-2xl p-8 md:p-10 flex flex-col md:flex-row gap-6 items-start md:items-center justify-between"
         aria-label="Acompañamiento y soporte"
       >
-        <div className="flex flex-col gap-2 max-w-[700px]">
+        <div className="flex flex-col gap-2 max-w-175">
           <h2 className="text-[1.444rem] md:text-[1.666rem] font-bold">
             No tienes que aprender a solas.
           </h2>

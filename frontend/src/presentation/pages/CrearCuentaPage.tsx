@@ -144,7 +144,7 @@ export function CrearCuentaPage() {
       {/* Sección principal de Registro */}
       <main
         id="contenido"
-        className="flex-1 flex flex-col items-center justify-center px-4 sm:px-8 md:px-24 py-8 md:py-12 w-full max-w-[1440px] mx-auto"
+        className="flex-1 flex flex-col items-center justify-center px-4 sm:px-8 md:px-24 py-8 md:py-12 w-full max-w-360 mx-auto"
       >
         <div
           className="flex flex-col lg:flex-row gap-8 lg:gap-16 items-start justify-center w-full"
@@ -154,7 +154,7 @@ export function CrearCuentaPage() {
           {/* Columna Izquierda: Información de acompañamiento */}
           <section
             aria-labelledby="titulo-aprender-cuenta"
-            className="bg-[#e7f2ee] flex flex-col gap-6 items-start p-6 sm:p-8 md:p-10 rounded-3xl w-full lg:w-[480px] shrink-0 lg:sticky lg:top-8"
+            className="bg-[#e7f2ee] flex flex-col gap-6 items-start p-6 sm:p-8 md:p-10 rounded-3xl w-full lg:w-120 shrink-0 lg:sticky lg:top-8"
             data-node-id="4:4592"
             data-name="Aprender con cuenta"
           >
@@ -200,7 +200,7 @@ export function CrearCuentaPage() {
           {/* Columna Derecha: Tarjeta de formulario */}
           <section
             aria-labelledby="titulo-crea-cuenta"
-            className="bg-white border border-[#d7e2e7] flex flex-col gap-6 items-start p-6 sm:p-8 md:p-10 rounded-3xl w-full lg:w-[680px] shrink-0 shadow-sm"
+            className="bg-white border border-[#d7e2e7] flex flex-col gap-6 items-start p-6 sm:p-8 md:p-10 rounded-3xl w-full lg:w-170 shrink-0 shadow-sm"
             data-node-id="4:4599"
             data-name="Crea tu cuenta"
           >
@@ -469,7 +469,7 @@ export function CrearCuentaPage() {
 
       {/* Cierre / Pie institucional según Figma */}
       <footer
-        className="w-full max-w-[1440px] mx-auto px-4 sm:px-8 md:px-24 py-6 flex flex-wrap gap-6 items-center justify-between"
+        className="w-full max-w-360 mx-auto px-4 sm:px-8 md:px-24 py-6 flex flex-wrap gap-6 items-center justify-between"
         data-node-id="4:3977"
         data-name="Cierre"
       >

@@ -27,7 +27,7 @@ export function GuiaDetallePage() {
     return (
       <main
         id="contenido"
-        className="max-w-[1440px] mx-auto px-4 md:px-12 lg:px-24 py-16 text-center text-[1.111rem] text-[#526575]"
+        className="max-w-360 mx-auto px-4 md:px-12 lg:px-24 py-16 text-center text-[1.111rem] text-[#526575]"
         role="status"
       >
         Cargando guía educativa...
@@ -39,12 +39,12 @@ export function GuiaDetallePage() {
     return (
       <main
         id="contenido"
-        className="max-w-[1440px] mx-auto px-4 md:px-12 lg:px-24 py-16 flex flex-col items-center gap-6 text-center"
+        className="max-w-360 mx-auto px-4 md:px-12 lg:px-24 py-16 flex flex-col items-center gap-6 text-center"
       >
         <h1 className="text-[2rem] font-bold text-[#17324d]">
           Guía no encontrada
         </h1>
-        <p className="text-[1.111rem] text-[#526575] max-w-[500px]">
+        <p className="text-[1.111rem] text-[#526575] max-w-125">
           La guía que buscas no está disponible o ha cambiado de dirección.
         </p>
         <Link
@@ -84,7 +84,7 @@ export function GuiaDetallePage() {
   return (
     <main
       id="contenido"
-      className="max-w-[1440px] mx-auto px-4 md:px-12 lg:px-24 py-8 md:py-10 flex flex-col gap-8"
+      className="max-w-360 mx-auto px-4 md:px-12 lg:px-24 py-8 md:py-10 flex flex-col gap-8"
     >
       {/* Migas de pan y encabezado de la guía */}
       <section className="flex flex-col gap-4">
@@ -132,7 +132,7 @@ export function GuiaDetallePage() {
                 {porcentajeAvance}%
               </span>
             </div>
-            <div className="bg-[#dce7e7] h-[10px] rounded-full overflow-hidden w-full">
+            <div className="bg-[#dce7e7] h-2.5 rounded-full overflow-hidden w-full">
               <div
                 className="bg-[#0d6258] h-full rounded-full transition-all duration-300"
                 style={{ width: `${porcentajeAvance}%` }}
@@ -231,7 +231,7 @@ export function GuiaDetallePage() {
                     }
                   ).textoAlternativo
                 }
-                className="max-w-full h-auto rounded-xl object-contain max-h-[350px]"
+                className="max-w-full h-auto rounded-xl object-contain max-h-87.5"
               />
               <figcaption className="text-[#526575] text-[0.95rem] italic text-center">
                 {
