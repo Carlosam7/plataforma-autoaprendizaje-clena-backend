@@ -5,7 +5,8 @@ import {
 } from '../auth/errores.js';
 import { PoliticaCodigo } from '../auth/registro-pendiente.js';
 
-export type PropositoCodigoPersonal = 'CAMBIO_PASSWORD_INICIAL';
+export type PropositoCodigoPersonal =
+  'CAMBIO_PASSWORD_INICIAL' | 'INICIO_SESION';
 
 export interface CodigoPersonalProps {
   id: string;

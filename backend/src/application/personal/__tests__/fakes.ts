@@ -19,6 +19,11 @@ export class PersonalRepositoryEnMemoria implements PersonalRepository {
   buscarPorId(id: string): Promise<Personal | null> {
     return Promise.resolve(this.cuentas.get(id) ?? null);
   }
+  buscarPorCorreo(correo: Correo): Promise<Personal | null> {
+    return Promise.resolve(
+      [...this.cuentas.values()].find((p) => p.correo.igualA(correo)) ?? null,
+    );
+  }
   existeCorreo(correo: Correo, exceptoId?: string): Promise<boolean> {
     return Promise.resolve(
       [...this.cuentas.values()].some(
@@ -63,7 +68,11 @@ export class CodigoPersonalRepositoryEnMemoria implements CodigoPersonalReposito
   }
   emitir(codigo: CodigoPersonal): Promise<void> {
     for (const anterior of this.codigos) {
-      if (anterior.personalId === codigo.personalId && !anterior.usadoEn)
+      if (
+        anterior.personalId === codigo.personalId &&
+        anterior.proposito === codigo.proposito &&
+        !anterior.usadoEn
+      )
         anterior.marcarUsado(codigo.creadoEn);
     }
     this.codigos.push(codigo);

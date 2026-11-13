@@ -62,3 +62,14 @@ export class PasswordRepetidaError extends ErrorDeNegocio {
     );
   }
 }
+
+/** HU-06: mismo mensaje si falla el correo, la contraseña o la cuenta está desactivada. */
+export class CredencialesIncorrectasError extends ErrorDeNegocio {
+  constructor() {
+    super(
+      'CREDENCIALES_INCORRECTAS',
+      'no_autorizado',
+      'Credenciales incorrectas',
+    );
+  }
+}
