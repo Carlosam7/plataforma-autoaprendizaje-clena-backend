@@ -140,7 +140,7 @@ describe('HU-10 · Seguir una guía paso a paso (e2e)', () => {
     });
 
     it('indica si la guía tiene actividad para invitar a practicar al final', async () => {
-      await prisma.actividad.create({
+      const actividad = await prisma.actividad.create({
         data: {
           guiaId,
           titulo: 'Practica',
@@ -148,7 +148,19 @@ describe('HU-10 · Seguir una guía paso a paso (e2e)', () => {
           actualizadaPorId: autor.id,
         },
       });
-      const { body } = await http().get(`${RUTA}/smishing`).expect(200);
+      // Sin preguntas todavía no se puede hacer (HU-21).
+      let { body } = await http().get(`${RUTA}/smishing`).expect(200);
+      expect(body.tieneActividad).toBe(false);
+
+      await prisma.pregunta.create({
+        data: {
+          actividadId: actividad.id,
+          orden: 1,
+          enunciado: '¿Abres el enlace?',
+          explicacion: 'No.',
+        },
+      });
+      ({ body } = await http().get(`${RUTA}/smishing`).expect(200));
       expect(body.tieneActividad).toBe(true);
     });
 

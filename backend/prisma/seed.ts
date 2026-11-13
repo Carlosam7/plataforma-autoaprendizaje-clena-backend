@@ -80,6 +80,18 @@ interface GuiaSemilla {
   objetivo: string;
   duracionEstimadaMin: number;
   pasos: { titulo: string | null; bloques: BloqueSemilla[] }[];
+  actividad?: ActividadSemilla;
+}
+
+// `correcta` es la posición (desde 0) de la opción correcta.
+interface ActividadSemilla {
+  titulo: string;
+  preguntas: {
+    enunciado: string;
+    explicacion: string;
+    opciones: string[];
+    correcta: number;
+  }[];
 }
 
 const texto = (t: string): BloqueSemilla => ({ tipo: 'texto', texto: t });
@@ -166,6 +178,50 @@ const GUIAS: GuiaSemilla[] = [
         ],
       },
     ],
+    // HU-21: práctica al terminar la guía.
+    actividad: {
+      titulo: 'Practica: mensajes falsos por SMS',
+      preguntas: [
+        {
+          enunciado:
+            'Te llega un SMS: «Tu cuenta será bloqueada hoy. Entra aquí para evitarlo». ¿Qué haces primero?',
+          explicacion:
+            'La prisa es parte del engaño. Ningún banco te obliga a responder en minutos.',
+          opciones: [
+            'Entro rápido al enlace para no perder la cuenta',
+            'Hago una pausa y leo el mensaje con calma',
+          ],
+          correcta: 1,
+        },
+        {
+          enunciado:
+            'El mensaje trae el logo y el nombre de tu banco. ¿Eso prueba que es real?',
+          explicacion:
+            'Cualquiera puede copiar un logo o un nombre. Fíjate en quién envía el mensaje.',
+          opciones: ['Sí, tiene el logo del banco', 'No, eso se puede copiar'],
+          correcta: 1,
+        },
+        {
+          enunciado:
+            'Quieres saber si el mensaje es cierto. ¿A qué número llamas?',
+          explicacion:
+            'Llama tú al número de tu tarjeta o de la página oficial. El número del mensaje puede ser de quien te quiere engañar.',
+          opciones: [
+            'Al número que aparece en tu tarjeta',
+            'Al número que viene en el mensaje',
+          ],
+          correcta: 0,
+        },
+        {
+          enunciado:
+            'Por SMS te piden el código que te acaba de llegar. ¿Lo envías?',
+          explicacion:
+            'Nunca compartas claves ni códigos por mensaje. Con ese código pueden entrar a tu cuenta.',
+          opciones: ['No, nunca lo comparto', 'Sí, si dicen que son del banco'],
+          correcta: 0,
+        },
+      ],
+    },
   },
   {
     slug: 'vishing',
@@ -385,6 +441,52 @@ async function sembrarPasos(
 }
 
 /**
+ * Crea o actualiza la actividad de una guía y sus preguntas por (actividad, orden), sin
+ * borrarlas: así no se pierden los intentos ni las respuestas que apuntan a ellas.
+ * Devuelve cuántas preguntas sembró.
+ */
+async function sembrarActividad(
+  prisma: PrismaClient,
+  guiaId: string,
+  { titulo, preguntas }: ActividadSemilla,
+  autorId: string,
+): Promise<number> {
+  const actividad = await prisma.actividad.upsert({
+    where: { guiaId },
+    create: { guiaId, titulo, creadaPorId: autorId, actualizadaPorId: autorId },
+    update: { titulo },
+  });
+  for (const [
+    i,
+    { enunciado, explicacion, opciones, correcta },
+  ] of preguntas.entries()) {
+    const datos = { enunciado, explicacion };
+    const orden = i + 1;
+    // findFirst y no upsert: la UNIQUE (actividad_id, orden) es diferible y ON CONFLICT no la admite.
+    const existente = await prisma.pregunta.findFirst({
+      where: { actividadId: actividad.id, orden },
+    });
+    const pregunta = existente
+      ? await prisma.pregunta.update({
+          where: { id: existente.id },
+          data: datos,
+        })
+      : await prisma.pregunta.create({
+          data: { actividadId: actividad.id, orden, ...datos },
+        });
+    for (const [j, texto] of opciones.entries()) {
+      const opcion = { texto, esCorrecta: j === correcta };
+      await prisma.opcion.upsert({
+        where: { preguntaId_orden: { preguntaId: pregunta.id, orden: j + 1 } },
+        create: { preguntaId: pregunta.id, orden: j + 1, ...opcion },
+        update: opcion,
+      });
+    }
+  }
+  return preguntas.length;
+}
+
+/**
  * Autor ficticio de las guías semilla (guia.creada_por_id es obligatorio).
  * Inactivo y con una contraseña aleatoria que nadie conoce: no puede iniciar sesión.
  */
@@ -465,7 +567,8 @@ async function main(): Promise<void> {
 
     const autorId = await sembrarAutorContenidos(prisma);
     let imagenes = 0;
-    for (const { slug, pasos, ...datos } of GUIAS) {
+    let preguntas = 0;
+    for (const { slug, pasos, actividad, ...datos } of GUIAS) {
       const guia = await prisma.guia.upsert({
         where: { slug },
         create: {
@@ -481,12 +584,20 @@ async function main(): Promise<void> {
         update: datos,
       });
       imagenes += await sembrarPasos(prisma, guia.id, pasos, autorId);
+      if (actividad) {
+        preguntas += await sembrarActividad(
+          prisma,
+          guia.id,
+          actividad,
+          autorId,
+        );
+      }
     }
 
     const admin = await sembrarAdministradorInicial(prisma);
 
     console.log(
-      `Semillas cargadas: aviso de privacidad ${AVISO_PRIVACIDAD.version}, ${CATEGORIAS.length} categorías, ${GUIAS.length} guías (${imagenes} imágenes) y ${admin}.`,
+      `Semillas cargadas: aviso de privacidad ${AVISO_PRIVACIDAD.version}, ${CATEGORIAS.length} categorías, ${GUIAS.length} guías (${imagenes} imágenes, ${preguntas} preguntas de práctica) y ${admin}.`,
     );
   } finally {
     await prisma.$disconnect();
