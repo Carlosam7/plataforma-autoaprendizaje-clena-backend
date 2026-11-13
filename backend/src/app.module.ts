@@ -10,6 +10,7 @@ import { CategoriaModule } from './modules/categoria.module.js';
 import { GuiaModule } from './modules/guia.module.js';
 import { PersonalModule } from './modules/personal.module.js';
 import { PracticaModule } from './modules/practica.module.js';
+import { ProgresoModule } from './modules/progreso.module.js';
 import { SistemaModule } from './modules/sistema.module.js';
 import { ExcepcionesFilter } from './presentation/filters/excepciones.filter.js';
 import { HealthController } from './presentation/health/health.controller.js';
@@ -30,6 +31,7 @@ import { HealthController } from './presentation/health/health.controller.js';
     AuthModule,
     PersonalModule,
     PracticaModule,
+    ProgresoModule,
     AyudaModule,
   ],
   controllers: [HealthController],
