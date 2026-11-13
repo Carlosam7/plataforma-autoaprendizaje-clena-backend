@@ -16,6 +16,7 @@ export class PrismaGuiaRepository implements GuiaRepository {
 
   async listarPublicadas({
     categoria,
+    q,
     ordenarPor,
     direccion,
     pagina,
@@ -24,6 +25,7 @@ export class PrismaGuiaRepository implements GuiaRepository {
     const where: Prisma.GuiaWhereInput = {
       estado: 'PUBLICADA',
       ...(categoria ? { categoria: { slug: categoria } } : {}),
+      ...(q?.trim() ? { id: { in: await this.idsQueContienen(q) } } : {}),
     };
     // Una transacción para que la página y el total vean los mismos datos.
     const [filas, total] = await this.prisma.$transaction([
@@ -38,6 +40,25 @@ export class PrismaGuiaRepository implements GuiaRepository {
       this.prisma.guia.count({ where }),
     ]);
     return { elementos: filas.map(aGuia), total };
+  }
+
+  /**
+   * HU-11: ids de las guías cuyo título, descripción o palabras clave contienen todas las
+   * palabras de `q`. Prisma no sabe hacer búsqueda de texto de PostgreSQL: va en SQL.
+   */
+  private async idsQueContienen(q: string): Promise<string[]> {
+    // Solo letras y números: lo demás tiene significado en la sintaxis de to_tsquery.
+    const palabras = q.match(/[\p{L}\p{N}]+/gu);
+    if (!palabras) return [];
+    // `:*` busca cada palabra como comienzo («what» encuentra «WhatsApp»); `&` las exige todas.
+    const consulta = palabras.map((p) => `${p}:*`).join(' & ');
+    // La misma expresión del índice guia_busqueda_idx (migración inicial), para que lo use.
+    const filas = await this.prisma.$queryRaw<{ id: string }[]>`
+      SELECT id FROM guia
+      WHERE to_tsvector('spanish', f_unaccent(titulo || ' ' || coalesce(descripcion, '') || ' '
+              || f_array_to_text(palabras_clave)))
+            @@ to_tsquery('spanish', f_unaccent(${consulta}))`;
+    return filas.map((f) => f.id);
   }
 
   async buscarPublicada(slug: string): Promise<DetalleGuia | null> {
