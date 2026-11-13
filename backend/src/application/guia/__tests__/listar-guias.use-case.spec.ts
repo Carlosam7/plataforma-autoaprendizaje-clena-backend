@@ -16,6 +16,12 @@ class RepoFalso extends GuiaRepository {
     this.recibido = criterio;
     return Promise.resolve({ elementos: this.guias, total: this.guias.length });
   }
+  buscarPublicada(): Promise<null> {
+    return Promise.resolve(null);
+  }
+  buscarIdPublicada(): Promise<null> {
+    return Promise.resolve(null);
+  }
 }
 
 const criterio: CriterioGuiasPublicadas = {

@@ -297,6 +297,8 @@ model Paso {
   id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   guiaId        String   @map("guia_id") @db.Uuid
   orden         Int      @db.SmallInt
+  // Opcional: sin título el paso se muestra solo como «Paso 2 de 6» (HU-10).
+  titulo        String?  @db.VarChar(120)
   contenido     Json     @db.JsonB
   creadoEn      DateTime @default(now()) @map("creado_en") @db.Timestamptz
   actualizadoEn DateTime @updatedAt @map("actualizado_en") @db.Timestamptz
