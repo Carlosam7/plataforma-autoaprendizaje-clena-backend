@@ -29,11 +29,11 @@ export interface AvisoPrivacidad {
 
 export interface SolicitudRegistro {
   nombre: string;
+  numeroIdentificacion: string;
+  fechaNacimiento: string; // Formato AAAA-MM-DD
   correo?: string;
   telefono?: string;
-  numeroIdentificacion?: string;
-  fechaNacimiento?: string;
-  aceptaAvisoPrivacidad?: boolean;
+  aceptaAvisoPrivacidad: boolean;
   canalVerificacion?: CanalVerificacion;
 }
 

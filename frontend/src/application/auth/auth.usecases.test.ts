@@ -58,18 +58,23 @@ describe('Auth Use Cases', () => {
   });
 
   describe('SolicitarRegistro', () => {
-    it('valida datos obligatorios y llama al repositorio con formulario simplificado de Figma', async () => {
+    it('valida datos obligatorios y llama al repositorio', async () => {
       const repo = crearMockRepository();
       const useCase = new SolicitarRegistro(repo);
       const resultado = await useCase.ejecutar({
         nombre: 'Carmen Rodríguez',
+        numeroIdentificacion: '12345678',
+        fechaNacimiento: '1955-08-21',
         correo: 'carmen@correo.com',
+        aceptaAvisoPrivacidad: true,
       });
 
       expect(resultado.registroId).toBe('reg-123');
       expect(repo.solicitarRegistro).toHaveBeenCalledWith(
         expect.objectContaining({
           nombre: 'Carmen Rodríguez',
+          numeroIdentificacion: '12345678',
+          fechaNacimiento: '1955-08-21',
           correo: 'carmen@correo.com',
           aceptaAvisoPrivacidad: true,
         }),
@@ -90,6 +95,47 @@ describe('Auth Use Cases', () => {
       ).rejects.toThrow(AuthValidationError);
     });
 
+    it('rechaza si el número de identificación no es válido', async () => {
+      const repo = crearMockRepository();
+      const useCase = new SolicitarRegistro(repo);
+      await expect(
+        useCase.ejecutar({
+          nombre: 'Carmen Rodríguez',
+          numeroIdentificacion: '12',
+          fechaNacimiento: '1955-08-21',
+          correo: 'carmen@correo.com',
+          aceptaAvisoPrivacidad: true,
+        }),
+      ).rejects.toThrow(AuthValidationError);
+    });
+
+    it('rechaza si la fecha de nacimiento no es válida', async () => {
+      const repo = crearMockRepository();
+      const useCase = new SolicitarRegistro(repo);
+      await expect(
+        useCase.ejecutar({
+          nombre: 'Carmen Rodríguez',
+          numeroIdentificacion: '12345678',
+          fechaNacimiento: 'no-es-fecha',
+          correo: 'carmen@correo.com',
+          aceptaAvisoPrivacidad: true,
+        }),
+      ).rejects.toThrow(AuthValidationError);
+    });
+
+    it('rechaza si no hay ningún medio de contacto', async () => {
+      const repo = crearMockRepository();
+      const useCase = new SolicitarRegistro(repo);
+      await expect(
+        useCase.ejecutar({
+          nombre: 'Carmen Rodríguez',
+          numeroIdentificacion: '12345678',
+          fechaNacimiento: '1955-08-21',
+          aceptaAvisoPrivacidad: true,
+        }),
+      ).rejects.toThrow(AuthValidationError);
+    });
+
     it('rechaza si no se acepta el aviso de privacidad', async () => {
       const repo = crearMockRepository();
       const useCase = new SolicitarRegistro(repo);
@@ -104,7 +150,7 @@ describe('Auth Use Cases', () => {
       ).rejects.toThrow(AuthValidationError);
     });
 
-    it('acepta número de celular válido', async () => {
+    it('acepta número de celular válido y asigna canal TELEFONO', async () => {
       const repo = crearMockRepository();
       const useCase = new SolicitarRegistro(repo);
       await useCase.ejecutar({
@@ -114,7 +160,12 @@ describe('Auth Use Cases', () => {
         telefono: '300 123 4567',
         aceptaAvisoPrivacidad: true,
       });
-      expect(repo.solicitarRegistro).toHaveBeenCalled();
+      expect(repo.solicitarRegistro).toHaveBeenCalledWith(
+        expect.objectContaining({
+          telefono: '3001234567',
+          canalVerificacion: 'TELEFONO',
+        }),
+      );
     });
   });
 
