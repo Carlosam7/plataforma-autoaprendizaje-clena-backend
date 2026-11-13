@@ -5,10 +5,15 @@ import { JwtModule, JwtService } from '@nestjs/jwt';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { CerrarSesionUseCase } from '../application/auth/cerrar-sesion.use-case.js';
 import { RenovarSesionUseCase } from '../application/auth/renovar-sesion.use-case.js';
+import { ConfirmarEliminacionCuentaUseCase } from '../application/auth/confirmar-eliminacion-cuenta.use-case.js';
+import { SolicitarEliminacionCuentaUseCase } from '../application/auth/solicitar-eliminacion-cuenta.use-case.js';
 import { SolicitarInicioSesionUseCase } from '../application/auth/solicitar-inicio-sesion.use-case.js';
 import { VerificarInicioSesionUseCase } from '../application/auth/verificar-inicio-sesion.use-case.js';
+import { EliminacionCuentaRepository } from '../domain/auth/eliminacion-cuenta.repository.js';
 import { InicioSesionRepository } from '../domain/auth/inicio-sesion.repository.js';
+import { PrismaEliminacionCuentaRepository } from '../infrastructure/database/repositories/prisma-eliminacion-cuenta.repository.js';
 import { PrismaInicioSesionRepository } from '../infrastructure/database/repositories/prisma-inicio-sesion.repository.js';
+import { CuentaController } from '../presentation/auth/cuenta.controller.js';
 import { SesionController } from '../presentation/auth/sesion.controller.js';
 import {
   EnviadorCodigo,
@@ -79,6 +84,7 @@ type Config = ConfigService<VariablesEntorno, true>;
     RegistroController,
     AvisoPrivacidadController,
     SesionController,
+    CuentaController,
   ],
   providers: [
     // Guards globales, en este orden: primero quién eres (401), después qué puedes hacer (403).
@@ -242,6 +248,38 @@ type Config = ConfigService<VariablesEntorno, true>;
       useFactory: (
         ...deps: ConstructorParameters<typeof VerificarInicioSesionUseCase>
       ) => new VerificarInicioSesionUseCase(...deps),
+    },
+    // HU-05: eliminar mi cuenta.
+    {
+      provide: EliminacionCuentaRepository,
+      useClass: PrismaEliminacionCuentaRepository,
+    },
+    {
+      provide: SolicitarEliminacionCuentaUseCase,
+      inject: [
+        EliminacionCuentaRepository,
+        GeneradorCodigo,
+        HasherCodigo,
+        EnviadorCodigo,
+        GeneradorId,
+        Reloj,
+        ConfiguracionRegistro,
+      ],
+      useFactory: (
+        ...deps: ConstructorParameters<typeof SolicitarEliminacionCuentaUseCase>
+      ) => new SolicitarEliminacionCuentaUseCase(...deps),
+    },
+    {
+      provide: ConfirmarEliminacionCuentaUseCase,
+      inject: [
+        EliminacionCuentaRepository,
+        HasherCodigo,
+        Reloj,
+        ConfiguracionRegistro,
+      ],
+      useFactory: (
+        ...deps: ConstructorParameters<typeof ConfirmarEliminacionCuentaUseCase>
+      ) => new ConfirmarEliminacionCuentaUseCase(...deps),
     },
     {
       provide: RenovarSesionUseCase,

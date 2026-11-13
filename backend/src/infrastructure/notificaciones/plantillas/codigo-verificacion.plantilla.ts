@@ -24,6 +24,11 @@ const TEXTOS: Record<PropositoCodigo, { asunto: string; para: string }> = {
     asunto: 'Código para cambiar tu contraseña temporal en Kamá',
     para: 'para cambiar tu contraseña temporal en Kamá',
   },
+  // HU-05: el usuario público confirma que quiere eliminar su cuenta.
+  ELIMINAR_CUENTA: {
+    asunto: 'Código para eliminar tu cuenta de Kamá',
+    para: 'para eliminar tu cuenta de Kamá',
+  },
 };
 
 /** «483920» → «483 920»: en dos grupos se lee y se copia más fácil. */

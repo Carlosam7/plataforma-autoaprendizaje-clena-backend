@@ -11,7 +11,7 @@ export abstract class HasherCodigo {
 }
 
 export type PropositoCodigo =
-  'REGISTRO' | 'INICIO_SESION' | 'CAMBIO_PASSWORD_INICIAL';
+  'REGISTRO' | 'INICIO_SESION' | 'CAMBIO_PASSWORD_INICIAL' | 'ELIMINAR_CUENTA';
 
 export interface MensajeCodigo {
   canal: CanalVerificacion;
