@@ -583,5 +583,25 @@ export class InMemoryGuiasRepository implements GuiasRepository {
         },
       ],
     });
+
+    // Normalizar bloques para compatibilidad con el modelo de datos del backend
+    for (const detalle of this.guias.values()) {
+      for (const paso of detalle.pasos) {
+        if (!paso.bloques || paso.bloques.length === 0) {
+          const bloques = [];
+          if (paso.contenido) {
+            bloques.push({ tipo: 'texto' as const, texto: paso.contenido });
+          }
+          if (paso.recordatorio) {
+            bloques.push({
+              tipo: 'aviso' as const,
+              nivel: 'consejo' as const,
+              texto: paso.recordatorio.consejo,
+            });
+          }
+          paso.bloques = bloques;
+        }
+      }
+    }
   }
 }

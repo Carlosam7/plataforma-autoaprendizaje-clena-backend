@@ -152,23 +152,28 @@ export class HttpGuiasRepository implements GuiasRepository {
             (fp) => fp.numero === p.orden,
           );
 
-          const textoBloque =
-            p.bloques.find((b) => b.tipo === 'texto')?.texto ||
-            fallbackPaso?.contenido ||
-            '';
+          // Si hay bloques de texto en el backend, unimos todos en contenidoCompleto
+          const textos = p.bloques
+            .filter((b) => b.tipo === 'texto' && b.texto)
+            .map((b) => b.texto as string);
 
-          const avisoBloque = p.bloques.find((b) => b.tipo === 'aviso');
+          const contenidoCompleto =
+            textos.length > 0
+              ? textos.join('\n\n')
+              : fallbackPaso?.contenido || '';
+
+          const primerAviso = p.bloques.find((b) => b.tipo === 'aviso');
 
           return {
             numero: p.orden,
-            titulo: p.titulo || `Paso ${p.orden} de ${data.totalPasos}`,
-            contenido: textoBloque,
+            titulo: p.titulo,
+            contenido: contenidoCompleto,
             bloques: p.bloques as BloquePaso[],
-            recordatorio: avisoBloque?.texto
+            recordatorio: primerAviso?.texto
               ? {
                   titulo:
-                    avisoBloque.nivel === 'alerta' ? 'Atención' : 'Recuerda',
-                  consejo: avisoBloque.texto,
+                    primerAviso.nivel === 'alerta' ? 'Atención' : 'Recuerda',
+                  consejo: primerAviso.texto,
                 }
               : fallbackPaso?.recordatorio,
             ejemplo: fallbackPaso?.ejemplo,

@@ -63,6 +63,17 @@ export function GuiaDetallePage() {
   const esUltimoPaso = pasoIndex === totalPasos - 1;
   const porcentajeAvance = Math.round(((pasoIndex + 1) / totalPasos) * 100);
 
+  const bloquesTexto =
+    pasoActual?.bloques?.filter((b) => b.tipo === 'texto') ?? [];
+  const bloquesAviso =
+    pasoActual?.bloques?.filter((b) => b.tipo === 'aviso') ?? [];
+  const imagenes =
+    pasoActual?.bloques?.filter((b) => b.tipo === 'imagen') ?? [];
+  const tieneVisuales = imagenes.length > 0 || Boolean(pasoActual?.ejemplo);
+
+  const tituloPaso =
+    pasoActual?.titulo || `Paso ${pasoIndex + 1} de ${totalPasos}`;
+
   const irPasoAnterior = () => {
     if (pasoIndex > 0) {
       setPasoIndex((prev) => prev - 1);
@@ -144,16 +155,24 @@ export function GuiaDetallePage() {
 
       {/* Región dinámica anunciada para tecnologías asistivas */}
       <div className="sr-only" aria-live="polite">
-        Paso {pasoIndex + 1} de {totalPasos}: {pasoActual.titulo}
+        Paso {pasoIndex + 1} de {totalPasos}: {tituloPaso}
       </div>
 
-      {/* Tarjetas de aprendizaje (dos columnas en escritorio fiel a Figma 4:3956) */}
+      {/* Tarjetas de aprendizaje (adaptativo: 2 columnas con media, 1 columna centrada sin media) */}
       <section
-        className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start"
+        className={
+          tieneVisuales
+            ? 'grid grid-cols-1 lg:grid-cols-12 gap-8 items-start'
+            : 'max-w-4xl mx-auto w-full'
+        }
         aria-label="Contenido del paso educativo"
       >
-        {/* Columna Izquierda: Tu aprendizaje */}
-        <div className="lg:col-span-6 bg-white border border-[#d7e2e7] rounded-2xl p-6 md:p-8 flex flex-col gap-6 shadow-sm">
+        {/* Columna / Tarjeta: Tu aprendizaje */}
+        <div
+          className={`${
+            tieneVisuales ? 'lg:col-span-6' : 'w-full'
+          } bg-white border border-[#d7e2e7] rounded-2xl p-6 md:p-8 flex flex-col gap-6 shadow-sm`}
+        >
           <div>
             <p className="text-[0.95rem] font-bold text-[#0d6258] uppercase tracking-wider">
               TU OBJETIVO
@@ -165,29 +184,71 @@ export function GuiaDetallePage() {
 
           <hr className="border-t border-[#e2e8f0]" />
 
-          <div>
-            <h2 className="text-[1.555rem] md:text-[1.666rem] font-bold text-[#17324d]">
-              {pasoActual.titulo}
-            </h2>
-            <p className="text-[1.111rem] md:text-[1.222rem] text-[#172b3a] leading-relaxed mt-4">
-              {pasoActual.contenido}
-            </p>
+          <div className="flex flex-col gap-4">
+            {pasoActual.titulo && (
+              <h2 className="text-[1.555rem] md:text-[1.666rem] font-bold text-[#17324d]">
+                {pasoActual.titulo}
+              </h2>
+            )}
+
+            {/* Renderizado dinámico de todos los bloques de texto del backend */}
+            {bloquesTexto.length > 0 ? (
+              bloquesTexto.map((bloque, idx) => (
+                <p
+                  key={idx}
+                  className="text-[1.111rem] md:text-[1.222rem] text-[#172b3a] leading-relaxed"
+                >
+                  {bloque.texto}
+                </p>
+              ))
+            ) : pasoActual.contenido ? (
+              <p className="text-[1.111rem] md:text-[1.222rem] text-[#172b3a] leading-relaxed">
+                {pasoActual.contenido}
+              </p>
+            ) : null}
           </div>
 
-          {pasoActual.recordatorio && (
-            <aside
-              className="bg-[#fff3d8] border border-[#fde6b3] rounded-xl p-5 flex flex-col gap-1 text-[#17324d]"
-              aria-label="Consejo importante para recordar"
-            >
-              <p className="font-bold text-[1rem] flex items-center gap-2">
-                <span aria-hidden="true">💡</span>{' '}
-                {pasoActual.recordatorio.titulo}
-              </p>
-              <p className="text-[1.111rem] font-medium leading-relaxed">
-                {pasoActual.recordatorio.consejo}
-              </p>
-            </aside>
-          )}
+          {/* Renderizado dinámico de todos los avisos (consejos y alertas) del backend */}
+          {bloquesAviso.length > 0
+            ? bloquesAviso.map((bloque, idx) => {
+                const esAlerta = bloque.nivel === 'alerta';
+                return (
+                  <aside
+                    key={idx}
+                    className={
+                      esAlerta
+                        ? 'bg-[#fee2e2] border border-[#fecaca] rounded-xl p-5 flex flex-col gap-1 text-[#991b1b]'
+                        : 'bg-[#fff3d8] border border-[#fde6b3] rounded-xl p-5 flex flex-col gap-1 text-[#17324d]'
+                    }
+                    aria-label={
+                      esAlerta ? 'Alerta de seguridad' : 'Consejo importante'
+                    }
+                    role={esAlerta ? 'alert' : 'note'}
+                  >
+                    <p className="font-bold text-[1rem] flex items-center gap-2">
+                      <span aria-hidden="true">{esAlerta ? '⚠️' : '💡'}</span>{' '}
+                      {esAlerta ? 'Atención' : 'Recuerda'}
+                    </p>
+                    <p className="text-[1.111rem] font-medium leading-relaxed">
+                      {bloque.texto}
+                    </p>
+                  </aside>
+                );
+              })
+            : pasoActual.recordatorio && (
+                <aside
+                  className="bg-[#fff3d8] border border-[#fde6b3] rounded-xl p-5 flex flex-col gap-1 text-[#17324d]"
+                  aria-label="Consejo importante para recordar"
+                >
+                  <p className="font-bold text-[1rem] flex items-center gap-2">
+                    <span aria-hidden="true">💡</span>{' '}
+                    {pasoActual.recordatorio.titulo}
+                  </p>
+                  <p className="text-[1.111rem] font-medium leading-relaxed">
+                    {pasoActual.recordatorio.consejo}
+                  </p>
+                </aside>
+              )}
 
           {esUltimoPaso && (
             <div
@@ -207,93 +268,74 @@ export function GuiaDetallePage() {
           )}
         </div>
 
-        {/* Columna Derecha: Observa este ejemplo */}
-        <div className="lg:col-span-6 bg-[#e7f2ee] border border-[#c2ded3] rounded-2xl p-6 md:p-8 flex flex-col gap-5">
-          <p className="text-[0.95rem] font-bold text-[#0d6258] uppercase tracking-wider">
-            OBSERVA ESTE EJEMPLO
-          </p>
+        {/* Columna Derecha: Observa este ejemplo (solo si hay imágenes o ejemplos simulados) */}
+        {tieneVisuales && (
+          <div className="lg:col-span-6 bg-[#e7f2ee] border border-[#c2ded3] rounded-2xl p-6 md:p-8 flex flex-col gap-5">
+            <p className="text-[0.95rem] font-bold text-[#0d6258] uppercase tracking-wider">
+              OBSERVA ESTE EJEMPLO
+            </p>
 
-          {/* Si el paso trae una imagen del backend, la mostramos */}
-          {pasoActual.bloques?.find((b) => b.tipo === 'imagen') && (
-            <figure className="bg-white border border-[#d7e2e7] rounded-2xl p-4 flex flex-col items-center gap-3 shadow-sm">
-              <img
-                src={
-                  (
-                    pasoActual.bloques.find((b) => b.tipo === 'imagen') as {
-                      url: string;
-                    }
-                  ).url
-                }
-                alt={
-                  (
-                    pasoActual.bloques.find((b) => b.tipo === 'imagen') as {
-                      textoAlternativo: string;
-                    }
-                  ).textoAlternativo
-                }
-                className="max-w-full h-auto rounded-xl object-contain max-h-87.5"
-              />
-              <figcaption className="text-[#526575] text-[0.95rem] italic text-center">
-                {
-                  (
-                    pasoActual.bloques.find((b) => b.tipo === 'imagen') as {
-                      textoAlternativo: string;
-                    }
-                  ).textoAlternativo
-                }
-              </figcaption>
-            </figure>
-          )}
+            {/* Imágenes que provienen del backend */}
+            {imagenes.map((img, idx) => (
+              <figure
+                key={idx}
+                className="bg-white border border-[#d7e2e7] rounded-2xl p-4 flex flex-col items-center gap-3 shadow-sm"
+              >
+                <img
+                  src={img.url}
+                  alt={img.textoAlternativo}
+                  className="max-w-full h-auto rounded-xl object-contain max-h-87.5"
+                />
+                <figcaption className="text-[#526575] text-[0.95rem] italic text-center">
+                  {img.textoAlternativo}
+                </figcaption>
+              </figure>
+            ))}
 
-          {pasoActual.ejemplo ? (
-            <div className="bg-white border border-[#d7e2e7] rounded-2xl p-6 flex flex-col gap-4 shadow-sm">
-              <div className="flex flex-col gap-1">
-                <p className="font-semibold text-[#17324d] text-[1.111rem]">
-                  {pasoActual.ejemplo.titulo}
-                </p>
-                <p className="text-[#526575] text-[0.95rem]">
-                  {pasoActual.ejemplo.remitente}
-                </p>
-              </div>
-
-              {/* Burbuja de mensaje simulado */}
-              <div className="bg-[#f1f5f5] rounded-xl p-5 flex flex-col gap-3 border border-[#e2e8f0]">
-                <p className="text-[#172b3a] text-[1.111rem] md:text-[1.222rem] leading-relaxed whitespace-pre-line font-normal">
-                  {pasoActual.ejemplo.contenido}
-                </p>
-                {pasoActual.ejemplo.enlaceODetalle && (
-                  <p
-                    className="text-[#0d6258] font-mono text-[1rem] select-all bg-white/70 px-3 py-1.5 rounded-lg border border-[#d7e2e7] inline-block self-start"
-                    aria-label={`Enlace inerte simulado: ${pasoActual.ejemplo.enlaceODetalle}`}
-                  >
-                    {pasoActual.ejemplo.enlaceODetalle}
+            {/* Ejemplo simulado complementario si existe */}
+            {pasoActual.ejemplo && (
+              <div className="bg-white border border-[#d7e2e7] rounded-2xl p-6 flex flex-col gap-4 shadow-sm">
+                <div className="flex flex-col gap-1">
+                  <p className="font-semibold text-[#17324d] text-[1.111rem]">
+                    {pasoActual.ejemplo.titulo}
                   </p>
-                )}
-              </div>
-
-              {pasoActual.ejemplo.senalAlerta && (
-                <div className="bg-[#fff3d8] rounded-xl px-4 py-3 text-[#17324d] font-semibold text-[1rem] flex items-center gap-2">
-                  <span>{pasoActual.ejemplo.senalAlerta}</span>
+                  <p className="text-[#526575] text-[0.95rem]">
+                    {pasoActual.ejemplo.remitente}
+                  </p>
                 </div>
-              )}
 
-              <p className="text-[#526575] text-[0.95rem] italic text-center pt-2">
-                {pasoActual.ejemplo.textoAlternativo}
-              </p>
-            </div>
-          ) : (
-            <div className="bg-white border border-[#d7e2e7] rounded-2xl p-8 text-center text-[#526575]">
-              <p className="text-[1.111rem]">
-                Sigue las indicaciones del panel izquierdo para comprender este
-                concepto.
-              </p>
-            </div>
-          )}
+                {/* Burbuja de mensaje simulado */}
+                <div className="bg-[#f1f5f5] rounded-xl p-5 flex flex-col gap-3 border border-[#e2e8f0]">
+                  <p className="text-[#172b3a] text-[1.111rem] md:text-[1.222rem] leading-relaxed whitespace-pre-line font-normal">
+                    {pasoActual.ejemplo.contenido}
+                  </p>
+                  {pasoActual.ejemplo.enlaceODetalle && (
+                    <p
+                      className="text-[#0d6258] font-mono text-[1rem] select-all bg-white/70 px-3 py-1.5 rounded-lg border border-[#d7e2e7] inline-block self-start"
+                      aria-label={`Enlace inerte simulado: ${pasoActual.ejemplo.enlaceODetalle}`}
+                    >
+                      {pasoActual.ejemplo.enlaceODetalle}
+                    </p>
+                  )}
+                </div>
 
-          <p className="text-[#526575] text-[0.95rem] text-center">
-            Ejemplo simulado con fines educativos. Ningún enlace es real.
-          </p>
-        </div>
+                {pasoActual.ejemplo.senalAlerta && (
+                  <div className="bg-[#fff3d8] rounded-xl px-4 py-3 text-[#17324d] font-semibold text-[1rem] flex items-center gap-2">
+                    <span>{pasoActual.ejemplo.senalAlerta}</span>
+                  </div>
+                )}
+
+                <p className="text-[#526575] text-[0.95rem] italic text-center pt-2">
+                  {pasoActual.ejemplo.textoAlternativo}
+                </p>
+              </div>
+            )}
+
+            <p className="text-[#526575] text-[0.95rem] text-center">
+              Ejemplo simulado con fines educativos. Ningún enlace es real.
+            </p>
+          </div>
+        )}
       </section>
 
       {/* Barra de navegación de pasos inferior */}
