@@ -11,6 +11,11 @@ export const CAMPOS_ORDEN_GUIA = [
 export interface CriterioGuiasPublicadas extends Paginacion {
   /** Slug de la categoría; sin él, todas las categorías. */
   categoria?: string;
+  /**
+   * Lo que el visitante escribió para buscar (HU-11). Se busca en el título, la descripción
+   * y las palabras clave, sin distinguir tildes ni mayúsculas. Vacío: no filtra.
+   */
+  q?: string;
   ordenarPor: (typeof CAMPOS_ORDEN_GUIA)[number];
   direccion: 'asc' | 'desc';
 }
