@@ -64,6 +64,8 @@ describe('Guias use cases', () => {
   it('ObtenerDetalleGuia: retorna el detalle y registra la apertura (AC-HU10-05)', async () => {
     const detalleMock: DetalleGuia = {
       guia: guiasMock[0],
+      totalPasos: 1,
+      tieneActividad: false,
       pasos: [
         {
           numero: 1,

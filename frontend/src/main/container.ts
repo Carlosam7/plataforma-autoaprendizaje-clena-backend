@@ -13,13 +13,13 @@ import { ObtenerDetalleGuia } from '@/application/guias/ObtenerDetalleGuia';
 import { DomPreferencesApplier } from '@/infrastructure/accessibility/DomPreferencesApplier';
 import { LocalStoragePreferencesRepository } from '@/infrastructure/accessibility/LocalStoragePreferencesRepository';
 import { HttpAuthRepository } from '@/infrastructure/auth/HttpAuthRepository';
-import { InMemoryGuiasRepository } from '@/infrastructure/guias/InMemoryGuiasRepository';
+import { HttpGuiasRepository } from '@/infrastructure/guias/HttpGuiasRepository';
 
 // Único lugar donde se eligen implementaciones.
 const preferencesRepository = new LocalStoragePreferencesRepository();
 const preferencesApplier = new DomPreferencesApplier();
 const authRepository = new HttpAuthRepository();
-const guiasRepository = new InMemoryGuiasRepository();
+const guiasRepository = new HttpGuiasRepository();
 
 export const container = {
   accessibility: {

@@ -213,6 +213,38 @@ export function GuiaDetallePage() {
             OBSERVA ESTE EJEMPLO
           </p>
 
+          {/* Si el paso trae una imagen del backend, la mostramos */}
+          {pasoActual.bloques?.find((b) => b.tipo === 'imagen') && (
+            <figure className="bg-white border border-[#d7e2e7] rounded-[20px] p-4 flex flex-col items-center gap-3 shadow-sm">
+              <img
+                src={
+                  (
+                    pasoActual.bloques.find((b) => b.tipo === 'imagen') as {
+                      url: string;
+                    }
+                  ).url
+                }
+                alt={
+                  (
+                    pasoActual.bloques.find((b) => b.tipo === 'imagen') as {
+                      textoAlternativo: string;
+                    }
+                  ).textoAlternativo
+                }
+                className="max-w-full h-auto rounded-xl object-contain max-h-[350px]"
+              />
+              <figcaption className="text-[#526575] text-[0.95rem] italic text-center">
+                {
+                  (
+                    pasoActual.bloques.find((b) => b.tipo === 'imagen') as {
+                      textoAlternativo: string;
+                    }
+                  ).textoAlternativo
+                }
+              </figcaption>
+            </figure>
+          )}
+
           {pasoActual.ejemplo ? (
             <div className="bg-white border border-[#d7e2e7] rounded-[20px] p-6 flex flex-col gap-4 shadow-sm">
               <div className="flex flex-col gap-1">

@@ -2,10 +2,10 @@ import type { GuiasRepository } from '../../application/guias/ports';
 import type { Categoria, DetalleGuia, Guia } from '../../domain/guias/types';
 
 export class InMemoryGuiasRepository implements GuiasRepository {
-  private readonly categoriaPhishing: Categoria = {
-    id: 'cat-phishing',
-    slug: 'phishing',
-    nombre: 'Phishing',
+  private readonly categoriaSeguridad: Categoria = {
+    id: 'cat-seguridad-digital',
+    slug: 'seguridad-digital',
+    nombre: 'Seguridad digital',
     numero: '01 / CATEGORÍA',
     descripcion:
       'Reconoce los engaños antes de actuar. Algunas personas se hacen pasar por alguien de confianza para pedirte datos o dinero. Aprende a reconocer sus señales en mensajes, llamadas, códigos QR y alertas falsas.',
@@ -18,8 +18,8 @@ export class InMemoryGuiasRepository implements GuiasRepository {
   }
 
   async obtenerCategoria(slug: string): Promise<Categoria | null> {
-    if (slug === 'phishing') {
-      return this.categoriaPhishing;
+    if (slug === 'seguridad-digital' || slug === 'phishing') {
+      return this.categoriaSeguridad;
     }
     return null;
   }
@@ -29,8 +29,10 @@ export class InMemoryGuiasRepository implements GuiasRepository {
     if (!categoriaSlug) {
       return todas.filter((g) => g.estado === 'PUBLICADA');
     }
+    const slugNormalizado =
+      categoriaSlug === 'phishing' ? 'seguridad-digital' : categoriaSlug;
     return todas.filter(
-      (g) => g.categoriaSlug === categoriaSlug && g.estado === 'PUBLICADA',
+      (g) => g.categoriaSlug === slugNormalizado && g.estado === 'PUBLICADA',
     );
   }
 
@@ -56,9 +58,11 @@ export class InMemoryGuiasRepository implements GuiasRepository {
         duracionEstimadaMinutos: 8,
         nivel: 'Básico',
         estado: 'PUBLICADA',
-        categoriaSlug: 'phishing',
+        categoriaSlug: 'seguridad-digital',
         objetivo: 'Aprender a reconocer las señales de un mensaje engañoso.',
       },
+      totalPasos: 5,
+      tieneActividad: true,
       pasos: [
         {
           numero: 1,
@@ -343,10 +347,12 @@ export class InMemoryGuiasRepository implements GuiasRepository {
         duracionEstimadaMinutos: 7,
         nivel: 'Básico',
         estado: 'PUBLICADA',
-        categoriaSlug: 'phishing',
+        categoriaSlug: 'seguridad-digital',
         objetivo:
           'Identificar cuando una llamada pretende sacarte datos o códigos de seguridad.',
       },
+      totalPasos: 2,
+      tieneActividad: true,
       pasos: [
         {
           numero: 1,
@@ -438,10 +444,12 @@ export class InMemoryGuiasRepository implements GuiasRepository {
         duracionEstimadaMinutos: 6,
         nivel: 'Básico',
         estado: 'PUBLICADA',
-        categoriaSlug: 'phishing',
+        categoriaSlug: 'seguridad-digital',
         objetivo:
           'Aprender a verificar la dirección web antes de abrir un código QR.',
       },
+      totalPasos: 2,
+      tieneActividad: true,
       pasos: [
         {
           numero: 1,
@@ -508,10 +516,12 @@ export class InMemoryGuiasRepository implements GuiasRepository {
         duracionEstimadaMinutos: 10,
         nivel: 'Básico',
         estado: 'PUBLICADA',
-        categoriaSlug: 'phishing',
+        categoriaSlug: 'seguridad-digital',
         objetivo:
           'Identificar falsas alertas de virus en pantalla y evitar que extraños controlen tu equipo.',
       },
+      totalPasos: 2,
+      tieneActividad: true,
       pasos: [
         {
           numero: 1,

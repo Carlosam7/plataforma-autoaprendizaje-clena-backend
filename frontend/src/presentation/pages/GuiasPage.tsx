@@ -83,7 +83,7 @@ export function GuiasPage() {
 
   useEffect(() => {
     container.guias.listar
-      .ejecutar('phishing')
+      .ejecutar('seguridad-digital')
       .then((data) => {
         setGuias(data);
       })

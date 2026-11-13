@@ -1,4 +1,5 @@
-export type EstadoGuia = 'PUBLICADA' | 'BORRADOR';
+export type EstadoGuia = 'PUBLICADA' | 'BORRADOR' | 'OCULTA';
+export type NivelGuia = 'Básico' | 'Intermedio' | 'Avanzado';
 
 export interface Categoria {
   id: string;
@@ -7,6 +8,11 @@ export interface Categoria {
   descripcion: string;
   numero: string;
 }
+
+export type BloquePaso =
+  | { tipo: 'texto'; texto: string }
+  | { tipo: 'imagen'; url: string; textoAlternativo: string }
+  | { tipo: 'aviso'; nivel: 'consejo' | 'alerta'; texto: string };
 
 export interface EjemploSimulado {
   tipo: 'whatsapp' | 'sms' | 'llamada' | 'qr' | 'ventana';
@@ -21,8 +27,9 @@ export interface EjemploSimulado {
 
 export interface PasoGuia {
   numero: number;
-  titulo: string;
+  titulo: string | null;
   contenido: string;
+  bloques?: BloquePaso[];
   recordatorio?: {
     titulo: string;
     consejo: string;
@@ -50,10 +57,10 @@ export interface Guia {
   slug: string;
   numero: string; // '01', '02', '03', '04'
   titulo: string;
-  subtitulo: string;
-  descripcion: string;
+  subtitulo?: string;
+  descripcion?: string;
   duracionEstimadaMinutos: number;
-  nivel: 'Básico' | 'Intermedio';
+  nivel: NivelGuia;
   estado: EstadoGuia;
   categoriaSlug: string;
   objetivo: string;
@@ -61,6 +68,8 @@ export interface Guia {
 
 export interface DetalleGuia {
   guia: Guia;
+  totalPasos: number;
+  tieneActividad: boolean;
   pasos: PasoGuia[];
   preguntas: PreguntaPractica[];
 }

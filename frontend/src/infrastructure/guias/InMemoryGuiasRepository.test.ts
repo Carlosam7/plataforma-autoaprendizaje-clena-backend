@@ -4,10 +4,10 @@ import { InMemoryGuiasRepository } from './InMemoryGuiasRepository';
 describe('InMemoryGuiasRepository', () => {
   const repo = new InMemoryGuiasRepository();
 
-  it('obtiene la categoría de phishing (AC-HU09-01)', async () => {
-    const cat = await repo.obtenerCategoria('phishing');
+  it('obtiene la categoría de seguridad digital / phishing (AC-HU09-01)', async () => {
+    const cat = await repo.obtenerCategoria('seguridad-digital');
     expect(cat).not.toBeNull();
-    expect(cat?.nombre).toBe('Phishing');
+    expect(cat?.nombre).toBe('Seguridad digital');
     expect(cat?.numero).toBe('01 / CATEGORÍA');
   });
 
