@@ -2,11 +2,12 @@ export type EstadoGuia = 'PUBLICADA' | 'BORRADOR' | 'OCULTA';
 export type NivelGuia = 'Básico' | 'Intermedio' | 'Avanzado';
 
 export interface Categoria {
-  id: string;
+  id?: string;
   slug: string;
   nombre: string;
-  descripcion: string;
-  numero: string;
+  descripcion?: string;
+  icono?: string;
+  numero?: string;
 }
 
 export type BloquePaso =

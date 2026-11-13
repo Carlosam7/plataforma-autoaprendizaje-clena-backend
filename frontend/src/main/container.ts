@@ -7,7 +7,9 @@ import { ReenviarCodigoRegistro } from '@/application/auth/ReenviarCodigoRegistr
 import { SolicitarInicioSesion } from '@/application/auth/SolicitarInicioSesion';
 import { SolicitarRegistro } from '@/application/auth/SolicitarRegistro';
 import { VerificarCodigoRegistro } from '@/application/auth/VerificarCodigoRegistro';
+import { VerificarInicioSesion } from '@/application/auth/VerificarInicioSesion';
 import { CalcularResultadoPractica } from '@/application/guias/CalcularResultadoPractica';
+import { ListarCategorias } from '@/application/guias/ListarCategorias';
 import { ListarGuias } from '@/application/guias/ListarGuias';
 import { ObtenerDetalleGuia } from '@/application/guias/ObtenerDetalleGuia';
 import { CambiarPasswordInicial } from '@/application/personal/CambiarPasswordInicial';
@@ -58,10 +60,12 @@ export const container = {
     solicitarRegistro: new SolicitarRegistro(authRepository),
     solicitarInicioSesion: new SolicitarInicioSesion(authRepository),
     verificarCodigo: new VerificarCodigoRegistro(authRepository),
+    verificarInicioSesion: new VerificarInicioSesion(authRepository),
     reenviarCodigo: new ReenviarCodigoRegistro(authRepository),
     authRepository,
   },
   guias: {
+    listarCategorias: new ListarCategorias(guiasRepository),
     listar: new ListarGuias(guiasRepository),
     obtenerDetalle: new ObtenerDetalleGuia(guiasRepository),
     calcularResultado: new CalcularResultadoPractica(),

@@ -98,4 +98,67 @@ describe('HttpGuiasRepository', () => {
       }),
     );
   });
+
+  it('listarCategorias realiza GET a /categorias y mapea con metadatos educativos', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        datos: [
+          {
+            slug: 'seguridad-digital',
+            nombre: 'Seguridad digital',
+            icono: 'shield-alert',
+          },
+          {
+            slug: 'correo-electronico',
+            nombre: 'Correo electrónico',
+            icono: 'mail',
+          },
+        ],
+        total: 2,
+        pagina: 1,
+        limite: 50,
+      }),
+    } as Response);
+
+    const categorias = await repository.listarCategorias();
+    expect(fetchSpy).toHaveBeenCalledWith(
+      '/api/v1/categorias?limite=50&ordenarPor=orden&direccion=asc',
+      expect.objectContaining({
+        headers: { Accept: 'application/json' },
+      }),
+    );
+    expect(categorias).toHaveLength(2);
+    expect(categorias[0].slug).toBe('seguridad-digital');
+    expect(categorias[0].nombre).toBe('Seguridad digital');
+    expect(categorias[0].numero).toBe('01 / CATEGORÍA');
+    expect(categorias[1].slug).toBe('correo-electronico');
+    expect(categorias[1].numero).toBe('02 / CATEGORÍA');
+  });
+
+  it('obtenerCategoria devuelve la categoría correspondiente por slug', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        datos: [
+          {
+            slug: 'seguridad-digital',
+            nombre: 'Seguridad digital',
+            icono: 'shield-alert',
+          },
+          {
+            slug: 'correo-electronico',
+            nombre: 'Correo electrónico',
+            icono: 'mail',
+          },
+        ],
+        total: 2,
+      }),
+    } as Response);
+
+    const cat = await repository.obtenerCategoria('correo-electronico');
+    expect(cat).not.toBeNull();
+    expect(cat?.nombre).toBe('Correo electrónico');
+    expect(cat?.numero).toBe('02 / CATEGORÍA');
+  });
 });
