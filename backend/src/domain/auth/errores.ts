@@ -155,3 +155,29 @@ export class SolicitudInicioSesionNoEncontradaError extends ErrorDeNegocio {
     );
   }
 }
+
+/** HU-05: no hay un código vigente para eliminar esta cuenta, o es de otra cuenta. */
+export class SolicitudEliminacionNoEncontradaError extends ErrorDeNegocio {
+  constructor() {
+    super(
+      'SOLICITUD_ELIMINACION_NO_ENCONTRADA',
+      'no_encontrado',
+      'No encontramos tu solicitud para eliminar la cuenta. Pide un código nuevo.',
+    );
+  }
+}
+
+/** HU-05: la cuenta no tiene verificado el correo o el celular por el que pidió el código. */
+export class ContactoNoVerificadoError extends ErrorDeNegocio {
+  constructor(canal?: 'CORREO' | 'TELEFONO') {
+    super(
+      'CONTACTO_NO_VERIFICADO',
+      'validacion',
+      canal === 'CORREO'
+        ? 'Tu cuenta no tiene un correo confirmado. Pide el código por mensaje de texto.'
+        : canal === 'TELEFONO'
+          ? 'Tu cuenta no tiene un celular confirmado. Pide el código por correo.'
+          : 'Tu cuenta no tiene un correo ni un celular confirmado. Pide ayuda a un monitor de la sala.',
+    );
+  }
+}
