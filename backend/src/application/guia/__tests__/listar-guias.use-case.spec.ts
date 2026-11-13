@@ -32,7 +32,7 @@ const criterio: CriterioGuiasPublicadas = {
   limite: 20,
 };
 
-describe('HU-09 · ListarGuiasUseCase', () => {
+describe('HU-09, HU-11 · ListarGuiasUseCase', () => {
   it('pasa el criterio al repositorio y devuelve título, nivel y duración sin id ni estado', async () => {
     const repo = new RepoFalso([
       new Guia(
@@ -65,6 +65,24 @@ describe('HU-09 · ListarGuiasUseCase', () => {
       pagina: 1,
       limite: 20,
     });
+  });
+
+  it('HU-11: pasa al repositorio lo que el visitante escribió para buscar', async () => {
+    const repo = new RepoFalso([]);
+    await new ListarGuiasUseCase(repo).ejecutar({
+      ...criterio,
+      q: 'mandar foto',
+    });
+    expect(repo.recibido?.q).toBe('mandar foto');
+  });
+
+  it('HU-11: si nada coincide devuelve la lista vacía, para sugerir categorías y ayuda', async () => {
+    const resultado = await new ListarGuiasUseCase(new RepoFalso([])).ejecutar({
+      ...criterio,
+      categoria: undefined,
+      q: 'impresora',
+    });
+    expect(resultado).toEqual({ datos: [], total: 0, pagina: 1, limite: 20 });
   });
 
   it('una categoría sin guías publicadas devuelve la lista vacía', async () => {

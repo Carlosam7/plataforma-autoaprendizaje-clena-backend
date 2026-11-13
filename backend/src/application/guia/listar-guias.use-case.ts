@@ -18,6 +18,8 @@ export interface GuiaResumen {
 /**
  * HU-09: guías publicadas de una categoría. Si no tiene ninguna, `datos` llega vacío y el
  * frontend muestra «Pronto habrá guías en esta sección».
+ * HU-11: con `q` busca por palabra. Si nada coincide, `datos` llega vacío y el frontend
+ * sugiere las categorías y pedir ayuda presencial.
  */
 export class ListarGuiasUseCase {
   constructor(private readonly guias: GuiaRepository) {}
