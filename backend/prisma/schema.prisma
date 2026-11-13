@@ -261,6 +261,8 @@ model Categoria {
 model Guia {
   id                  String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   categoriaId         Int        @map("categoria_id") @db.SmallInt
+  // Identifica la guía en URLs y QR (HU-09, HU-45). No cambia al editar el título.
+  slug                String     @unique @db.VarChar(80)
   titulo              String     @db.VarChar(150)
   objetivo            String     @db.VarChar(300)
   descripcion         String?

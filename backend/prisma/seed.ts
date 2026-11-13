@@ -4,6 +4,7 @@
 import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
 import bcrypt from 'bcryptjs';
+import { randomBytes } from 'node:crypto';
 import { PrismaClient } from '../src/infrastructure/database/prisma/generated/client.js';
 
 const AVISO_PRIVACIDAD = {
@@ -24,16 +25,98 @@ const AVISO_PRIVACIDAD = {
   ].join('\n'),
 };
 
-// En esta primera etapa el catálogo arranca solo con las guías de phishing.
+// Las cinco categorías fijas del modelo de datos (HU-16 es Won't: no se editan por la API).
 const CATEGORIAS = [
   {
     id: 1,
-    slug: 'phishing',
-    nombre: 'Phishing: mensajes y correos falsos',
+    // Phishing, contraseñas e información confiable (HU-25, HU-26, HU-27).
+    slug: 'seguridad-digital',
+    nombre: 'Seguridad digital',
     icono: 'shield-alert',
     orden: 1,
   },
+  {
+    id: 2,
+    slug: 'correo-electronico',
+    nombre: 'Correo electrónico',
+    icono: 'mail',
+    orden: 2,
+  },
+  {
+    id: 3,
+    slug: 'busqueda-internet',
+    nombre: 'Búsqueda en internet',
+    icono: 'search',
+    orden: 3,
+  },
+  {
+    id: 4,
+    slug: 'documentos',
+    nombre: 'Documentos de texto',
+    icono: 'file-text',
+    orden: 4,
+  },
+  {
+    id: 5,
+    slug: 'redes-sociales',
+    nombre: 'Redes sociales',
+    icono: 'users',
+    orden: 5,
+  },
 ];
+
+// HU-09: guías publicadas de ejemplo (sin pasos todavía: llegan con HU-10).
+// Las otras cuatro categorías quedan sin guías para mostrar «Pronto habrá guías en esta sección».
+const GUIAS = [
+  {
+    slug: 'smishing',
+    titulo: 'Smishing: mensajes falsos por SMS o WhatsApp',
+    objetivo:
+      'Al terminar sabrás reconocer las señales de un mensaje de texto engañoso.',
+    duracionEstimadaMin: 8,
+  },
+  {
+    slug: 'vishing',
+    titulo: 'Vishing: llamadas que buscan engañarte',
+    objetivo:
+      'Al terminar sabrás qué hacer si alguien te llama pidiendo tus datos o códigos.',
+    duracionEstimadaMin: 7,
+  },
+  {
+    slug: 'quishing',
+    titulo: 'Quishing: engaños escondidos en códigos QR',
+    objetivo:
+      'Al terminar sabrás revisar un código QR antes de abrir el enlace que trae.',
+    duracionEstimadaMin: 6,
+  },
+  {
+    slug: 'falso-soporte-tecnico',
+    titulo: 'Falso soporte técnico',
+    objetivo:
+      'Al terminar sabrás reconocer una ventana o llamada falsa de soporte técnico.',
+    duracionEstimadaMin: 10,
+  },
+];
+
+/**
+ * Autor ficticio de las guías semilla (guia.creada_por_id es obligatorio).
+ * Inactivo y con una contraseña aleatoria que nadie conoce: no puede iniciar sesión.
+ */
+async function sembrarAutorContenidos(prisma: PrismaClient): Promise<string> {
+  const autor = await prisma.personal.upsert({
+    where: { correo: 'contenidos@clena.example' },
+    create: {
+      nombre: 'Equipo de contenidos (semilla)',
+      correo: 'contenidos@clena.example',
+      passwordHash: await bcrypt.hash(randomBytes(32).toString('hex'), 12),
+      rol: 'PERSONAL',
+      activo: false,
+      debeCambiarPassword: true,
+    },
+    update: {},
+  });
+  return autor.id;
+}
 
 /**
  * HU-04: administrador inicial, con datos tomados de variables de entorno (nunca del código).
@@ -94,10 +177,28 @@ async function main(): Promise<void> {
       });
     }
 
+    const autorId = await sembrarAutorContenidos(prisma);
+    for (const { slug, ...datos } of GUIAS) {
+      await prisma.guia.upsert({
+        where: { slug },
+        create: {
+          slug,
+          ...datos,
+          categoriaId: 1,
+          nivel: 'BASICO',
+          estado: 'PUBLICADA',
+          publicadaEn: new Date('2026-11-01T00:00:00.000Z'),
+          creadaPorId: autorId,
+          actualizadaPorId: autorId,
+        },
+        update: datos,
+      });
+    }
+
     const admin = await sembrarAdministradorInicial(prisma);
 
     console.log(
-      `Semillas cargadas: aviso de privacidad ${AVISO_PRIVACIDAD.version}, ${CATEGORIAS.length} categoría(s) y ${admin}.`,
+      `Semillas cargadas: aviso de privacidad ${AVISO_PRIVACIDAD.version}, ${CATEGORIAS.length} categorías, ${GUIAS.length} guías y ${admin}.`,
     );
   } finally {
     await prisma.$disconnect();
