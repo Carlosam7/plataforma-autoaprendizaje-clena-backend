@@ -1,5 +1,8 @@
 /DOCUMENTACION
-/graphify-out
+# Salida generada por graphify, en cualquier carpeta (raíz, backend/...).
+graphify-out/
 *.tsbuildinfo
 .pnpm-store
 /.claude
+# Hooks de graphify: usan la ruta absoluta del ejecutable en cada máquina.
+backend/.claude/settings.json
