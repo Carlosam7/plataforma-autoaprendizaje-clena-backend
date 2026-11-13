@@ -22,7 +22,7 @@ describe('HU-09 · Explorar guías por categoría (e2e)', () => {
       creadaPorId: autor.id,
       actualizadaPorId: autor.id,
     };
-    // Categorías semilla: 1 = phishing, 2 = correo-electronico, 3 = busqueda-internet.
+    // Categorías semilla: 1 = seguridad-digital, 2 = correo-electronico, 3 = busqueda-internet.
     await prisma.guia.createMany({
       data: [
         {
@@ -46,7 +46,7 @@ describe('HU-09 · Explorar guías por categoría (e2e)', () => {
         },
         {
           ...comun,
-          slug: 'borrador-phishing',
+          slug: 'borrador-seguridad',
           categoriaId: 1,
           titulo: 'Aún en borrador',
           objetivo: 'No se debe ver.',
@@ -54,7 +54,7 @@ describe('HU-09 · Explorar guías por categoría (e2e)', () => {
         },
         {
           ...comun,
-          slug: 'oculta-phishing',
+          slug: 'oculta-seguridad',
           categoriaId: 1,
           titulo: 'Oculta',
           objetivo: 'Tampoco se debe ver.',
@@ -83,14 +83,14 @@ describe('HU-09 · Explorar guías por categoría (e2e)', () => {
   it('sin iniciar sesión, lista las guías publicadas de la categoría con título, nivel y duración', async () => {
     const { body } = await http()
       .get(RUTA)
-      .query({ categoria: 'phishing' })
+      .query({ categoria: 'seguridad-digital' })
       .expect(200);
 
     expect(body).toEqual({
       datos: [
         {
           slug: 'smishing',
-          categoria: 'phishing',
+          categoria: 'seguridad-digital',
           titulo: 'Smishing',
           objetivo: 'Al terminar sabrás reconocer un SMS falso.',
           nivel: 'BASICO',
@@ -98,7 +98,7 @@ describe('HU-09 · Explorar guías por categoría (e2e)', () => {
         },
         {
           slug: 'vishing',
-          categoria: 'phishing',
+          categoria: 'seguridad-digital',
           titulo: 'Vishing',
           objetivo: 'Al terminar sabrás qué hacer ante una llamada falsa.',
           nivel: 'INTERMEDIO',

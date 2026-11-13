@@ -12,7 +12,7 @@ export class ListarGuiasDto
 {
   @ApiPropertyOptional({
     description: 'Slug de la categoría (GET /categorias)',
-    example: 'phishing',
+    example: 'seguridad-digital',
   })
   @IsOptional()
   @IsString({ message: 'La categoría debe ser un texto.' })

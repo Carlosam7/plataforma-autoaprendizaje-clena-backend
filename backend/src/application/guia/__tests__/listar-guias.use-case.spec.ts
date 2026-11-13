@@ -19,7 +19,7 @@ class RepoFalso extends GuiaRepository {
 }
 
 const criterio: CriterioGuiasPublicadas = {
-  categoria: 'phishing',
+  categoria: 'seguridad-digital',
   ordenarPor: 'titulo',
   direccion: 'asc',
   pagina: 1,
@@ -32,7 +32,7 @@ describe('HU-09 · ListarGuiasUseCase', () => {
       new Guia(
         'uuid-1',
         'smishing',
-        'phishing',
+        'seguridad-digital',
         'Mensajes de texto falsos',
         'Al terminar sabrás reconocer un SMS falso.',
         'BASICO',
@@ -48,7 +48,7 @@ describe('HU-09 · ListarGuiasUseCase', () => {
       datos: [
         {
           slug: 'smishing',
-          categoria: 'phishing',
+          categoria: 'seguridad-digital',
           titulo: 'Mensajes de texto falsos',
           objetivo: 'Al terminar sabrás reconocer un SMS falso.',
           nivel: 'BASICO',

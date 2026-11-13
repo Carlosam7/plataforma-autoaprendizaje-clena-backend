@@ -9,7 +9,10 @@ export class GuiaResumenDto implements GuiaResumen {
   @ApiProperty({ example: 'smishing' })
   slug!: string;
 
-  @ApiProperty({ example: 'phishing', description: 'Slug de la categoría' })
+  @ApiProperty({
+    example: 'seguridad-digital',
+    description: 'Slug de la categoría',
+  })
   categoria!: string;
 
   @ApiProperty({ example: 'Mensajes de texto falsos' })

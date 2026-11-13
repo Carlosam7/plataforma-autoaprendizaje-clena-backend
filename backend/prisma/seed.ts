@@ -29,8 +29,9 @@ const AVISO_PRIVACIDAD = {
 const CATEGORIAS = [
   {
     id: 1,
-    slug: 'phishing',
-    nombre: 'Phishing: mensajes y correos falsos',
+    // Phishing, contraseñas e información confiable (HU-25, HU-26, HU-27).
+    slug: 'seguridad-digital',
+    nombre: 'Seguridad digital',
     icono: 'shield-alert',
     orden: 1,
   },
