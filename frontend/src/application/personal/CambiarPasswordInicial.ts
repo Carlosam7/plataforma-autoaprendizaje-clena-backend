@@ -9,7 +9,7 @@ export class CambiarPasswordInicial {
     token: string,
     comando: CambiarPasswordInicialComando,
   ): Promise<void> {
-    const password = comando.nuevoPassword.trim();
+    const password = comando.passwordNueva.trim();
     if (
       password.length < 8 ||
       !/\d/.test(password) ||
@@ -19,7 +19,7 @@ export class CambiarPasswordInicial {
     }
     await this.repository.cambiarPasswordInicial(token, {
       codigo: comando.codigo.trim(),
-      nuevoPassword: password,
+      passwordNueva: password,
     });
     // Actualizar sesión si correspondía cambiar clave
     const sesion = await this.repository.obtenerSesionPersonal();

@@ -27,6 +27,10 @@ interface CodigoPendiente {
   expiraEn: number;
 }
 
+/**
+ * Doble de pruebas del repositorio de personal. **Solo para tests**: la app usa siempre
+ * HttpPersonalRepository y nunca cae aquí ante un error del servidor (C-09).
+ */
 export class InMemoryPersonalRepository implements PersonalRepository {
   private cuentas: Map<string, Personal & { passwordHash: string }> = new Map();
   private codigosLogin: Map<string, CodigoPendiente> = new Map();
@@ -83,8 +87,11 @@ export class InMemoryPersonalRepository implements PersonalRepository {
     const destinoOfuscado = `${u.slice(0, 2)}****@${d}`;
 
     return {
+      // Como en el backend: el id de la solicitud es el de la cuenta.
+      solicitudId: cuenta.id,
       destino: destinoOfuscado,
       expiraEn,
+      puedeReenviarEn: new Date(Date.now() + 60 * 1000),
       reenviarEnSegundos: 60,
       mensaje: `Te enviamos un código a ${destinoOfuscado}. Escríbelo para entrar.`,
     };
@@ -93,14 +100,7 @@ export class InMemoryPersonalRepository implements PersonalRepository {
   async verificarInicioSesion(
     comando: VerificarInicioSesionPersonalComando,
   ): Promise<SesionPersonal> {
-    const cuenta = Array.from(this.cuentas.values()).find((c) => {
-      const [u, d] = c.correo.split('@');
-      const destino = `${u.slice(0, 2)}****@${d}`;
-      return (
-        destino === comando.destino ||
-        c.correo.toLowerCase() === comando.destino.toLowerCase()
-      );
-    });
+    const cuenta = this.cuentas.get(comando.solicitudId);
 
     if (!cuenta) {
       throw new CredencialesIncorrectasError('Credenciales incorrectas');
@@ -167,7 +167,7 @@ export class InMemoryPersonalRepository implements PersonalRepository {
       throw new CodigoPersonalExpiradoError('El código venció');
     }
 
-    cuenta.passwordHash = comando.nuevoPassword;
+    cuenta.passwordHash = comando.passwordNueva;
     cuenta.debeCambiarPassword = false;
     this.codigosPassword.delete(cuenta.id);
   }

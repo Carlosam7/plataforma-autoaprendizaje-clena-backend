@@ -2,9 +2,29 @@ export class PersonalError extends Error {
   constructor(
     message: string,
     public readonly statusCode?: number,
+    /** `codigo` estable del backend (C-00), p. ej. `CODIGO_EXPIRADO`. */
+    public readonly codigo?: string,
   ) {
     super(message);
     this.name = 'PersonalError';
+  }
+}
+
+/** La sesión venció y no se pudo renovar: hay que volver a iniciar sesión. */
+export class SesionPersonalExpiradaError extends PersonalError {
+  constructor(message = 'Tu sesión terminó. Vuelve a iniciar sesión.') {
+    super(message, 401, 'SESION_INVALIDA');
+    this.name = 'SesionPersonalExpiradaError';
+  }
+}
+
+/** No hubo respuesta del servidor (sin red o backend caído). Nunca se simula el éxito. */
+export class SinConexionPersonalError extends PersonalError {
+  constructor(
+    message = 'No se pudo conectar con el servidor. Revisa tu conexión e inténtalo de nuevo.',
+  ) {
+    super(message, 0, 'SIN_CONEXION');
+    this.name = 'SinConexionPersonalError';
   }
 }
 
