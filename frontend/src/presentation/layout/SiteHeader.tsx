@@ -85,6 +85,16 @@ export function SiteHeader() {
             Solicitudes
           </NavLink>
         )}
+        {esPersonal && (
+          <NavLink
+            className={({ isActive }) =>
+              `${linkBase} ${isActive ? 'underline underline-offset-[0.2em]' : ''}`
+            }
+            to="/personal/estadisticas"
+          >
+            Estadísticas
+          </NavLink>
+        )}
         <Link
           className="hidden md:inline-flex items-center justify-center min-h-14 px-6 py-4 font-semibold text-btn-secondary-fg bg-btn-secondary-bg border-2 border-btn-secondary-border rounded-xl hover:border-btn-secondary-hover-border hover:bg-btn-secondary-hover-bg no-underline cursor-pointer"
           to={sesion ? '/mi-cuenta' : '/iniciar-sesion'}
