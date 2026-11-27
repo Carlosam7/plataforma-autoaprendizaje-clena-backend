@@ -12,6 +12,7 @@ import {
   GeneradorIdSecuencial,
   RelojFijo,
 } from '../../auth/__tests__/fakes.js';
+import { SincronizarProgresoUseCase } from '../../progreso/sincronizar-progreso.use-case.js';
 import { IniciarIntentoUseCase } from '../iniciar-intento.use-case.js';
 import { ObtenerActividadUseCase } from '../obtener-actividad.use-case.js';
 import { ResponderPreguntaUseCase } from '../responder-pregunta.use-case.js';
@@ -69,6 +70,8 @@ describe('HU-21 · Resolver una pregunta con retroalimentación inmediata', () =
   let intentos: IntentoRepositoryEnMemoria;
   let iniciar: IniciarIntentoUseCase;
   let responder: ResponderPreguntaUseCase;
+  /** [usuario, actividad] de cada aprobación que se avisó al progreso (HU-23). */
+  let aprobadas: [string, string][];
 
   beforeEach(() => {
     actividades = new ActividadRepositoryEnMemoria();
@@ -81,7 +84,13 @@ describe('HU-21 · Resolver una pregunta con retroalimentación inmediata', () =
       new GeneradorIdSecuencial(),
       reloj,
     );
-    responder = new ResponderPreguntaUseCase(intentos, reloj);
+    aprobadas = [];
+    responder = new ResponderPreguntaUseCase(intentos, reloj, {
+      deActividad: (usuarioId: string, actividadId: string) => {
+        aprobadas.push([usuarioId, actividadId]);
+        return Promise.resolve();
+      },
+    } as SincronizarProgresoUseCase);
   });
 
   describe('ObtenerActividadUseCase', () => {
@@ -200,6 +209,38 @@ describe('HU-21 · Resolver una pregunta con retroalimentación inmediata', () =
       await expect(responder.ejecutar(comando, USUARIO)).resolves.toMatchObject(
         { esCorrecta: true },
       );
+    });
+
+    it('HU-23: avisa al progreso solo cuando alguien con cuenta aprueba la actividad', async () => {
+      const responderTodo = async (
+        usuario: typeof USUARIO | null,
+        aciertos: [boolean, boolean],
+      ) => {
+        const { id } = await iniciar.ejecutar('smishing', usuario);
+        await responder.ejecutar(
+          {
+            intentoId: id,
+            preguntaId: 'p1',
+            opcionId: aciertos[0] ? 'p1-b' : 'p1-a',
+          },
+          usuario,
+        );
+        await responder.ejecutar(
+          {
+            intentoId: id,
+            preguntaId: 'p2',
+            opcionId: aciertos[1] ? 'p2-a' : 'p2-b',
+          },
+          usuario,
+        );
+      };
+
+      await responderTodo(USUARIO, [true, false]); // 50 %: no aprueba
+      await responderTodo(null, [true, true]); // aprueba, pero sin cuenta
+      expect(aprobadas).toEqual([]);
+
+      await responderTodo(USUARIO, [true, true]);
+      expect(aprobadas).toEqual([['41234567', 'a1']]);
     });
 
     it('falla si el intento no existe', async () => {
