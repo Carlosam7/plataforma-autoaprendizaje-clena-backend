@@ -12,6 +12,9 @@ import { SolicitarInicioSesion } from '@/application/auth/SolicitarInicioSesion'
 import { SolicitarRegistro } from '@/application/auth/SolicitarRegistro';
 import { VerificarCodigoRegistro } from '@/application/auth/VerificarCodigoRegistro';
 import { VerificarInicioSesion } from '@/application/auth/VerificarInicioSesion';
+import { ListarSolicitudesAyuda } from '@/application/ayuda/ListarSolicitudesAyuda';
+import { ResolverSolicitudAyuda } from '@/application/ayuda/ResolverSolicitudAyuda';
+import { TomarSolicitudAyuda } from '@/application/ayuda/TomarSolicitudAyuda';
 import { CancelarSolicitudAyuda } from '@/application/ayuda/CancelarSolicitudAyuda';
 import { ConsultarSolicitudAyuda } from '@/application/ayuda/ConsultarSolicitudAyuda';
 import { SeguimientoSolicitudAyuda } from '@/application/ayuda/SeguimientoSolicitudAyuda';
@@ -40,6 +43,7 @@ import { ResponderPreguntaAutenticado } from '@/application/practica/ResponderPr
 import { determinarModoPractica } from '@/application/practica/sesionPractica';
 import { DomPreferencesApplier } from '@/infrastructure/accessibility/DomPreferencesApplier';
 import { LocalStoragePreferencesRepository } from '@/infrastructure/accessibility/LocalStoragePreferencesRepository';
+import { HttpSolicitudesColaRepository } from '@/infrastructure/ayuda/HttpSolicitudesColaRepository';
 import { HttpAuthRepository } from '@/infrastructure/auth/HttpAuthRepository';
 import { HttpAyudaRepository } from '@/infrastructure/ayuda/HttpAyudaRepository';
 import { HttpGuiasRepository } from '@/infrastructure/guias/HttpGuiasRepository';
@@ -70,6 +74,8 @@ const ayudaRepository = new HttpAyudaRepository();
 const practicaRepository = new HttpPracticaRepository({
   evaluacionInvitadoHabilitada: true,
 });
+// FE-06: cola del personal (C-06).
+const solicitudesAyudaRepository = new HttpSolicitudesColaRepository();
 
 export const container = {
   accessibility: {
@@ -130,6 +136,9 @@ export const container = {
     consultar: new ConsultarSolicitudAyuda(ayudaRepository),
     cancelar: new CancelarSolicitudAyuda(ayudaRepository),
     seguimiento: new SeguimientoSolicitudAyuda(ayudaRepository),
+    listarSolicitudes: new ListarSolicitudesAyuda(solicitudesAyudaRepository),
+    tomarSolicitud: new TomarSolicitudAyuda(solicitudesAyudaRepository),
+    resolverSolicitud: new ResolverSolicitudAyuda(solicitudesAyudaRepository),
   },
   personal: {
     solicitarInicioSesion: new SolicitarInicioSesionPersonal(
