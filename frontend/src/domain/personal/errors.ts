@@ -4,6 +4,8 @@ export class PersonalError extends Error {
     public readonly statusCode?: number,
     /** `codigo` estable del backend (C-00), p. ej. `CODIGO_EXPIRADO`. */
     public readonly codigo?: string,
+    /** Campo del formulario al que se refiere (de `detalles.campo` o `detalles.campos`). */
+    public readonly campo?: string,
   ) {
     super(message);
     this.name = 'PersonalError';

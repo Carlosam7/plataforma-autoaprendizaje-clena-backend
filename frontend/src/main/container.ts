@@ -57,6 +57,14 @@ import { QrcodeSvgGenerador } from '@/infrastructure/qr/QrcodeSvgGenerador';
 import { InMemoryPersonalRepository } from '@/infrastructure/personal/InMemoryPersonalRepository';
 import { HttpPracticaRepository } from '@/infrastructure/practica/HttpPracticaRepository';
 
+import {
+  GuardarGuia,
+  ListarGuiasGestion,
+  ObtenerGuiaGestion,
+  OcultarGuia,
+  PublicarGuia,
+} from '@/application/gestion/casos';
+import { HttpGestionGuiasRepository } from '@/infrastructure/gestion/HttpGestionGuiasRepository';
 // Único lugar donde se eligen implementaciones.
 const preferencesRepository = new LocalStoragePreferencesRepository();
 const preferencesApplier = new DomPreferencesApplier();
@@ -81,6 +89,9 @@ const practicaRepository = new HttpPracticaRepository({
 const progresoRepository = new HttpProgresoRepository();
 // FE-06: cola del personal (C-06).
 const solicitudesAyudaRepository = new HttpSolicitudesColaRepository();
+
+// C-07: gestión de guías del personal, con su sesión (sin datos simulados).
+const gestionGuiasRepository = new HttpGestionGuiasRepository();
 
 export const container = {
   accessibility: {
@@ -171,6 +182,13 @@ export const container = {
     obtenerSesion: new ObtenerSesionPersonal(personalRepository),
     cerrarSesion: new CerrarSesionPersonal(personalRepository),
     personalRepository,
+  },
+  gestionGuias: {
+    listar: new ListarGuiasGestion(gestionGuiasRepository),
+    obtener: new ObtenerGuiaGestion(gestionGuiasRepository),
+    guardar: new GuardarGuia(gestionGuiasRepository),
+    publicar: new PublicarGuia(gestionGuiasRepository),
+    ocultar: new OcultarGuia(gestionGuiasRepository),
   },
   qr: {
     listarEnlaces: new ListarEnlacesPublicos(

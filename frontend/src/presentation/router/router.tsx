@@ -14,6 +14,8 @@ import { MiCuentaPage } from '@/presentation/pages/MiCuentaPage';
 import { NotFoundPage } from '@/presentation/pages/NotFoundPage';
 import { AccesoPersonalPage } from '@/presentation/pages/personal/AccesoPersonalPage';
 import { ColaSolicitudesPage } from '@/presentation/pages/personal/ColaSolicitudesPage';
+import { EditorGuiaPage } from '@/presentation/pages/personal/EditorGuiaPage';
+import { GuiasGestionPage } from '@/presentation/pages/personal/GuiasGestionPage';
 import { PrimerAccesoPage } from '@/presentation/pages/personal/PrimerAccesoPage';
 import { ProgresoPage } from '@/presentation/pages/ProgresoPage';
 import { VerificarAccesoPage } from '@/presentation/pages/VerificarAccesoPage';
@@ -83,6 +85,19 @@ export const router = createBrowserRouter([
       {
         path: 'personal/solicitudes',
         element: <ColaSolicitudesPage />,
+      },
+      {
+        // FE-05: gestión de guías del personal (HU-13, HU-15).
+        path: 'personal/guias',
+        element: <GuiasGestionPage />,
+      },
+      {
+        path: 'personal/guias/nueva',
+        element: <EditorGuiaPage />,
+      },
+      {
+        path: 'personal/guias/:slug',
+        element: <EditorGuiaPage />,
       },
       {
         path: 'admin/personal',

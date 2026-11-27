@@ -10,6 +10,7 @@ import {
 } from '@/domain/ayuda/solicitudCola';
 import type { SesionPersonal } from '@/domain/personal/types';
 import { container } from '@/main/container';
+import { NavegacionPersonal } from '@/presentation/personal/NavegacionPersonal';
 import { LIMITE_POR_PAGINA, useColaSolicitudes } from './useColaSolicitudes';
 
 type Pestana = 'PENDIENTE' | 'EN_ATENCION';
@@ -231,6 +232,7 @@ export function ColaSolicitudesPage() {
       id="contenido"
       className="max-w-360 mx-auto px-4 md:px-12 lg:px-24 py-8 md:py-12 flex flex-col gap-6"
     >
+      <NavegacionPersonal sesion={sesion} />
       <header className="flex flex-col gap-2">
         <h1 className="text-[2rem] md:text-[2.333rem] font-bold text-navy m-0">
           Solicitudes de ayuda
