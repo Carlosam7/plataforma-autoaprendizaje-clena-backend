@@ -163,4 +163,110 @@ describe('HttpGuiasRepository', () => {
     expect(cat?.nombre).toBe('Correo electrónico');
     expect(cat?.numero).toBe('02 / CATEGORÍA');
   });
+
+  describe('sin fallback silencioso', () => {
+    const respuesta = (status: number, cuerpo?: unknown) =>
+      ({
+        ok: status >= 200 && status < 300,
+        status,
+        json: async () => {
+          if (cuerpo === undefined) throw new SyntaxError('JSON inválido');
+          return cuerpo;
+        },
+      }) as Response;
+
+    it('HTTP 200 con colección vacía devuelve [] real', async () => {
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+        respuesta(200, { datos: [], total: 0, pagina: 1, limite: 20 }),
+      );
+      await expect(repository.listarGuiasPublicadas('x')).resolves.toEqual([]);
+      await expect(repository.listarCategorias()).resolves.toEqual([]);
+    });
+
+    it.each([500, 502, 503])(
+      'HTTP %i lanza CatalogoError SERVIDOR en todas las lecturas',
+      async (status) => {
+        vi.spyOn(globalThis, 'fetch').mockResolvedValue(respuesta(status, {}));
+        for (const op of [
+          () => repository.listarCategorias(),
+          () => repository.obtenerCategoria('seguridad-digital'),
+          () => repository.listarGuiasPublicadas(),
+          () => repository.obtenerDetalleGuia('smishing'),
+        ]) {
+          await expect(op()).rejects.toMatchObject({
+            name: 'CatalogoError',
+            tipo: 'SERVIDOR',
+            statusCode: status,
+          });
+        }
+      },
+    );
+
+    it('fallo de red lanza CONEXION', async () => {
+      vi.spyOn(globalThis, 'fetch').mockRejectedValue(new TypeError('fail'));
+      await expect(repository.obtenerDetalleGuia('s')).rejects.toMatchObject({
+        tipo: 'CONEXION',
+      });
+    });
+
+    it('timeout lanza TIMEOUT', async () => {
+      vi.spyOn(globalThis, 'fetch').mockRejectedValue(
+        new DOMException('t', 'TimeoutError'),
+      );
+      await expect(repository.listarCategorias()).rejects.toMatchObject({
+        tipo: 'TIMEOUT',
+      });
+    });
+
+    it('JSON inválido o con forma inesperada lanza RESPUESTA_INVALIDA', async () => {
+      const f = vi.spyOn(globalThis, 'fetch');
+      f.mockResolvedValueOnce(respuesta(200));
+      await expect(repository.listarGuiasPublicadas()).rejects.toMatchObject({
+        tipo: 'RESPUESTA_INVALIDA',
+      });
+      f.mockResolvedValueOnce(respuesta(200, { foo: 1 }));
+      await expect(repository.listarCategorias()).rejects.toMatchObject({
+        tipo: 'RESPUESTA_INVALIDA',
+      });
+      f.mockResolvedValueOnce(respuesta(200, { slug: 's', pasos: 'x' }));
+      await expect(repository.obtenerDetalleGuia('s')).rejects.toMatchObject({
+        tipo: 'RESPUESTA_INVALIDA',
+      });
+    });
+
+    it('categoría inexistente en un catálogo real devuelve null', async () => {
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+        respuesta(200, { datos: [], total: 0 }),
+      );
+      await expect(repository.obtenerCategoria('nada')).resolves.toBeNull();
+    });
+
+    it('el detalle no mezcla contenido simulado: sin bloques de texto queda vacío y sin práctica', async () => {
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+        respuesta(200, {
+          slug: 'smishing',
+          categoria: 'seguridad-digital',
+          titulo: 'T',
+          objetivo: 'O',
+          nivel: 'BASICO',
+          duracionEstimadaMin: 5,
+          totalPasos: 1,
+          tieneActividad: false,
+          pasos: [{ orden: 1, titulo: null, bloques: [] }],
+        }),
+      );
+      const d = await repository.obtenerDetalleGuia('smishing');
+      expect(d?.pasos[0].contenido).toBe('');
+      expect(d?.pasos[0].recordatorio).toBeUndefined();
+      expect(d?.pasos[0].ejemplo).toBeUndefined();
+      expect(d?.preguntas).toEqual([]);
+    });
+
+    it('un fallo de telemetría no lanza', async () => {
+      vi.spyOn(globalThis, 'fetch').mockRejectedValue(new TypeError('fail'));
+      await expect(
+        repository.registrarAperturaGuia('smishing'),
+      ).resolves.toBeUndefined();
+    });
+  });
 });
