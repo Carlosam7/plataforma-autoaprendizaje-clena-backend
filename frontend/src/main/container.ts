@@ -12,6 +12,7 @@ import { SolicitarInicioSesion } from '@/application/auth/SolicitarInicioSesion'
 import { SolicitarRegistro } from '@/application/auth/SolicitarRegistro';
 import { VerificarCodigoRegistro } from '@/application/auth/VerificarCodigoRegistro';
 import { VerificarInicioSesion } from '@/application/auth/VerificarInicioSesion';
+import { VerResumenEstadisticas } from '@/application/estadistica/VerResumenEstadisticas';
 import { ListarSolicitudesAyuda } from '@/application/ayuda/ListarSolicitudesAyuda';
 import { ResolverSolicitudAyuda } from '@/application/ayuda/ResolverSolicitudAyuda';
 import { TomarSolicitudAyuda } from '@/application/ayuda/TomarSolicitudAyuda';
@@ -47,6 +48,7 @@ import { DomPreferencesApplier } from '@/infrastructure/accessibility/DomPrefere
 import { LocalStoragePreferencesRepository } from '@/infrastructure/accessibility/LocalStoragePreferencesRepository';
 import { HttpSolicitudesColaRepository } from '@/infrastructure/ayuda/HttpSolicitudesColaRepository';
 import { HttpProgresoRepository } from '@/infrastructure/progreso/HttpProgresoRepository';
+import { HttpEstadisticaRepository } from '@/infrastructure/estadistica/HttpEstadisticaRepository';
 import { HttpAuthRepository } from '@/infrastructure/auth/HttpAuthRepository';
 import { HttpAyudaRepository } from '@/infrastructure/ayuda/HttpAyudaRepository';
 import { HttpGuiasRepository } from '@/infrastructure/guias/HttpGuiasRepository';
@@ -79,6 +81,8 @@ const practicaRepository = new HttpPracticaRepository({
 });
 // C-10: progreso persistente del usuario público.
 const progresoRepository = new HttpProgresoRepository();
+// C-11: estadísticas agregadas del personal.
+const estadisticaRepository = new HttpEstadisticaRepository();
 // FE-06: cola del personal (C-06).
 const solicitudesAyudaRepository = new HttpSolicitudesColaRepository();
 
@@ -142,6 +146,9 @@ export const container = {
       progresoRepository,
       authRepository,
     ),
+  },
+  estadistica: {
+    resumen: new VerResumenEstadisticas(estadisticaRepository),
   },
   ayuda: {
     solicitar: new SolicitarAyuda(ayudaRepository),

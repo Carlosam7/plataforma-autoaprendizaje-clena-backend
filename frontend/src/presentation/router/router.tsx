@@ -14,6 +14,7 @@ import { MiCuentaPage } from '@/presentation/pages/MiCuentaPage';
 import { NotFoundPage } from '@/presentation/pages/NotFoundPage';
 import { AccesoPersonalPage } from '@/presentation/pages/personal/AccesoPersonalPage';
 import { ColaSolicitudesPage } from '@/presentation/pages/personal/ColaSolicitudesPage';
+import { EstadisticasPage } from '@/presentation/pages/personal/EstadisticasPage';
 import { PrimerAccesoPage } from '@/presentation/pages/personal/PrimerAccesoPage';
 import { ProgresoPage } from '@/presentation/pages/ProgresoPage';
 import { VerificarAccesoPage } from '@/presentation/pages/VerificarAccesoPage';
@@ -79,6 +80,10 @@ export const router = createBrowserRouter([
       {
         path: 'personal/primer-acceso',
         element: <PrimerAccesoPage />,
+      },
+      {
+        path: 'personal/estadisticas',
+        element: <EstadisticasPage />,
       },
       {
         path: 'personal/solicitudes',

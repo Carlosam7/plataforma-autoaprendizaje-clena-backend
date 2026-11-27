@@ -33,6 +33,9 @@ describe('SiteHeader · enlace para el personal', () => {
     montar();
     const enlace = await screen.findByRole('link', { name: 'Solicitudes' });
     expect(enlace.getAttribute('href')).toBe('/personal/solicitudes');
+    expect(
+      screen.getByRole('link', { name: 'Estadísticas' }).getAttribute('href'),
+    ).toBe('/personal/estadisticas');
   });
 
   it('sin sesión no lo muestra', async () => {
@@ -42,5 +45,6 @@ describe('SiteHeader · enlace para el personal', () => {
     montar();
     await screen.findByRole('link', { name: 'Guías' });
     expect(screen.queryByRole('link', { name: 'Solicitudes' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Estadísticas' })).toBeNull();
   });
 });
