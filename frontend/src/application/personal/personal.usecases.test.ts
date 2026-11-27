@@ -62,7 +62,7 @@ describe('Gestión y Autenticación del Personal del CLENA (HU-04, HU-06)', () =
       });
 
       const sesion = await verificarLogin.ejecutar({
-        destino: sol.destino,
+        solicitudId: sol.solicitudId,
         codigo: '123456',
       });
 
@@ -79,7 +79,7 @@ describe('Gestión y Autenticación del Personal del CLENA (HU-04, HU-06)', () =
 
       await expect(
         verificarLogin.ejecutar({
-          destino: sol.destino,
+          solicitudId: sol.solicitudId,
           codigo: '000000',
         }),
       ).rejects.toThrow(CodigoPersonalInvalidoError);
@@ -93,7 +93,7 @@ describe('Gestión y Autenticación del Personal del CLENA (HU-04, HU-06)', () =
 
       await cambiarPassword.ejecutar(token, {
         codigo: '654321',
-        nuevoPassword: 'NuevaClaveSegura2026',
+        passwordNueva: 'NuevaClaveSegura2026',
       });
 
       const cuenta = await repo.obtenerPersonal(
@@ -108,7 +108,7 @@ describe('Gestión y Autenticación del Personal del CLENA (HU-04, HU-06)', () =
       await expect(
         cambiarPassword.ejecutar(token, {
           codigo: '654321',
-          nuevoPassword: 'corta',
+          passwordNueva: 'corta',
         }),
       ).rejects.toThrow(PasswordDebilError);
     });

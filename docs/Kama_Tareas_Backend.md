@@ -41,7 +41,7 @@ Cada PR debe incluir: ID tarea, HU y criterios exactos vinculados, contrato C-XX
 | R1 — ayuda | FE-04 | BE-02 | C-05 y C-06; FE formulario+estado, BE ownership/concurrencia | Solicitar→ver→cancelar y dedupe |
 | R2 — guías del personal | FE-05 | BE-06, BE-07 | C-07 ya existe; FE editor, BE confirma seeds y permisos | Crear→editar→publicar→ocultar |
 | R2 — cola monitores | FE-06 | BE-02, BE-06 | C-06 existe; FE polling, BE transiciones | Dos monitores, una toma |
-| R2 — cuentas | FE-09, FE-10 | BE-05 | C-08, C-09 existentes | Registro/OTP, personal, eliminación |
+| R2 — cuentas | FE-09, FE-10 | BE-05 | C-08, C-09 existentes y verificados (rama `feat/be-05-fe-09-10-auth`) | Registro/OTP, personal, eliminación |
 | R2 — progreso | FE-07 | BE-03 | C-10 existente (verificado en BE-03); FE UI contra la API real | Persistencia por usuario |
 | R2 — estadísticas | FE-08 | BE-04 | C-11 propuesto; FE gráficos con fixture; BE agregaciones | Panel real por fechas |
 | R3 — QR y deploy | FE-11, FE-14 | BE-09 | C-00 despliegue y C-01 QR verificados (rama `feat/be-09-fe-11-infra-qr`); FE-14 pendiente | URL pública desde teléfono |
@@ -195,28 +195,42 @@ Todos requieren Bearer rol PERSONAL o ADMINISTRADOR: `GET /gestion/guias`, `POST
 
 **Dependencia BE-07:** resembrar dos veces tras editar el borrador **no debe pisar las ediciones**; antes de usar el editor con datos reales verificar el seed.
 
-### C-08 — Cuenta pública, OTP y sesión [EXISTENTE]
+### C-08 — Cuenta pública, OTP y sesión [EXISTENTE; verificado en BE-05, FE-09]
 
 - `GET /aviso-privacidad/vigente` público: `{version,contenido,vigenteDesde}`.
-- `POST /auth/registro` público → 202; body:
+- `POST /auth/registro` público → `202`; body:
 
 ```json
 {"nombre":"Persona de prueba","numeroIdentificacion":"00000001","fechaNacimiento":"1955-08-21","correo":"prueba@example.test","aceptaAvisoPrivacidad":true,"canalVerificacion":"CORREO"}
 ```
 
-  `telefono` alternativo, al menos teléfono o correo; DOB requerida en DTO actual aunque D-02 pide justificación. Salida `{registroId,canal,destino,mensaje,expiraEn,puedeReenviarEn}`; nombre <=100, identificación <=30, fecha `YYYY-MM-DD`, email <=254, teléfono <=20, consentimiento true. `409` identificador/email/teléfono duplicado; `429` tasa límite.
-- `POST /auth/registro/verificar` público → 201; body `{ "registroId":"UUID", "codigo":"123456" }`, seis dígitos. `POST /auth/registro/reenviar-codigo` → 202, `{registroId}`.
-- `POST /auth/login` público → 202, `{numeroIdentificacion,contacto}`; salida `{solicitudId,canal,destino,mensaje,expiraEn,puedeReenviarEn}`. `POST /auth/login/verificar` público → 200, `{solicitudId,codigo}`. Login incorrecto 401 genérico sin revelar cuál dato.
-- Verificación exitosa (login o registro) → `{usuario:{nombre,rol},accessToken,accessTokenExpiraEn,refreshTokenExpiraEn}` **más cookie `refresh_token` httpOnly**; el cuerpo no contiene refresh token. `POST /auth/refresh` con cookie y `credentials:'include'` → 200 `{accessToken,accessTokenExpiraEn,refreshTokenExpiraEn}` y nueva cookie; refresh token rota. `POST /auth/logout` con cookie → 204 y la elimina.
-- `POST /auth/cuenta/eliminacion` Bearer USUARIO_PUBLICO → 202, `{canal?:'CORREO'|'TELEFONO'}`; `{solicitudId,canal,destino,mensaje,expiraEn,puedeReenviarEn}`. `POST /auth/cuenta/eliminacion/confirmar` Bearer → 204, `{solicitudId,codigo}`. Borrar datos y progreso, conservar métricas anonimizadas; limpiar estado FE y cookie. Sólo con **cuenta de prueba** y autorización.
-- **Riesgo FE verificado en código:** `HttpAuthRepository` guarda access token en localStorage. Se requiere revisión de seguridad en equipos compartidos; no asumir que almacenar refresh ahí es aceptable. El refresh queda exclusivamente en cookie. Si se cambia estrategia de almacenamiento, hacerlo en un issue separado compatible con todos los módulos.
+  `telefono` alternativo, al menos teléfono o correo; DOB requerida en DTO actual aunque D-02 pide justificación. Salida `{registroId,canal,destino,mensaje,expiraEn,puedeReenviarEn}`; nombre <=100, identificación <=30, fecha `YYYY-MM-DD`, email <=254, teléfono <=20, consentimiento true. `409` identificador/email/teléfono duplicado (`IDENTIFICACION_YA_REGISTRADA`, `CORREO_EN_USO`, `TELEFONO_EN_USO`); `429` tasa límite.
+- `POST /auth/registro/verificar` público → `201`; body `{ "registroId":"UUID", "codigo":"123456" }`, seis dígitos. `POST /auth/registro/reenviar-codigo` → `202`, `{registroId}`; antes del minuto `429 REENVIO_MUY_PRONTO`.
+- `POST /auth/login` público → `202`, `{numeroIdentificacion,contacto}`; salida `{solicitudId,canal,destino,mensaje,expiraEn,puedeReenviarEn}`. `POST /auth/login/verificar` público → `200`, `{solicitudId,codigo}`. Login incorrecto `401 CREDENCIALES_INVALIDAS` genérico sin revelar cuál dato.
+- Verificación exitosa (login o registro) → `{usuario:{nombre,rol},accessToken,accessTokenExpiraEn,refreshTokenExpiraEn}` **más cookie `refresh_token` httpOnly**; el cuerpo no contiene refresh token. `POST /auth/refresh` con cookie y `credentials:'include'` → `200` `{accessToken,accessTokenExpiraEn,refreshTokenExpiraEn}` y nueva cookie; refresh token rota. **Reusar un refresh ya usado cierra todas las sesiones** de esa cuenta. `POST /auth/logout` con cookie → `204` y la elimina.
+- `POST /auth/cuenta/eliminacion` Bearer USUARIO_PUBLICO → `202`, `{canal?:'CORREO'|'TELEFONO'}` (sin canal: el contacto de la cuenta); `{solicitudId,canal,destino,mensaje,expiraEn,puedeReenviarEn}`. `POST /auth/cuenta/eliminacion/confirmar` Bearer → `204`, `{solicitudId,codigo}`; borra la cookie. Borra datos y progreso, conserva métricas anonimizadas. Sólo con **cuenta de prueba** y autorización.
 
-### C-09 — Personal y acceso privilegiado [EXISTENTE]
+**Códigos OTP (todos los flujos de C-08 y C-09), verificado en e2e `codigos-vencidos.e2e-spec.ts`:** 6 dígitos. Incorrecto → `400 CODIGO_INCORRECTO` con los intentos restantes en el mensaje; sin intentos → `429 INTENTOS_AGOTADOS`; **vencido → `410 CODIGO_EXPIRADO`** («El código ya venció. Pide uno nuevo.»), sin crear la cuenta, abrir sesión, cambiar la contraseña ni borrar nada. En producción el backend no arranca si `NOTIFICACIONES_CORREO` o `NOTIFICACIONES_SMS` es `consola` (los códigos nunca se escriben en los logs).
 
-- `POST /auth/personal/login` público → 202, `{correo,password}`; OTP enviado a correo, salida con `{solicitudId,canal,destino,mensaje,expiraEn,puedeReenviarEn}`. `POST /auth/personal/login/verificar` → 200, `{solicitudId,codigo}`; `{usuario:{nombre,rol,debeCambiarPassword},accessToken,...}` + cookie httpOnly. `auth/refresh` y `auth/logout` compartidos con usuario público.
-- `POST /personal/yo/password/codigo` Bearer PERSONAL/ADMINISTRADOR → 202, sin body, salida `{destino,expiraEn,mensaje}`. `POST /personal/yo/password` → 204, DTO **verificado en `CambiarPasswordInicialDto` de `dev`** `{codigo:"123456",passwordNueva:"NuevaClave2026"}`. **No** envía `solicitudId` ni `nuevaPassword`; FE debe respetar `passwordNueva`, código de seis dígitos y contraseña de hasta 72 caracteres. Revalidar rama de PR.
-- `GET /personal?pagina=1&limite=20`, `GET /personal/:uuid`, `POST /personal`, `PATCH /personal/:uuid`, `POST /personal/:uuid/desactivar`, `POST /personal/:uuid/reactivar`: **solo ADMINISTRADOR**. POST JSON `{nombre,correo,passwordTemporal,rol:'PERSONAL'|'ADMINISTRADOR'}`, edición parcial `{nombre?,correo?,rol?}`. Respuesta `{id,nombre,correo,rol,activo,debeCambiarPassword,ultimoAccesoEn,creadoEn}`, listado paginado. `409` correo en uso; 403 personal normal. La contraseña temporal 8–72 con letra y número según DTO.
-- **Riesgo FE verificado en código:** `HttpPersonalRepository` hace fallback a `InMemoryPersonalRepository` ante excepciones no `PersonalError`, incluso en acciones de autenticación/administración. **Nunca permitir credenciales ficticias exitosas ante un 500/offline**. Retirar fallback en entorno integrado.
+**Cookie `refresh_token`:** `HttpOnly`, `SameSite=Strict`, `Path=/api/v1/auth`, `Secure` solo con `NODE_ENV=production`, vence en `refreshTokenExpiraEn` (12 h por defecto). Por `SameSite=Strict` el FE debe servirse en el mismo sitio que la API (proxy de Vite o Nginx). El access token dura 15 min (`JWT_ACCESS_EXPIRES_IN_SEGUNDOS=900`).
+
+**Política del FE para la sesión (implementada en FE-09/FE-10, `frontend/src/infrastructure/http/api.ts`):**
+- Antes de una petición con token, si `accessTokenExpiraEn` vence en menos de 30 s, se renueva con `POST /auth/refresh`.
+- Ante un `401` en una ruta con token se renueva **una sola vez**: las lecturas (`GET`) se reintentan; las escrituras **no** se repiten y muestran «Tu sesión se renovó. Vuelve a intentarlo.» (`SESION_RENOVADA`).
+- Si el refresh responde `401`, se olvida la sesión y se pide iniciar sesión de nuevo (`SESION_INVALIDA`).
+- Sin red o con el backend caído se muestra «No se pudo conectar con el servidor…»; nunca se simula una respuesta.
+- Los errores se leen del formato uniforme de C-00: se muestra `mensaje`, se decide por `codigo` y el campo del formulario sale de `detalles.campo` o de la primera clave de `detalles.campos`.
+
+**Pantallas (FE-09):** `/registro`, `/registro/verificar`, `/iniciar-sesion` y **`/mi-cuenta`** (nueva): cerrar sesión y eliminar la cuenta. Eliminar exige marcar «Entiendo que mi cuenta y mis datos se borrarán para siempre», pedir el código y escribirlo; tras el `204` la sesión queda cerrada en el navegador. Con sesión pública, el encabezado muestra «Mi cuenta» en lugar de «Iniciar sesión».
+
+**Riesgo aceptado y documentado — access token en `localStorage`:** `HttpAuthRepository` (clave `kama_auth_session`) y `HttpPersonalRepository` (`kama_personal_session`) guardan el usuario, el access token y sus vencimientos en `localStorage`. En un computador compartido de la sala, otra persona que abra el navegador antes de que se cierre la sesión podría usarla mientras el refresh siga vigente. Mitigaciones actuales: el refresh token **nunca** está en `localStorage` (cookie httpOnly), el access token dura 15 min, «Cerrar sesión» revoca el refresh y borra la cookie, y `/mi-cuenta` recuerda cerrar sesión al terminar. **Decisión BE-05:** no se cambia la estrategia (p. ej. a memoria o `sessionStorage`) sin un issue aparte con prueba de compatibilidad en todos los módulos.
+
+### C-09 — Personal y acceso privilegiado [EXISTENTE; verificado en BE-05, FE-10]
+
+- `POST /auth/personal/login` público → `202`, `{correo,password}`; OTP enviado a correo, salida `{solicitudId,canal,destino,mensaje,expiraEn,puedeReenviarEn}`. **`solicitudId` es el id de la cuenta del personal** y es lo que se envía al verificar (no el `destino` enmascarado). `POST /auth/personal/login/verificar` → `200`, `{solicitudId,codigo}`; `{usuario:{nombre,rol,debeCambiarPassword},accessToken,accessTokenExpiraEn,refreshTokenExpiraEn}` + cookie httpOnly. Correo o contraseña incorrectos, o cuenta desactivada: `401 CREDENCIALES_INCORRECTAS` (mismo mensaje). `auth/refresh` y `auth/logout` compartidos con usuario público (verificado en e2e para el personal).
+- `POST /personal/yo/password/codigo` Bearer PERSONAL/ADMINISTRADOR → `202`, sin body, salida `{destino,expiraEn,mensaje}`. `POST /personal/yo/password` → `204`, DTO **`{codigo:"123456",passwordNueva:"NuevaClave2026"}`** (no `solicitudId` ni `nuevoPassword`); contraseña 8–72 caracteres con letra y número. Vencido → `410 CODIGO_EXPIRADO`.
+- `GET /personal?pagina=1&limite=20`, `GET /personal/:uuid`, `POST /personal`, `PATCH /personal/:uuid`, `POST /personal/:uuid/desactivar`, `POST /personal/:uuid/reactivar`: **solo ADMINISTRADOR** (`403 SIN_PERMISO` al personal). POST JSON `{nombre,correo,passwordTemporal,rol:'PERSONAL'|'ADMINISTRADOR'}`, edición parcial `{nombre?,correo?,rol?}`. Respuesta `{id,nombre,correo,rol,activo,debeCambiarPassword,ultimoAccesoEn,creadoEn}`, listado paginado. `409 CORREO_EN_USO`. La contraseña temporal 8–72 con letra y número según DTO. Un administrador no puede desactivarse ni quitarse el rol (`403 AUTO_MODIFICACION_NO_PERMITIDA`). **Desactivar revoca de inmediato sus sesiones y tokens**; el rol se lee de la BD en cada petición.
+- **Corregido en FE-03/FE-10:** `HttpPersonalRepository` ya **no** usa `InMemoryPersonalRepository` como respaldo (solo en modo demo explícito, `VITE_USAR_DATOS_DEMO=true`): sin red, con *timeout* de 10 s o con `502/503/504` lanza `ServicioNoDisponiblePersonalError` y cualquier error del backend llega a la pantalla con su `mensaje` . La verificación del login envía `{solicitudId,codigo}` y el cambio inicial `{codigo,passwordNueva}`; antes enviaba `{destino,codigo}` y `{codigo,nuevoPassword}`, que el backend rechazaba con `400`. Aplica la misma política de sesión de C-08: renueva antes de vencer, ante `401` solo reintenta los `GET`, y con la sesión vencida `GestionPersonalPage` vuelve a `/personal/acceso`.
 
 ### C-10 — Mi progreso persistente [EXISTENTE desde HU-23 (PR #91); verificado y documentado en BE-03]
 
@@ -266,17 +280,40 @@ Ambas: `401` sin sesión o token inválido, `403` personal/administrador. El usu
 
 **Uso en el FE:** marcar el paso cuando el usuario lo visualiza (no al abrir el listado), una sola vez por paso y por visita, y solo con sesión de `USUARIO_PUBLICO`. Usar la respuesta del `POST` para actualizar la barra sin volver a pedir `GET /progreso`.
 
-### C-11 — Estadísticas agregadas [PROPUESTO, implementarlo solo tras verificar si ya existe]
+### C-11 — Estadísticas agregadas [EXISTENTE desde BE-04]
 
-`GET /gestion/estadisticas/resumen?desde=2026-11-20&hasta=2026-11-26` Bearer `PERSONAL`/`ADMINISTRADOR` (permiso propuesto a confirmar), fechas opcionales `YYYY-MM-DD`, por defecto últimos **7 días calendario incluyendo hoy** en zona `America/Bogota`, límite `desde<=hasta`, límite máximo de rango configurable (propuesta: 366 días), validación 400.
+`GET /gestion/estadisticas/resumen?desde=2026-11-20&hasta=2026-11-26` → `200`.
+
+| Aspecto | Comportamiento implementado |
+|---|---|
+| Permiso | `Authorization: Bearer` de `PERSONAL` o `ADMINISTRADOR`. `401` sin sesión o token inválido; `403` usuario público. |
+| `desde`, `hasta` | Opcionales, `AAAA-MM-DD`, días de calendario en `America/Bogota`, **ambos incluidos**. Sin `hasta`: hoy en Bogotá. Sin `desde`: 6 días antes de `hasta` (7 días contando `hasta`). |
+| Rango | `desde <= hasta`, máximo **366 días** contando los dos extremos (constante `RANGO_MAXIMO_DIAS`). |
+| Intervalo en BD | UTC semiabierto `[desde 00:00 Bogotá, día siguiente a hasta 00:00 Bogotá)`. Colombia es siempre UTC−5. Ej.: 20/11–26/11 = `[2026-11-20T05:00Z, 2026-11-27T05:00Z)`. |
+| Cabeceras | `Cache-Control: no-store`. |
 
 ```json
 {"periodo":{"desde":"2026-11-20","hasta":"2026-11-26","zonaHoraria":"America/Bogota"},"totales":{"consultasGuias":35,"solicitudesAyuda":6},"topGuias":[{"slug":"smishing","titulo":"Smishing","consultas":20}],"consultasPorCategoria":[{"slug":"seguridad-digital","nombre":"Seguridad digital","consultas":35}],"solicitudesPorTema":[{"tema":"SEGURIDAD_DIGITAL","cantidad":6}],"hayDatos":true}
 ```
 
-- Fuente: `consulta_guia` y `solicitud_ayuda`; `topGuias` máximo 10, orden por consultas DESC con desempate estable; `consultasPorCategoria` suma de consultas, `solicitudesPorTema` agrupa por enum; todas las cifras numéricas, nunca `null`; `hayDatos=false` si no hubo consultas **ni** solicitudes, listas vacías/totales 0. Consultas anónimas cuentan, sin datos de usuario en respuesta.
-- BE usa SQL con agregaciones (`groupBy`/`$queryRaw` parametrizada), filtros por fecha y join con categorías/guías. Rango de tiempo convertido a UTC con límites `[inicioBogota, inicioSiguienteDiaBogota)`, evitando off-by-one. Índice en `consulta_guia(guia_id,consultada_en)` y `solicitud_ayuda(creada_en,tema)` según modelo v2.0. Si una guía se oculta, sus consultas históricas deben seguir contabilizadas; no borrar datos editoriales para facilitar estadísticas.
-- FE no calcula sumas desde todas las filas ni inventa métricas; presenta `cargando`, `sin datos`, `error`, rangos inclusivos y gráfico/tabla; `401/403/400/500` explícitos. **Contrato propuesto**, no anunciar endpoint disponible hasta BE confirme.
+- **Fuente:** `consulta_guia` (una fila por cada `POST /guias/:slug/consultas`, con o sin cuenta) y `solicitud_ayuda` (por `creada_en`). Cuenta guías de **cualquier estado** (publicadas, ocultas y borradores): ocultar una guía no borra sus consultas históricas.
+- **`totales`:** `consultasGuias` = todas las consultas del periodo; `solicitudesAyuda` = todas las solicitudes del periodo, sin importar su estado.
+- **`topGuias`:** máximo **10**, por `consultas` DESC y, en empate, `slug` ASC. Puede haber más guías en `totales.consultasGuias` que en el top.
+- **`consultasPorCategoria`:** por `consultas` DESC y, en empate, `slug` ASC. **Solo categorías con al menos una consulta** (las de 0 no aparecen; el FE debe mostrarlas en 0 si las quiere en el gráfico, tomándolas de `GET /categorias`).
+- **`solicitudesPorTema`:** por `cantidad` DESC y, en empate, `tema` ASC (orden alfabético). **Solo temas con al menos una solicitud.** `tema` es uno de los enum de C-05.
+- **Sin datos:** cifras siempre números enteros, nunca `null`. `hayDatos=false` si no hubo consultas **ni** solicitudes; entonces totales en 0 y listas vacías.
+- **Sin datos personales:** la respuesta nunca incluye usuarios, cédulas ni equipos.
+- **Errores:**
+
+| Estado | `codigo` | Cuándo | `detalles` |
+|---|---|---|---|
+| `400` | `DATOS_INVALIDOS` | `desde`/`hasta` no tienen la forma `AAAA-MM-DD` (p. ej. `ayer`) | `{campos:{desde:[...]}}` |
+| `400` | `RANGO_FECHAS_INVALIDO` | fecha inexistente (`2026-02-30`), `desde > hasta` o más de 366 días | `{campo:'desde'\|'hasta'}` |
+| `401` | — | sin sesión | |
+| `403` | — | usuario público | |
+
+- **SQL:** agregaciones `GROUP BY` en PostgreSQL con `$queryRaw` parametrizada, sin traer eventos a Node. Índices: `consulta_guia(consultada_en)` (nuevo, migración `20261127120000_consulta_guia_fecha_idx`) y `solicitud_ayuda(creada_en, tema)`; verificado con `EXPLAIN`.
+- **FE:** no calcula sumas desde filas ni inventa métricas; muestra `cargando`, `sin datos` (`hayDatos=false`), `error` (con el `mensaje` del backend en 400) y la tabla accesible como alternativa al gráfico. Valida el rango en el formulario, pero el backend es quien decide.
 
 ### Prueba de compatibilidad cruzada por contrato
 
@@ -315,7 +352,9 @@ Para cada C-XX, el equipo backend registra: ejemplo request real, respuesta exit
 - Pruebas SQL de 2 usuarios, PK (usuario,paso), leer dos veces, reordenar pasos, guía oculta, sin pasos, logout/login, invitado 401 sin filas, eliminación de cuenta cascada; no cambiar un sistema correcto si ya existe.
 - **Entrega FE:** fixtures reales de C-10, DTO, casos e2e y doc breve de semántica; `PASS_BE`.
 
-### BE-04 — Estadísticas PostgreSQL del panel (HU-31) · P0 · pareja FE-08 · C-11 PROPUESTO
+### BE-04 — Estadísticas PostgreSQL del panel (HU-31) · P0 · pareja FE-08 · C-11
+
+**Estado:** `PASS_BE` en la rama `feat/be-04-estadisticas`: C-11 implementado y documentado arriba, con índice nuevo `consulta_guia(consultada_en)` y e2e de bordes de medianoche, guías ocultas, consultas sin cuenta, top 10, vacío, 400/401/403 y sumas contra `SELECT`. Falta `PASS_INTEGRATED` con FE-08.
 
 - Buscar antes si `consulta_guia` y API agregada ya existen. Asegurar `POST /guias/:slug/consultas` crea una fila por apertura efectiva de la guía; no exponer identificación de invitado.
 - Implementar endpoint único C-11 con rol de personal aprobado, filtro rango `desde/hasta` 7 días por defecto en `America/Bogota`, UTC [desde, hasta+1 día), top10 guías, agrupación categorías y ayuda por tema, `hayDatos`. Datos cero -> estructuras vacías; consultas validan rango y coste.
@@ -324,6 +363,8 @@ Para cada C-XX, el equipo backend registra: ejemplo request real, respuesta exit
 - **Entrega FE:** JSON real conforme C-11 + ejemplos de vacíos y error por rango; pruebas e2e autorizadas.
 
 ### BE-05 — Autenticación/cuentas/privacidad (HU-01/02/04/05/06) · P0 · pareja FE-09/10 · C-08/C-09
+
+**Estado:** `PASS_BE` en la rama `feat/be-05-fe-09-10-auth` (junto con FE-09 y FE-10). No se reimplementó nada: la cobertura existente ya probaba OTP, intentos, refresh rotado y reusado, logout, consentimiento, duplicados, eliminación con anonimización, personal, desactivación que revoca tokens, `{codigo,passwordNueva}`, refresh del personal y guards. **Agregado:** `test/e2e/codigos-vencidos.e2e-spec.ts` (`410 CODIGO_EXPIRADO` en registro, login público, login del personal, cambio de contraseña inicial y eliminación, sin efectos) y `src/infrastructure/config/__tests__/variables-entorno.spec.ts` (en producción no arranca con OTP por `consola`). Pendiente: D-02 (fecha de nacimiento).
 
 - El backend ya expone rutas OTP de registro/login, refresh/logout, cuenta/eliminación y personal. Validarlas con fixtures ficticios autorizados; NO reimplementarlas por defecto. Verificar cobertura de JWT rotación refresh, auth cookie httpOnly, throttling, datos mínimos, roles, 401/403, OTP expirado/incorrecto, caducidad, invalidación de sesión y doble uso de refresh.
 - Cuenta pública: consentimiento/vigencia, duplicados por identificación/contacto, OTP 6 dígitos, sesión, supresión transaccional de usuario y progresos y anonimización de `consulta_guia`, `solicitud_ayuda`, calificación; evitar logs de códigos en producción. D-02 fecha nacimiento aún requiere justificación.

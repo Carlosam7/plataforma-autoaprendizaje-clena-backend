@@ -2,8 +2,12 @@ import { ChangeFontSize } from '@/application/accessibility/ChangeFontSize';
 import { LoadAccessibilityPreferences } from '@/application/accessibility/LoadAccessibilityPreferences';
 import { ResetAccessibilityPreferences } from '@/application/accessibility/ResetAccessibilityPreferences';
 import { ToggleHighContrast } from '@/application/accessibility/ToggleHighContrast';
+import { CerrarSesion } from '@/application/auth/CerrarSesion';
+import { ConfirmarEliminacionCuenta } from '@/application/auth/ConfirmarEliminacionCuenta';
 import { ObtenerAvisoPrivacidad } from '@/application/auth/ObtenerAvisoPrivacidad';
+import { ObtenerSesionPublica } from '@/application/auth/ObtenerSesionPublica';
 import { ReenviarCodigoRegistro } from '@/application/auth/ReenviarCodigoRegistro';
+import { SolicitarEliminacionCuenta } from '@/application/auth/SolicitarEliminacionCuenta';
 import { SolicitarInicioSesion } from '@/application/auth/SolicitarInicioSesion';
 import { SolicitarRegistro } from '@/application/auth/SolicitarRegistro';
 import { VerificarCodigoRegistro } from '@/application/auth/VerificarCodigoRegistro';
@@ -86,6 +90,10 @@ export const container = {
     verificarCodigo: new VerificarCodigoRegistro(authRepository),
     verificarInicioSesion: new VerificarInicioSesion(authRepository),
     reenviarCodigo: new ReenviarCodigoRegistro(authRepository),
+    obtenerSesion: new ObtenerSesionPublica(authRepository),
+    cerrarSesion: new CerrarSesion(authRepository),
+    solicitarEliminacionCuenta: new SolicitarEliminacionCuenta(authRepository),
+    confirmarEliminacionCuenta: new ConfirmarEliminacionCuenta(authRepository),
     authRepository,
   },
   guias: {

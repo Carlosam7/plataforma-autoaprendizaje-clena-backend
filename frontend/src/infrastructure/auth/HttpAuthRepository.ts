@@ -4,22 +4,41 @@ import {
   AuthError,
   AuthExpiredError,
   AuthRateLimitError,
+  AuthSessionExpiredError,
   AuthValidationError,
 } from '@/domain/auth/errors';
 import type {
   AuthSession,
   AvisoPrivacidad,
+  CanalVerificacion,
   CodigoEnviado,
+  ConfirmarEliminacionParams,
+  EliminacionSolicitada,
   SolicitudInicioSesion,
   SolicitudRegistro,
   VerificarInicioSesionParams,
   VerificarRegistroParams,
 } from '@/domain/auth/types';
+import {
+  API_BASE,
+  debeRenovarse,
+  esFalloDeRed,
+  leerErrorApi,
+  MENSAJE_SIN_CONEXION,
+  renovarAccessToken,
+} from '@/infrastructure/http/api';
 
+/**
+ * Sesión pública guardada en localStorage: usuario, access token (15 min) y vencimientos.
+ * Riesgo documentado en C-08: en un computador compartido, otra persona que abra el
+ * navegador antes de que venza podría usarla. El refresh token NUNCA se guarda aquí: va en
+ * una cookie httpOnly que JavaScript no puede leer. No se cambia sin una prueba de
+ * compatibilidad con todos los módulos (decisión de BE-05).
+ */
 const STORAGE_KEY_SESION = 'kama_auth_session';
 
 export class HttpAuthRepository implements AuthRepository {
-  constructor(private readonly baseUrl = '/api/v1') {}
+  constructor(private readonly baseUrl = API_BASE) {}
 
   async obtenerAvisoPrivacidad(): Promise<AvisoPrivacidad> {
     try {
@@ -266,46 +285,73 @@ export class HttpAuthRepository implements AuthRepository {
     }
   }
 
+  /**
+   * `POST /auth/refresh` con la cookie httpOnly; el refresh token rota. Si ya no se puede
+   * renovar (401), olvida la sesión y lanza AuthSessionExpiredError.
+   */
   async renovarSesion(): Promise<AuthSession> {
+    let renovado;
     try {
-      const res = await fetch(`${this.baseUrl}/auth/refresh`, {
-        method: 'POST',
-        headers: {
-          Accept: 'application/json',
-        },
-        credentials: 'include',
-      });
-
-      if (!res.ok) {
-        await this.manejarErrorHttp(res);
-      }
-
-      const data = (await res.json()) as {
-        accessToken: string;
-        accessTokenExpiraEn?: string;
-        refreshTokenExpiraEn?: string;
-      };
-
-      const actual = await this.obtenerSesion();
-      const sesion: AuthSession = {
-        usuario: actual?.usuario ?? {
-          nombre: 'Usuario',
-          rol: 'USUARIO_PUBLICO',
-        },
-        accessToken: data.accessToken,
-        accessTokenExpiraEn: data.accessTokenExpiraEn
-          ? new Date(data.accessTokenExpiraEn)
-          : undefined,
-        refreshTokenExpiraEn: data.refreshTokenExpiraEn
-          ? new Date(data.refreshTokenExpiraEn)
-          : undefined,
-      };
-
-      await this.guardarSesion(sesion);
-      return sesion;
+      renovado = await renovarAccessToken(this.baseUrl);
     } catch (err) {
-      this.manejarFalloRed(err);
+      if (esFalloDeRed(err)) throw new AuthError(MENSAJE_SIN_CONEXION);
+      throw new AuthError(
+        'No se pudo renovar la sesión. Vuelve a iniciar sesión.',
+      );
     }
+    if (!renovado) {
+      this.olvidarSesion();
+      throw new AuthSessionExpiredError();
+    }
+    const actual = await this.obtenerSesion();
+    if (!actual) throw new AuthSessionExpiredError();
+    const sesion: AuthSession = { ...actual, ...renovado };
+    await this.guardarSesion(sesion);
+    return sesion;
+  }
+
+  async solicitarEliminacionCuenta(
+    canal?: CanalVerificacion,
+  ): Promise<EliminacionSolicitada> {
+    const res = await this.autenticada('/auth/cuenta/eliminacion', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(canal ? { canal } : {}),
+    });
+    if (!res.ok) await this.manejarErrorHttp(res);
+    const data = (await res.json()) as {
+      solicitudId: string;
+      canal: CanalVerificacion;
+      destino: string;
+      mensaje: string;
+      expiraEn: string;
+      puedeReenviarEn: string;
+    };
+    return {
+      solicitudId: data.solicitudId,
+      canal: data.canal,
+      destino: data.destino,
+      mensaje: data.mensaje,
+      expiraEn: new Date(data.expiraEn),
+      puedeReenviarEn: new Date(data.puedeReenviarEn),
+    };
+  }
+
+  async confirmarEliminacionCuenta(
+    params: ConfirmarEliminacionParams,
+  ): Promise<void> {
+    const res = await this.autenticada('/auth/cuenta/eliminacion/confirmar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        solicitudId: params.solicitudId,
+        codigo: params.codigo,
+      }),
+    });
+    // 204 sin cuerpo: no se llama a res.json() (C-00).
+    if (!res.ok) await this.manejarErrorHttp(res);
+    // El backend ya borró la cookie del refresh token; aquí se olvida el resto.
+    this.olvidarSesion();
   }
 
   async cerrarSesion(): Promise<void> {
@@ -316,72 +362,91 @@ export class HttpAuthRepository implements AuthRepository {
         credentials: 'include',
       });
     } catch {
-      // Si la red falla o el backend está apagado, igualmente limpiamos el almacenamiento local
+      // Si la red falla o el backend está apagado, igualmente se olvida la sesión aquí.
     } finally {
-      try {
-        localStorage.removeItem(STORAGE_KEY_SESION);
-      } catch (e) {
-        console.error(
-          'No se pudo limpiar la sesión del almacenamiento local',
-          e,
-        );
-      }
+      this.olvidarSesion();
     }
+  }
+
+  private olvidarSesion(): void {
+    try {
+      localStorage.removeItem(STORAGE_KEY_SESION);
+    } catch (e) {
+      console.error('No se pudo limpiar la sesión del almacenamiento local', e);
+    }
+  }
+
+  /**
+   * Petición con el access token de la sesión guardada. Si está por vencer lo renueva
+   * antes. Ante un 401 renueva una sola vez y solo reintenta las lecturas (GET): repetir
+   * un POST podría aplicarlo dos veces (C-00).
+   */
+  private async autenticada(
+    ruta: string,
+    init: RequestInit = {},
+  ): Promise<Response> {
+    const enviar = async (token: string) => {
+      try {
+        return await fetch(`${this.baseUrl}${ruta}`, {
+          ...init,
+          credentials: 'include',
+          headers: {
+            Accept: 'application/json',
+            ...init.headers,
+            Authorization: `Bearer ${token}`,
+          },
+        });
+      } catch (err) {
+        this.manejarFalloRed(err);
+      }
+    };
+
+    const sesion = await this.obtenerSesion();
+    if (!sesion) throw new AuthSessionExpiredError();
+    const token = debeRenovarse(sesion.accessTokenExpiraEn)
+      ? (await this.renovarSesion()).accessToken
+      : sesion.accessToken;
+
+    const res = await enviar(token);
+    if (res.status !== 401) return res;
+
+    const renovada = await this.renovarSesion();
+    if ((init.method ?? 'GET') === 'GET') {
+      const reintento = await enviar(renovada.accessToken);
+      if (reintento.status !== 401) return reintento;
+      this.olvidarSesion();
+      throw new AuthSessionExpiredError();
+    }
+    throw new AuthError(
+      'Tu sesión se renovó. Vuelve a intentarlo.',
+      401,
+      undefined,
+      'SESION_RENOVADA',
+    );
   }
 
   private manejarFalloRed(err: unknown): never {
     if (err instanceof AuthError) throw err;
-    if (
-      err instanceof TypeError &&
-      err.message.toLowerCase().includes('fetch')
-    ) {
-      throw new AuthError(
-        'No se pudo conectar con el servidor. Asegúrate de que el backend esté iniciado en http://localhost:3000.',
-      );
-    }
-    if (err instanceof Error) {
-      throw new AuthError(err.message);
-    }
+    if (esFalloDeRed(err)) throw new AuthError(MENSAJE_SIN_CONEXION);
+    if (err instanceof Error) throw new AuthError(err.message);
     throw new AuthError(
       'Ocurrió un error de conexión al comunicarse con el servidor.',
     );
   }
 
+  /** Traduce el error uniforme del backend (C-00), con su `codigo` y el campo afectado. */
   private async manejarErrorHttp(res: Response): Promise<never> {
-    let mensaje = 'Ocurrió un error al procesar tu solicitud.';
-    let campo: string | undefined;
-
-    try {
-      const errorJson = (await res.json()) as {
-        mensaje?: string | string[];
-        message?: string | string[];
-        error?: string;
-        campo?: string;
-      };
-      const msg = errorJson.mensaje || errorJson.message || errorJson.error;
-      if (Array.isArray(msg)) {
-        mensaje = msg.join('. ');
-      } else if (typeof msg === 'string') {
-        mensaje = msg;
-      }
-      campo = errorJson.campo;
-    } catch {
-      // Ignorar fallo de parseo JSON y usar mensaje genérico
+    const e = await leerErrorApi(res);
+    switch (res.status) {
+      case 409:
+        throw new AuthConflictError(e.mensaje, e.codigo, e.campo);
+      case 410:
+        throw new AuthExpiredError(e.mensaje, e.codigo);
+      case 429:
+        throw new AuthRateLimitError(e.mensaje, e.codigo);
+      case 400:
+        throw new AuthValidationError(e.mensaje, e.campo, e.codigo);
     }
-
-    if (res.status === 409) {
-      throw new AuthConflictError(mensaje);
-    }
-    if (res.status === 410) {
-      throw new AuthExpiredError(mensaje);
-    }
-    if (res.status === 429) {
-      throw new AuthRateLimitError(mensaje);
-    }
-    if (res.status === 400) {
-      throw new AuthValidationError(mensaje, campo);
-    }
-
-    throw new AuthError(mensaje, res.status, campo);
+    throw new AuthError(e.mensaje, res.status, e.campo, e.codigo);
   }
 }

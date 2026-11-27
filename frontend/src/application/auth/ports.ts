@@ -1,7 +1,10 @@
 import type {
   AuthSession,
   AvisoPrivacidad,
+  CanalVerificacion,
   CodigoEnviado,
+  ConfirmarEliminacionParams,
+  EliminacionSolicitada,
   SolicitudInicioSesion,
   SolicitudRegistro,
   VerificarInicioSesionParams,
@@ -21,4 +24,10 @@ export interface AuthRepository {
   guardarSesion(sesion: AuthSession): Promise<void>;
   renovarSesion?(): Promise<AuthSession>;
   cerrarSesion(): Promise<void>;
+  /** HU-05: envía un código para confirmar; todavía no borra nada. */
+  solicitarEliminacionCuenta(
+    canal?: CanalVerificacion,
+  ): Promise<EliminacionSolicitada>;
+  /** HU-05: borra la cuenta y olvida la sesión en este navegador. No se puede deshacer. */
+  confirmarEliminacionCuenta(params: ConfirmarEliminacionParams): Promise<void>;
 }
