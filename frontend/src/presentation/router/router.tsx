@@ -51,6 +51,10 @@ export const router = createBrowserRouter([
         element: <AyudaPage />,
       },
       {
+        path: 'mi-cuenta',
+        element: <MiCuentaPage />,
+      },
+      {
         // FE-11: página para imprimir los QR (no está en el menú; datos públicos).
         path: 'codigos-qr',
         element: <CodigosQrPage />,
