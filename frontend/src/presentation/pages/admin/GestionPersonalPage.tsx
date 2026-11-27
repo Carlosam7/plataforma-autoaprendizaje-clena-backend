@@ -7,6 +7,7 @@ import type {
 } from '@/domain/personal/types';
 import { SesionPersonalExpiradaError } from '@/domain/personal/errors';
 import { container } from '@/main/container';
+import { NavegacionPersonal } from '@/presentation/personal/NavegacionPersonal';
 
 export function GestionPersonalPage() {
   const navigate = useNavigate();
@@ -204,6 +205,7 @@ export function GestionPersonalPage() {
       id="contenido"
       className="max-w-360 mx-auto px-4 md:px-12 lg:px-24 py-10 flex flex-col gap-8"
     >
+      {sesion && <NavegacionPersonal sesion={sesion} />}
       {/* Encabezado y barra superior */}
       <section className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-border pb-6">
         <div className="flex flex-col gap-2">
