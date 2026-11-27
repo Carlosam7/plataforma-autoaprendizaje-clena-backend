@@ -8,6 +8,7 @@ import {
   Param,
   Post,
   Query,
+  Req,
   Res,
 } from '@nestjs/common';
 import {
@@ -23,7 +24,7 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
 import type { UsuarioAutenticado } from '../../application/auth/validar-sesion.use-case.js';
 import {
   ResolverSolicitudAyudaUseCase,
@@ -34,6 +35,10 @@ import { ListarSolicitudesAyudaUseCase } from '../../application/ayuda/listar-so
 import { ObtenerSolicitudAyudaUseCase } from '../../application/ayuda/obtener-solicitud-ayuda.use-case.js';
 import { SolicitarAyudaUseCase } from '../../application/ayuda/solicitar-ayuda.use-case.js';
 import { Publico, SesionOpcional } from '../shared/publico.decorator.js';
+import {
+  leerCookieLlaveAyuda,
+  ponerCookieLlaveAyuda,
+} from './cookie-llave-ayuda.js';
 import { RespuestaErrorDto } from '../shared/respuesta-error.dto.js';
 import { Roles } from '../shared/roles.decorator.js';
 import {
@@ -71,19 +76,40 @@ export class SolicitudAyudaController {
   @ApiOperation({
     summary: 'Llamar a un monitor (HU-29)',
     description:
-      'No exige sesión: basta con el equipo. Si el equipo ya tiene una solicitud activa no se crea otra: responde 200 con la existente y `yaExistia: true`.',
+      'No exige sesión: basta con el equipo. Responde con la cookie httpOnly `llave_ayuda` (path /api/v1/solicitudes-ayuda): solo el navegador que la tiene consulta o cancela la solicitud (C-05). ' +
+      'Si el equipo ya tiene una solicitud activa no se crea otra: al mismo navegador le responde 200 con la existente y `yaExistia: true`; a otro navegador, 409 sin revelarla.',
   })
-  @ApiCreatedResponse({ type: AyudaSolicitadaDto })
+  @ApiCreatedResponse({
+    type: AyudaSolicitadaDto,
+    headers: {
+      'Set-Cookie': {
+        description:
+          'llave_ayuda=<llave>; Path=/api/v1/solicitudes-ayuda; HttpOnly; SameSite=Strict; Max-Age=43200',
+        schema: { type: 'string' },
+      },
+    },
+  })
   @ApiOkResponse({
     type: AyudaSolicitadaDto,
-    description: 'El equipo ya tenía una solicitud activa',
+    description: 'Este navegador ya tenía una solicitud activa para el equipo',
+  })
+  @ApiConflictResponse({
+    type: RespuestaErrorDto,
+    description:
+      'EQUIPO_CON_SOLICITUD_ACTIVA: otro navegador ya pidió ayuda para ese equipo',
   })
   async solicitar(
     @Body() datos: SolicitarAyudaDto,
     @UsuarioOpcional() usuario: UsuarioAutenticado | null,
+    @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ): Promise<AyudaSolicitadaDto> {
-    const solicitud = await this.solicitarAyuda.ejecutar(datos, usuario);
+    const { solicitud, llave } = await this.solicitarAyuda.ejecutar(
+      datos,
+      usuario,
+      leerCookieLlaveAyuda(req),
+    );
+    ponerCookieLlaveAyuda(res, llave);
     if (solicitud.yaExistia) res.status(HttpStatus.OK);
     return solicitud;
   }
@@ -115,12 +141,20 @@ export class SolicitudAyudaController {
   @Publico()
   @ApiOperation({
     summary: 'Estado de mi solicitud y mi puesto en la cola (HU-29)',
-    description: 'El frontend la consulta cada cierto tiempo mientras espera.',
+    description:
+      'El frontend la consulta cada cierto tiempo mientras espera. Exige la cookie `llave_ayuda` que entregó el POST (`credentials: include`).',
   })
   @ApiOkResponse({ type: SolicitudAyudaDto })
-  @ApiNotFoundResponse({ type: RespuestaErrorDto })
-  obtener(@Param() { id }: IdSolicitudDto): Promise<SolicitudAyudaDto> {
-    return this.obtenerSolicitud.ejecutar(id);
+  @ApiNotFoundResponse({
+    type: RespuestaErrorDto,
+    description:
+      'SOLICITUD_NO_ENCONTRADA: no existe o la pidió otro navegador (sin la llave no se distingue)',
+  })
+  obtener(
+    @Param() { id }: IdSolicitudDto,
+    @Req() req: Request,
+  ): Promise<SolicitudAyudaDto> {
+    return this.obtenerSolicitud.ejecutar(id, leerCookieLlaveAyuda(req));
   }
 
   @Post(':id/tomar')
@@ -177,15 +211,21 @@ export class SolicitudAyudaController {
   @ApiOperation({
     summary: 'Cancelar mi solicitud (HU-29)',
     description:
-      'Porque resolví la duda por mi cuenta. La solicitud no se borra: queda CANCELADA.',
+      'Porque resolví la duda por mi cuenta. La solicitud no se borra: queda CANCELADA. Exige la cookie `llave_ayuda` que entregó el POST.',
   })
   @ApiNoContentResponse()
-  @ApiNotFoundResponse({ type: RespuestaErrorDto })
+  @ApiNotFoundResponse({
+    type: RespuestaErrorDto,
+    description: 'SOLICITUD_NO_ENCONTRADA: no existe o la pidió otro navegador',
+  })
   @ApiConflictResponse({
     type: RespuestaErrorDto,
     description: 'Ya estaba resuelta o cancelada',
   })
-  async cancelar(@Param() { id }: IdSolicitudDto): Promise<void> {
-    await this.cancelarSolicitud.ejecutar(id);
+  async cancelar(
+    @Param() { id }: IdSolicitudDto,
+    @Req() req: Request,
+  ): Promise<void> {
+    await this.cancelarSolicitud.ejecutar(id, leerCookieLlaveAyuda(req));
   }
 }

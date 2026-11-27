@@ -36,6 +36,7 @@ export class PrismaSolicitudAyudaRepository implements SolicitudAyudaRepository 
           pasoId: solicitud.pasoId,
           usuarioId: solicitud.usuarioId,
           creadaEn: solicitud.creadaEn,
+          titularHash: solicitud.titularHash,
         },
       });
       return true;
@@ -154,6 +155,7 @@ function aSolicitud(
     resueltaEn: f.resueltaEn,
     comentarioResolucion: f.comentarioResolucion,
     canceladaEn: f.canceladaEn,
+    titularHash: f.titularHash,
   });
 }
 
