@@ -2,9 +2,21 @@ export class PersonalError extends Error {
   constructor(
     message: string,
     public readonly statusCode?: number,
+    /** `codigo` estable del backend (C-00), p. ej. `CODIGO_EXPIRADO`. */
+    public readonly codigo?: string,
+    /** Campo del formulario al que se refiere (de `detalles.campo` o `detalles.campos`). */
+    public readonly campo?: string,
   ) {
     super(message);
     this.name = 'PersonalError';
+  }
+}
+
+/** La sesión venció y no se pudo renovar: hay que volver a iniciar sesión. */
+export class SesionPersonalExpiradaError extends PersonalError {
+  constructor(message = 'Tu sesión terminó. Vuelve a iniciar sesión.') {
+    super(message, 401, 'SESION_INVALIDA');
+    this.name = 'SesionPersonalExpiradaError';
   }
 }
 
@@ -53,5 +65,15 @@ export class PasswordDebilError extends PersonalError {
   ) {
     super(message, 400);
     this.name = 'PasswordDebilError';
+  }
+}
+
+export class ServicioNoDisponiblePersonalError extends PersonalError {
+  constructor(
+    message = 'No pudimos comunicarnos con el servidor. Revisa tu conexión e inténtalo de nuevo.',
+    statusCode?: number,
+  ) {
+    super(message, statusCode);
+    this.name = 'ServicioNoDisponiblePersonalError';
   }
 }

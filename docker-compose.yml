@@ -38,6 +38,10 @@ services:
       # Valor solo para desarrollo local; en cualquier despliegue real defínelo en .env.
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-solo-desarrollo-local-cambia-este-secreto-ya}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8080,http://localhost:5173}
+      # BE-09: vacíos toman su valor según NODE_ENV (ver backend/.env.example). Con
+      # NODE_ENV=production y la app servida por http, COOKIE_SEGURA debe ser false.
+      SWAGGER_HABILITADO: ${SWAGGER_HABILITADO:-}
+      COOKIE_SEGURA: ${COOKIE_SEGURA:-}
       # HU-04: administrador inicial que crean las semillas al arrancar. Valores solo para
       # desarrollo local (la contraseña se debe cambiar en el primer ingreso); en un despliegue
       # real defínelos en .env.
@@ -60,7 +64,12 @@ services:
       start_period: 120s
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      args:
+        # FE-11: dirección pública con la que los teléfonos abren Kamá (la de los QR).
+        # Sin ella los QR usan la dirección del navegador: localhost no sirve para imprimir.
+        VITE_URL_PUBLICA: ${URL_PUBLICA:-}
     pull_policy: build
     restart: unless-stopped
     ports:

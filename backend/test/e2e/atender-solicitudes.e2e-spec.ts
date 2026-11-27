@@ -1,5 +1,6 @@
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
+import TestAgent from 'supertest/lib/agent.js';
 import { App } from 'supertest/types.js';
 import { PrismaService } from '../../src/infrastructure/database/prisma.service.js';
 import {
@@ -16,6 +17,8 @@ describe('HU-30 · Atender la cola de solicitudes (e2e)', () => {
   let prisma: PrismaService;
   let ana: { id: string; token: string };
   let luis: { id: string; token: string };
+  /** El navegador del visitante que pide ayuda (guarda la cookie llave_ayuda). */
+  let visitante: TestAgent;
 
   beforeAll(async () => {
     ({ app, prisma } = await crearApp());
@@ -23,6 +26,7 @@ describe('HU-30 · Atender la cola de solicitudes (e2e)', () => {
 
   beforeEach(async () => {
     await limpiarBaseDatos(prisma);
+    visitante = request.agent(app.getHttpServer());
     ana = await sesionPersonal(app, { rol: 'PERSONAL' });
     luis = await sesionPersonal(app, { rol: 'ADMINISTRADOR' });
   });
@@ -37,7 +41,7 @@ describe('HU-30 · Atender la cola de solicitudes (e2e)', () => {
   });
   /** Un visitante pide ayuda desde ese equipo; devuelve el id de la solicitud. */
   const pedir = async (equipo: string): Promise<string> => {
-    const { body } = await http()
+    const { body } = await visitante
       .post(RUTA)
       .send({ equipo, tema: 'CORREO' })
       .expect(201);
@@ -94,8 +98,10 @@ describe('HU-30 · Atender la cola de solicitudes (e2e)', () => {
       expect(guardada.tomadaEn).not.toBeNull();
 
       // Quien la pidió ve que ya la atienden.
-      const { body: visitante } = await http().get(`${RUTA}/${id}`).expect(200);
-      expect(visitante).toMatchObject({
+      const { body: loQueVe } = await visitante
+        .get(`${RUTA}/${id}`)
+        .expect(200);
+      expect(loQueVe).toMatchObject({
         estado: 'EN_ATENCION',
         posicion: null,
       });
@@ -125,7 +131,7 @@ describe('HU-30 · Atender la cola de solicitudes (e2e)', () => {
 
     it('responde 409 si la persona ya la canceló y 404 si no existe', async () => {
       const id = await pedir('12');
-      await http().delete(`${RUTA}/${id}`).expect(204);
+      await visitante.delete(`${RUTA}/${id}`).expect(204);
       const { body } = await tomar(id).expect(409);
       expect(body.codigo).toBe('SOLICITUD_CERRADA');
       await tomar('00000000-0000-4000-8000-000000000000').expect(404);
@@ -189,13 +195,13 @@ describe('HU-30 · Atender la cola de solicitudes (e2e)', () => {
       expect(body.codigo).toBe('SOLICITUD_CERRADA');
 
       // Y quien la pidió ya no la puede cancelar.
-      await http().delete(`${RUTA}/${id}`).expect(409);
+      await visitante.delete(`${RUTA}/${id}`).expect(409);
     });
 
     it('la persona puede cancelar aunque ya la estén atendiendo', async () => {
       const id = await pedir('12');
       await tomar(id).expect(200);
-      await http().delete(`${RUTA}/${id}`).expect(204);
+      await visitante.delete(`${RUTA}/${id}`).expect(204);
       const { body } = await resolver(id).expect(409);
       expect(body.codigo).toBe('SOLICITUD_CERRADA');
     });
@@ -219,5 +225,97 @@ describe('HU-30 · Atender la cola de solicitudes (e2e)', () => {
       where: { id },
     });
     expect(guardada.estado).toBe('PENDIENTE');
+  });
+
+  describe('BE-06 · GET /solicitudes-ayuda (cola del monitor, C-06)', () => {
+    const listar = (query: Record<string, string | number>, quien = ana) =>
+      http().get(RUTA).query(query).set(como(quien));
+
+    it('responde 401 sin sesión y 403 a un usuario público', async () => {
+      await http().get(RUTA).expect(401);
+      const token = await sesionUsuarioPublico(app);
+      await http()
+        .get(RUTA)
+        .set({ Authorization: `Bearer ${token}` })
+        .expect(403);
+    });
+
+    it('cada registro trae lo que muestra la cola, sin datos de la persona', async () => {
+      const id = await pedir('12');
+      const { body } = await listar({ estado: 'PENDIENTE' }).expect(200);
+      expect(body).toEqual({
+        datos: [
+          {
+            id,
+            equipo: '12',
+            tema: 'CORREO',
+            estado: 'PENDIENTE',
+            guia: null,
+            paso: null,
+            creadaEn: expect.any(String),
+            atendidaPor: null,
+            tomadaEn: null,
+            resueltaEn: null,
+            comentarioResolucion: null,
+          },
+        ],
+        total: 1,
+        pagina: 1,
+        limite: 20,
+      });
+    });
+
+    it('con estado=EN_ATENCION el monitor ve las que ya tomó, con su nombre', async () => {
+      const id = await pedir('12');
+      await pedir('7');
+      await tomar(id).expect(200);
+      const { body } = await listar({ estado: 'EN_ATENCION' }).expect(200);
+      expect(body.datos).toHaveLength(1);
+      expect(body.datos[0]).toMatchObject({
+        id,
+        estado: 'EN_ATENCION',
+        atendidaPor: 'Persona personal',
+        tomadaEn: expect.any(String),
+      });
+    });
+
+    it('filtra por tema, ordena de la más reciente a la más antigua y pagina', async () => {
+      for (const equipo of ['1', '2', '3']) await pedir(equipo);
+      await visitante
+        .post(RUTA)
+        .send({ equipo: '4', tema: 'IMPRESION' })
+        .expect(201);
+
+      const { body: impresion } = await listar({ tema: 'IMPRESION' }).expect(
+        200,
+      );
+      expect(impresion.datos.map((s: { equipo: string }) => s.equipo)).toEqual([
+        '4',
+      ]);
+
+      const { body: pagina2 } = await listar({
+        tema: 'CORREO',
+        direccion: 'desc',
+        pagina: 2,
+        limite: 2,
+      }).expect(200);
+      expect(pagina2).toMatchObject({ total: 3, pagina: 2, limite: 2 });
+      expect(pagina2.datos.map((s: { equipo: string }) => s.equipo)).toEqual([
+        '1',
+      ]);
+    });
+
+    it.each([
+      [{ limite: 101 }],
+      [{ limite: 0 }],
+      [{ pagina: 0 }],
+      [{ ordenarPor: 'equipo' }],
+      [{ direccion: 'arriba' }],
+      [{ estado: 'ABIERTA' }],
+      [{ tema: 'OTRA_COSA' }],
+    ])('responde 400 DATOS_INVALIDOS con %o', async (query) => {
+      const { body } = await listar(query).expect(400);
+      expect(body.codigo).toBe('DATOS_INVALIDOS');
+    });
   });
 });

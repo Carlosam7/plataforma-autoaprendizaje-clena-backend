@@ -1,5 +1,6 @@
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
+import TestAgent from 'supertest/lib/agent.js';
 import { App } from 'supertest/types.js';
 import { PrismaService } from '../../src/infrastructure/database/prisma.service.js';
 import {
@@ -17,6 +18,8 @@ describe('HU-29 · Solicitar ayuda presencial (e2e)', () => {
   let monitor: { id: string; token: string };
   let guiaId: string;
   let pasoId: string;
+  /** El navegador del visitante: guarda la cookie llave_ayuda como lo haría el real. */
+  let navegador: TestAgent;
 
   beforeAll(async () => {
     ({ app, prisma } = await crearApp());
@@ -24,6 +27,7 @@ describe('HU-29 · Solicitar ayuda presencial (e2e)', () => {
 
   beforeEach(async () => {
     await limpiarBaseDatos(prisma);
+    navegador = request.agent(app.getHttpServer());
     monitor = await sesionPersonal(app, { rol: 'PERSONAL' });
     const guia = await prisma.guia.create({
       data: {
@@ -54,10 +58,9 @@ describe('HU-29 · Solicitar ayuda presencial (e2e)', () => {
   });
 
   const http = () => request(app.getHttpServer());
-  const pedir = (cuerpo: Record<string, unknown>) =>
-    http()
-      .post(RUTA)
-      .send({ tema: 'CORREO', ...cuerpo });
+  const otroNavegador = () => request.agent(app.getHttpServer());
+  const pedir = (cuerpo: Record<string, unknown>, desde = navegador) =>
+    desde.post(RUTA).send({ tema: 'CORREO', ...cuerpo });
 
   describe('POST /solicitudes-ayuda', () => {
     it('sin sesión crea la solicitud y devuelve el puesto en la cola', async () => {
@@ -127,13 +130,14 @@ describe('HU-29 · Solicitar ayuda presencial (e2e)', () => {
       expect(await prisma.solicitudAyuda.count()).toBe(1);
     });
 
-    it('dos envíos a la vez desde el mismo equipo crean una sola solicitud', async () => {
+    it('dos envíos a la vez del mismo equipo crean una sola solicitud', async () => {
+      // Ninguno lleva aún la llave (la cookie llega con la primera respuesta): el segundo
+      // no puede probar que es el mismo navegador y recibe 409. El frontend evita el doble clic.
       const [a, b] = await Promise.all([
-        pedir({ equipo: '12' }),
-        pedir({ equipo: '12' }),
+        pedir({ equipo: '12' }, otroNavegador()),
+        pedir({ equipo: '12' }, otroNavegador()),
       ]);
-      expect([a.status, b.status].sort((x, y) => x - y)).toEqual([200, 201]);
-      expect(a.body.id).toBe(b.body.id);
+      expect([a.status, b.status].sort((x, y) => x - y)).toEqual([201, 409]);
       expect(await prisma.solicitudAyuda.count()).toBe(1);
     });
 
@@ -185,7 +189,7 @@ describe('HU-29 · Solicitar ayuda presencial (e2e)', () => {
   describe('GET /solicitudes-ayuda/:id', () => {
     it('devuelve el estado y el puesto actual sin exigir sesión', async () => {
       const { body: creada } = await pedir({ equipo: '12' }).expect(201);
-      const { body } = await http().get(`${RUTA}/${creada.id}`).expect(200);
+      const { body } = await navegador.get(`${RUTA}/${creada.id}`).expect(200);
       expect(body).toEqual({
         id: creada.id,
         equipo: '12',
@@ -202,16 +206,16 @@ describe('HU-29 · Solicitar ayuda presencial (e2e)', () => {
         where: { id: creada.id },
         data: { estado: 'EN_ATENCION', atendidaPorId: monitor.id },
       });
-      const { body } = await http().get(`${RUTA}/${creada.id}`).expect(200);
+      const { body } = await navegador.get(`${RUTA}/${creada.id}`).expect(200);
       expect(body).toMatchObject({ estado: 'EN_ATENCION', posicion: null });
     });
 
     it('responde 404 si no existe y 400 si el id no es válido', async () => {
-      const { body } = await http()
+      const { body } = await navegador
         .get(`${RUTA}/00000000-0000-4000-8000-000000000000`)
         .expect(404);
       expect(body.codigo).toBe('SOLICITUD_NO_ENCONTRADA');
-      await http().get(`${RUTA}/no-es-uuid`).expect(400);
+      await navegador.get(`${RUTA}/no-es-uuid`).expect(400);
     });
   });
 
@@ -220,32 +224,117 @@ describe('HU-29 · Solicitar ayuda presencial (e2e)', () => {
       const { body: primera } = await pedir({ equipo: '12' }).expect(201);
       const { body: segunda } = await pedir({ equipo: '7' }).expect(201);
 
-      await http().delete(`${RUTA}/${primera.id}`).expect(204);
+      await navegador.delete(`${RUTA}/${primera.id}`).expect(204);
 
       const guardada = await prisma.solicitudAyuda.findUniqueOrThrow({
         where: { id: primera.id },
       });
       expect(guardada.estado).toBe('CANCELADA');
       expect(guardada.canceladaEn).not.toBeNull();
-      const { body } = await http().get(`${RUTA}/${segunda.id}`).expect(200);
+      const { body } = await navegador.get(`${RUTA}/${segunda.id}`).expect(200);
       expect(body.posicion).toBe(1);
     });
 
     it('después de cancelar, el equipo puede volver a pedir ayuda', async () => {
       const { body: primera } = await pedir({ equipo: '12' }).expect(201);
-      await http().delete(`${RUTA}/${primera.id}`).expect(204);
+      await navegador.delete(`${RUTA}/${primera.id}`).expect(204);
       const { body: nueva } = await pedir({ equipo: '12' }).expect(201);
       expect(nueva.id).not.toBe(primera.id);
     });
 
     it('responde 409 si ya estaba cancelada y 404 si no existe', async () => {
       const { body: creada } = await pedir({ equipo: '12' }).expect(201);
-      await http().delete(`${RUTA}/${creada.id}`).expect(204);
-      const { body } = await http().delete(`${RUTA}/${creada.id}`).expect(409);
+      await navegador.delete(`${RUTA}/${creada.id}`).expect(204);
+      const { body } = await navegador
+        .delete(`${RUTA}/${creada.id}`)
+        .expect(409);
       expect(body.codigo).toBe('SOLICITUD_CERRADA');
-      await http()
+      await navegador
         .delete(`${RUTA}/00000000-0000-4000-8000-000000000000`)
         .expect(404);
+    });
+  });
+
+  describe('titularidad: solo el navegador que la pidió (C-05)', () => {
+    it('el POST entrega la llave en una cookie httpOnly y guarda solo su huella', async () => {
+      const res = await pedir({ equipo: '12' }).expect(201);
+
+      const [cookie] = res.headers['set-cookie'] as unknown as string[];
+      expect(cookie).toMatch(/^llave_ayuda=[A-Za-z0-9_-]{43};/);
+      expect(cookie).toContain('Path=/api/v1/solicitudes-ayuda');
+      expect(cookie).toContain('HttpOnly');
+      expect(cookie).toContain('SameSite=Strict');
+      expect(cookie).toContain('Max-Age=43200');
+      const llave = cookie.split(';')[0].split('=')[1];
+      expect(JSON.stringify(res.body)).not.toContain(llave);
+
+      const guardada = await prisma.solicitudAyuda.findUniqueOrThrow({
+        where: { id: res.body.id },
+      });
+      expect(guardada.titularHash).toMatch(/^[0-9a-f]{64}$/);
+      expect(guardada.titularHash).not.toBe(llave);
+    });
+
+    it('otro navegador, o uno sin la cookie, no la ve aunque conozca el id', async () => {
+      const { body: creada } = await pedir({ equipo: '12' }).expect(201);
+      const ajeno = otroNavegador();
+      await pedir({ equipo: '7' }, ajeno).expect(201);
+
+      const intentos = [
+        () => ajeno.get(`${RUTA}/${creada.id}`),
+        () => http().get(`${RUTA}/${creada.id}`),
+        () =>
+          http()
+            .get(`${RUTA}/${creada.id}`)
+            .set('Cookie', 'llave_ayuda=inventada'),
+      ];
+      for (const intento of intentos) {
+        const { body } = await intento().expect(404);
+        expect(body.codigo).toBe('SOLICITUD_NO_ENCONTRADA');
+      }
+    });
+
+    it('otro navegador no la cancela: sigue pendiente', async () => {
+      const { body: creada } = await pedir({ equipo: '12' }).expect(201);
+      await otroNavegador().delete(`${RUTA}/${creada.id}`).expect(404);
+      await http().delete(`${RUTA}/${creada.id}`).expect(404);
+
+      const guardada = await prisma.solicitudAyuda.findUniqueOrThrow({
+        where: { id: creada.id },
+      });
+      expect(guardada.estado).toBe('PENDIENTE');
+    });
+
+    it('si otro navegador ya pidió ayuda para ese equipo responde 409 sin revelarla', async () => {
+      const { body: creada } = await pedir({ equipo: 'Equipo 12' }).expect(201);
+
+      const res = await pedir({ equipo: 'equipo 12' }, otroNavegador()).expect(
+        409,
+      );
+      expect(res.body.codigo).toBe('EQUIPO_CON_SOLICITUD_ACTIVA');
+      expect(JSON.stringify(res.body)).not.toContain(creada.id);
+      expect(res.headers['set-cookie']).toBeUndefined();
+      expect(await prisma.solicitudAyuda.count()).toBe(1);
+    });
+
+    it('el mismo navegador sigue siendo titular de todo lo que pidió', async () => {
+      const { body: a } = await pedir({ equipo: '12' }).expect(201);
+      const { body: b } = await pedir({ equipo: '7' }).expect(201);
+      await navegador.get(`${RUTA}/${a.id}`).expect(200);
+      await navegador.get(`${RUTA}/${b.id}`).expect(200);
+    });
+
+    it('una solicitud sin titular (anterior a BE-02) solo la ve el personal', async () => {
+      const { id } = await prisma.solicitudAyuda.create({
+        data: { equipo: '3', tema: 'OTRO' },
+      });
+      await navegador.get(`${RUTA}/${id}`).expect(404);
+      await navegador.delete(`${RUTA}/${id}`).expect(404);
+      const { body } = await http()
+        .get(RUTA)
+        .set('Authorization', `Bearer ${monitor.token}`)
+        .expect(200);
+      expect(body.datos.map((s: { id: string }) => s.id)).toEqual([id]);
     });
   });
 
@@ -302,7 +391,7 @@ describe('HU-29 · Solicitar ayuda presencial (e2e)', () => {
 
     it('filtra por estado y por tema, y pagina', async () => {
       const { body: cancelada } = await pedir({ equipo: '12' }).expect(201);
-      await http().delete(`${RUTA}/${cancelada.id}`).expect(204);
+      await navegador.delete(`${RUTA}/${cancelada.id}`).expect(204);
       await pedir({ equipo: '7', tema: 'IMPRESION' }).expect(201);
       await pedir({ equipo: '3' }).expect(201);
 

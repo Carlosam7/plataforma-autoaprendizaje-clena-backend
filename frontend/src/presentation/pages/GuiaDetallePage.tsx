@@ -1,27 +1,122 @@
-import { useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router';
+import { useEffect, useRef, useState } from 'react';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
+import { CatalogoError } from '../../domain/guias/errors';
 import type { DetalleGuia } from '../../domain/guias/types';
+import { SesionRequeridaError } from '@/domain/practica/errors';
+import type { ModoPractica } from '@/domain/practica/types';
+import { ProgresoError } from '@/domain/progreso/errors';
+import type { ProgresoGuia } from '@/domain/progreso/types';
 import { container } from '../../main/container';
+import { rutaAyuda } from '@/presentation/ayuda/rutaAyuda';
 
 export function GuiaDetallePage() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const pasoInicial = Number(searchParams.get('paso'));
 
   const [detalle, setDetalle] = useState<DetalleGuia | null>(null);
   const [cargando, setCargando] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [pasoIndex, setPasoIndex] = useState(0);
+  const aperturaRegistrada = useRef<string | null>(null);
+
+  const [intento, setIntento] = useState(0);
+
+  // HU-23: solo un usuario público con sesión guarda su avance; nunca se llama sin sesión.
+  const [modo, setModo] = useState<ModoPractica | null>(null);
+  const [avance, setAvance] = useState<ProgresoGuia | null>(null);
+  const [avisoAvance, setAvisoAvance] = useState<string | null>(null);
+  const lecturasEnviadas = useRef(new Set<string>());
+  const claveVigente = useRef('');
+
+  useEffect(() => {
+    let activo = true;
+    void container.practica.determinarModo().then((m) => {
+      if (activo) setModo(m);
+    });
+    return () => {
+      activo = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (!slug) return;
+    let cancelado = false;
     container.guias.obtenerDetalle
       .ejecutar(slug)
       .then((data) => {
+        if (cancelado) return;
         setDetalle(data);
+        if (data) {
+          const indice = data.pasos.findIndex((p) => p.numero === pasoInicial);
+          // Tras recargar (p. ej. el personal reordenó) se conserva el paso, sin salirse del rango.
+          setPasoIndex((previo) =>
+            indice >= 0
+              ? indice
+              : Math.min(previo, Math.max(0, data.pasos.length - 1)),
+          );
+        }
+        // Una apertura por guía, aunque StrictMode o un reintento re-ejecuten el efecto.
+        if (data && aperturaRegistrada.current !== slug) {
+          aperturaRegistrada.current = slug;
+          void container.guias.registrarApertura.ejecutar(slug);
+        }
+      })
+      .catch((err: unknown) => {
+        if (cancelado) return;
+        setDetalle(null);
+        setError(
+          err instanceof CatalogoError
+            ? err.message
+            : 'No pudimos cargar la guía.',
+        );
       })
       .finally(() => {
-        setCargando(false);
+        if (!cancelado) setCargando(false);
       });
-  }, [slug]);
+    return () => {
+      cancelado = true;
+    };
+  }, [slug, intento, pasoInicial]);
+
+  const pasoNumero = detalle?.pasos[pasoIndex]?.numero;
+  useEffect(() => {
+    if (modo !== 'REGISTRADO' || !slug || pasoNumero == null) return;
+    const clave = `${slug}:${pasoNumero}`;
+    claveVigente.current = clave;
+    // Un solo POST por paso aunque StrictMode o un re-render repitan el efecto.
+    if (lecturasEnviadas.current.has(clave)) return;
+    lecturasEnviadas.current.add(clave);
+    container.progreso.registrarLectura
+      .ejecutar(slug, pasoNumero)
+      .then((progreso) => {
+        if (claveVigente.current !== clave) return;
+        setAvance(progreso);
+        setAvisoAvance(null);
+      })
+      .catch((err: unknown) => {
+        lecturasEnviadas.current.delete(clave);
+        if (claveVigente.current !== clave) return;
+        if (err instanceof ProgresoError && err.tipo === 'PASO_NO_ENCONTRADO') {
+          // El personal pudo reordenar o quitar pasos: se recarga el detalle vigente.
+          setIntento((n) => n + 1);
+          return;
+        }
+        setAvisoAvance(
+          err instanceof SesionRequeridaError ||
+            (err instanceof ProgresoError && err.tipo === 'SESION')
+            ? 'Tu sesión terminó y no pudimos guardar tu avance. Inicia sesión de nuevo para conservarlo.'
+            : 'No pudimos guardar tu avance en este momento. Puedes seguir leyendo.',
+        );
+      });
+  }, [modo, slug, pasoNumero, detalle]);
+
+  const cargar = () => {
+    setCargando(true);
+    setError(null);
+    setIntento((n) => n + 1);
+  };
 
   if (cargando) {
     return (
@@ -31,6 +126,29 @@ export function GuiaDetallePage() {
         role="status"
       >
         Cargando guía educativa...
+      </main>
+    );
+  }
+
+  if (error) {
+    return (
+      <main
+        id="contenido"
+        className="max-w-360 mx-auto px-4 md:px-12 lg:px-24 py-16 flex flex-col items-center gap-6 text-center"
+      >
+        <h1 className="text-[2rem] font-bold text-[#17324d]">
+          No pudimos cargar la guía
+        </h1>
+        <p className="text-[1.111rem] text-[#526575] max-w-125" role="alert">
+          {error} Tu avance no se perdió; puedes intentarlo de nuevo.
+        </p>
+        <button
+          type="button"
+          onClick={cargar}
+          className="inline-flex items-center justify-center min-h-14 px-8 font-semibold text-white bg-[#0d6258] rounded-xl hover:bg-[#09473f] cursor-pointer"
+        >
+          Reintentar
+        </button>
       </main>
     );
   }
@@ -57,7 +175,7 @@ export function GuiaDetallePage() {
     );
   }
 
-  const { guia, pasos, preguntas } = detalle;
+  const { guia, pasos, tieneActividad } = detalle;
   const totalPasos = pasos.length;
   const pasoActual = pasos[pasoIndex];
   const esUltimoPaso = pasoIndex === totalPasos - 1;
@@ -85,7 +203,7 @@ export function GuiaDetallePage() {
     if (!esUltimoPaso) {
       setPasoIndex((prev) => prev + 1);
       window.scrollTo({ top: 120, behavior: 'smooth' });
-    } else if (preguntas.length > 0) {
+    } else if (tieneActividad) {
       navigate(`/guias/${slug}/practica`);
     } else {
       navigate('/guias');
@@ -151,6 +269,19 @@ export function GuiaDetallePage() {
             </div>
           </div>
         </div>
+
+        {avance && (
+          <p role="status" className="m-0 font-semibold text-[#0d6258]">
+            Tu avance guardado: {avance.porcentaje}% ({avance.pasosLeidos} de{' '}
+            {avance.totalPasos} pasos leídos)
+            {avance.completada ? ' · Guía completada' : ''}
+          </p>
+        )}
+        {avisoAvance && (
+          <p role="alert" className="m-0 font-medium text-[#7f1d1d]">
+            {avisoAvance}
+          </p>
+        )}
       </section>
 
       {/* Región dinámica anunciada para tecnologías asistivas */}
@@ -366,7 +497,7 @@ export function GuiaDetallePage() {
           className="inline-flex items-center justify-center min-h-14 px-8 py-4 font-semibold text-[1.111rem] text-white bg-[#0d6258] rounded-xl hover:bg-[#09473f] cursor-pointer transition-colors focus:outline-none focus:ring-4 focus:ring-[#0d6258]/30"
         >
           {esUltimoPaso
-            ? preguntas.length > 0
+            ? tieneActividad
               ? 'Ir a la práctica interactiva →'
               : 'Terminar guía →'
             : 'Siguiente →'}
@@ -379,7 +510,7 @@ export function GuiaDetallePage() {
           Kamá · Aprende a tu ritmo. Estamos para acompañarte.
         </p>
         <Link
-          to="/ayuda"
+          to={rutaAyuda(guia.slug, pasoActual?.numero)}
           className="inline-flex items-center gap-2 px-5 py-3 font-semibold text-[#0d6258] bg-white border border-[#0d6258] rounded-full hover:bg-[#e7f2ee] no-underline focus:outline-none focus:ring-4 focus:ring-[#0d6258]/30"
         >
           <span className="font-bold text-[1.2rem]" aria-hidden="true">

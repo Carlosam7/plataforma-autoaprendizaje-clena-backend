@@ -5,7 +5,9 @@ import type {
   RolPersonal,
   SesionPersonal,
 } from '@/domain/personal/types';
+import { SesionPersonalExpiradaError } from '@/domain/personal/errors';
 import { container } from '@/main/container';
+import { NavegacionPersonal } from '@/presentation/personal/NavegacionPersonal';
 
 export function GestionPersonalPage() {
   const navigate = useNavigate();
@@ -38,6 +40,17 @@ export function GestionPersonalPage() {
   const [mensajeExito, setMensajeExito] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // La sesión venció y no se pudo renovar: se vuelve al ingreso del personal.
+  const mensajeDeError = useCallback(
+    (err: unknown, porDefecto: string): string => {
+      if (err instanceof SesionPersonalExpiradaError) {
+        navigate('/personal/acceso');
+      }
+      return err instanceof Error ? err.message : porDefecto;
+    },
+    [navigate],
+  );
+
   const cargarCuentas = useCallback(
     async (token: string) => {
       setCargando(true);
@@ -56,15 +69,13 @@ export function GestionPersonalPage() {
         setPersonal(res.datos);
       } catch (err) {
         setError(
-          err instanceof Error
-            ? err.message
-            : 'No se pudo cargar el listado del personal.',
+          mensajeDeError(err, 'No se pudo cargar el listado del personal.'),
         );
       } finally {
         setCargando(false);
       }
     },
-    [busqueda, filtroRol, filtroActivo],
+    [busqueda, filtroRol, filtroActivo, mensajeDeError],
   );
 
   // Verificar rol de administrador (AC-HU04-04)
@@ -150,9 +161,7 @@ export function GestionPersonalPage() {
       setNuevaPasswordTemporal('Temporal2026');
       await cargarCuentas(sesion.accessToken);
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : 'No se pudo crear la cuenta.',
-      );
+      setError(mensajeDeError(err, 'No se pudo crear la cuenta.'));
     } finally {
       setGuardandoNuevo(false);
     }
@@ -171,9 +180,7 @@ export function GestionPersonalPage() {
       setCuentaADesactivar(null);
       await cargarCuentas(sesion.accessToken);
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : 'No se pudo desactivar la cuenta.',
-      );
+      setError(mensajeDeError(err, 'No se pudo desactivar la cuenta.'));
     }
   };
 
@@ -184,9 +191,7 @@ export function GestionPersonalPage() {
       setMensajeExito(`La cuenta de ${nombre} ha sido reactivada.`);
       await cargarCuentas(sesion.accessToken);
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : 'No se pudo reactivar la cuenta.',
-      );
+      setError(mensajeDeError(err, 'No se pudo reactivar la cuenta.'));
     }
   };
 
@@ -200,6 +205,7 @@ export function GestionPersonalPage() {
       id="contenido"
       className="max-w-360 mx-auto px-4 md:px-12 lg:px-24 py-10 flex flex-col gap-8"
     >
+      {sesion && <NavegacionPersonal sesion={sesion} />}
       {/* Encabezado y barra superior */}
       <section className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-border pb-6">
         <div className="flex flex-col gap-2">

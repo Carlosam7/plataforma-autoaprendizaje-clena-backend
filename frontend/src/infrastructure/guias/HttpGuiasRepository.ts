@@ -1,4 +1,5 @@
 import type { GuiasRepository } from '../../application/guias/ports';
+import { CatalogoError } from '../../domain/guias/errors';
 import type {
   BloquePaso,
   Categoria,
@@ -7,7 +8,6 @@ import type {
   NivelGuia,
   PasoGuia,
 } from '../../domain/guias/types';
-import { InMemoryGuiasRepository } from './InMemoryGuiasRepository';
 
 interface GuiaResumenBackend {
   slug: string;
@@ -58,152 +58,242 @@ function mapearNivel(nivel: 'BASICO' | 'INTERMEDIO' | 'AVANZADO'): NivelGuia {
   }
 }
 
-export class HttpGuiasRepository implements GuiasRepository {
-  private readonly fallback: InMemoryGuiasRepository;
+const METADATA_CATEGORIAS: Record<
+  string,
+  { descripcion: string; numero: string }
+> = {
+  'seguridad-digital': {
+    numero: '01 / CATEGORÍA',
+    descripcion:
+      'Reconoce los engaños antes de actuar. Algunas personas se hacen pasar por alguien de confianza para pedirte datos o dinero. Aprende a reconocer sus señales en mensajes, llamadas, códigos QR y alertas falsas.',
+  },
+  'correo-electronico': {
+    numero: '02 / CATEGORÍA',
+    descripcion:
+      'Comunícate por escrito con tranquilidad. Aprende a crear tu cuenta, enviar y responder mensajes, adjuntar documentos y fotos, y proteger tu información.',
+  },
+  'busqueda-internet': {
+    numero: '03 / CATEGORÍA',
+    descripcion:
+      'Encuentra respuestas confiables en la web. Aprende a escribir lo que buscas, comparar fuentes de información y evitar enlaces engañosos.',
+  },
+  documentos: {
+    numero: '04 / CATEGORÍA',
+    descripcion:
+      'Escribe, guarda y organiza tus textos. Aprende a redactar cartas, notas y documentos digitales sin miedo a perder lo que has hecho.',
+  },
+  'redes-sociales': {
+    numero: '05 / CATEGORÍA',
+    descripcion:
+      'Conéctate con amigos y familiares cuidando tu privacidad. Aprende a comunicarte por mensajería web y a proteger lo que compartes.',
+  },
+};
 
-  constructor(
-    private readonly baseUrl: string = '/api/v1',
-    fallback?: InMemoryGuiasRepository,
-  ) {
-    this.fallback = fallback ?? new InMemoryGuiasRepository();
+const esObjeto = (v: unknown): v is Record<string, unknown> =>
+  typeof v === 'object' && v !== null;
+
+function esPaginada(v: unknown): v is { datos: unknown[] } {
+  return esObjeto(v) && Array.isArray(v.datos);
+}
+
+const esCategoriasPaginadas = (
+  v: unknown,
+): v is { datos: { slug: string; nombre: string; icono: string }[] } =>
+  esPaginada(v) &&
+  v.datos.every(
+    (c) =>
+      esObjeto(c) && typeof c.slug === 'string' && typeof c.nombre === 'string',
+  );
+
+const esResumenGuia = (g: unknown): g is GuiaResumenBackend =>
+  esObjeto(g) &&
+  typeof g.slug === 'string' &&
+  typeof g.titulo === 'string' &&
+  typeof g.categoria === 'string' &&
+  typeof g.objetivo === 'string' &&
+  typeof g.nivel === 'string' &&
+  typeof g.duracionEstimadaMin === 'number';
+
+const esGuiasPaginadas = (v: unknown): v is GuiasPaginadasBackend =>
+  esPaginada(v) && v.datos.every(esResumenGuia);
+
+const esDetalleGuia = (v: unknown): v is DetalleGuiaBackend =>
+  esResumenGuia(v) &&
+  Array.isArray((v as { pasos?: unknown }).pasos) &&
+  (v as unknown as DetalleGuiaBackend).pasos.every(
+    (p) =>
+      esObjeto(p) && typeof p.orden === 'number' && Array.isArray(p.bloques),
+  );
+
+const TIMEOUT_MS = 10_000;
+
+export class HttpGuiasRepository implements GuiasRepository {
+  constructor(private readonly baseUrl: string = '/api/v1') {}
+
+  /** GET JSON. Devuelve null solo ante 404; todo otro fallo lanza CatalogoError. */
+  private async obtenerJson<T>(
+    ruta: string,
+    esValido: (data: unknown) => data is T,
+  ): Promise<T | null> {
+    let res: Response;
+    try {
+      res = await fetch(`${this.baseUrl}${ruta}`, {
+        headers: { Accept: 'application/json' },
+        signal: AbortSignal.timeout(TIMEOUT_MS),
+      });
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'TimeoutError') {
+        throw new CatalogoError(
+          'El servidor tardó demasiado en responder.',
+          'TIMEOUT',
+        );
+      }
+      throw new CatalogoError(
+        'No pudimos conectarnos con el servidor.',
+        'CONEXION',
+      );
+    }
+
+    if (res.status === 404) return null;
+    if (!res.ok) {
+      throw new CatalogoError(
+        'El servidor no pudo atender la solicitud.',
+        'SERVIDOR',
+        res.status,
+      );
+    }
+
+    let data: unknown;
+    try {
+      data = await res.json();
+    } catch {
+      throw new CatalogoError(
+        'El servidor envió una respuesta que no se puede leer.',
+        'RESPUESTA_INVALIDA',
+        res.status,
+      );
+    }
+    if (!esValido(data)) {
+      throw new CatalogoError(
+        'El servidor envió una respuesta inesperada.',
+        'RESPUESTA_INVALIDA',
+        res.status,
+      );
+    }
+    return data;
+  }
+
+  private async requerirJson<T>(
+    ruta: string,
+    esValido: (data: unknown) => data is T,
+  ): Promise<T> {
+    const data = await this.obtenerJson(ruta, esValido);
+    if (data === null) {
+      throw new CatalogoError(
+        'El servidor no encontró el recurso solicitado.',
+        'SERVIDOR',
+        404,
+      );
+    }
+    return data;
+  }
+
+  async listarCategorias(): Promise<Categoria[]> {
+    const json = await this.requerirJson(
+      '/categorias?limite=50&ordenarPor=orden&direccion=asc',
+      esCategoriasPaginadas,
+    );
+    return json.datos.map((cat, index) => {
+      const meta = METADATA_CATEGORIAS[cat.slug] || {
+        numero: `${String(index + 1).padStart(2, '0')} / CATEGORÍA`,
+        descripcion: `Aprende y practica temas de ${cat.nombre.toLowerCase()} a tu propio ritmo.`,
+      };
+      return {
+        id: `cat-${cat.slug}`,
+        slug: cat.slug,
+        nombre: cat.nombre,
+        icono: cat.icono,
+        numero: meta.numero,
+        descripcion: meta.descripcion,
+      };
+    });
   }
 
   async obtenerCategoria(slug: string): Promise<Categoria | null> {
     const slugNormalizado = slug === 'phishing' ? 'seguridad-digital' : slug;
-    try {
-      const res = await fetch(`${this.baseUrl}/categorias?limite=50`);
-      if (res.ok) {
-        const json = (await res.json()) as {
-          datos: { slug: string; nombre: string; icono: string }[];
-        };
-        const cat = json.datos.find((c) => c.slug === slugNormalizado);
-        if (cat) {
-          return {
-            id: `cat-${cat.slug}`,
-            slug: cat.slug,
-            nombre: cat.nombre,
-            descripcion:
-              'Reconoce los engaños antes de actuar. Algunas personas se hacen pasar por alguien de confianza para pedirte datos o dinero. Aprende a reconocer sus señales en mensajes, llamadas, códigos QR y alertas falsas.',
-            numero: '01 / CATEGORÍA',
-          };
-        }
-      }
-    } catch {
-      // Usar fallback si el backend no está disponible
-    }
-    return this.fallback.obtenerCategoria(slugNormalizado);
+    const categorias = await this.listarCategorias();
+    return categorias.find((c) => c.slug === slugNormalizado) ?? null;
   }
 
   async listarGuiasPublicadas(categoriaSlug?: string): Promise<Guia[]> {
     const slugNormalizado =
       categoriaSlug === 'phishing' ? 'seguridad-digital' : categoriaSlug;
+    const ruta = slugNormalizado
+      ? `/guias?categoria=${encodeURIComponent(slugNormalizado)}`
+      : '/guias';
 
-    try {
-      const url = slugNormalizado
-        ? `${this.baseUrl}/guias?categoria=${encodeURIComponent(slugNormalizado)}`
-        : `${this.baseUrl}/guias`;
-
-      const res = await fetch(url, {
-        headers: { Accept: 'application/json' },
-      });
-
-      if (res.ok) {
-        const json = (await res.json()) as GuiasPaginadasBackend;
-        return json.datos.map((g, index) => ({
-          slug: g.slug,
-          numero: String(index + 1).padStart(2, '0'),
-          titulo: g.titulo,
-          subtitulo: g.objetivo,
-          descripcion: g.objetivo,
-          duracionEstimadaMinutos: g.duracionEstimadaMin,
-          nivel: mapearNivel(g.nivel),
-          estado: 'PUBLICADA',
-          categoriaSlug: g.categoria,
-          objetivo: g.objetivo,
-        }));
-      }
-    } catch {
-      // Fallback local ante desconexión
-    }
-
-    return this.fallback.listarGuiasPublicadas(slugNormalizado);
+    const json = await this.requerirJson(ruta, esGuiasPaginadas);
+    return json.datos.map((g, index) => ({
+      slug: g.slug,
+      numero: String(index + 1).padStart(2, '0'),
+      titulo: g.titulo,
+      subtitulo: g.objetivo,
+      descripcion: g.objetivo,
+      duracionEstimadaMinutos: g.duracionEstimadaMin,
+      nivel: mapearNivel(g.nivel),
+      estado: 'PUBLICADA',
+      categoriaSlug: g.categoria,
+      objetivo: g.objetivo,
+    }));
   }
 
   async obtenerDetalleGuia(slug: string): Promise<DetalleGuia | null> {
-    const fallbackDetalle = await this.fallback.obtenerDetalleGuia(slug);
+    const data = await this.obtenerJson(
+      `/guias/${encodeURIComponent(slug)}`,
+      esDetalleGuia,
+    );
+    if (data === null) return null;
 
-    try {
-      const res = await fetch(
-        `${this.baseUrl}/guias/${encodeURIComponent(slug)}`,
-        {
-          headers: { Accept: 'application/json' },
-        },
-      );
+    const pasos: PasoGuia[] = data.pasos.map((p) => {
+      const contenido = p.bloques
+        .filter((b) => b.tipo === 'texto' && b.texto)
+        .map((b) => b.texto as string)
+        .join('\n\n');
+      const primerAviso = p.bloques.find((b) => b.tipo === 'aviso');
 
-      if (res.status === 404) {
-        return null;
-      }
+      return {
+        numero: p.orden,
+        titulo: p.titulo,
+        contenido,
+        bloques: p.bloques as BloquePaso[],
+        recordatorio: primerAviso?.texto
+          ? {
+              titulo: primerAviso.nivel === 'alerta' ? 'Atención' : 'Recuerda',
+              consejo: primerAviso.texto,
+            }
+          : undefined,
+      };
+    });
 
-      if (res.ok) {
-        const data = (await res.json()) as DetalleGuiaBackend;
-
-        const pasos: PasoGuia[] = data.pasos.map((p) => {
-          const fallbackPaso = fallbackDetalle?.pasos.find(
-            (fp) => fp.numero === p.orden,
-          );
-
-          // Si hay bloques de texto en el backend, unimos todos en contenidoCompleto
-          const textos = p.bloques
-            .filter((b) => b.tipo === 'texto' && b.texto)
-            .map((b) => b.texto as string);
-
-          const contenidoCompleto =
-            textos.length > 0
-              ? textos.join('\n\n')
-              : fallbackPaso?.contenido || '';
-
-          const primerAviso = p.bloques.find((b) => b.tipo === 'aviso');
-
-          return {
-            numero: p.orden,
-            titulo: p.titulo,
-            contenido: contenidoCompleto,
-            bloques: p.bloques as BloquePaso[],
-            recordatorio: primerAviso?.texto
-              ? {
-                  titulo:
-                    primerAviso.nivel === 'alerta' ? 'Atención' : 'Recuerda',
-                  consejo: primerAviso.texto,
-                }
-              : fallbackPaso?.recordatorio,
-            ejemplo: fallbackPaso?.ejemplo,
-          };
-        });
-
-        return {
-          guia: {
-            slug: data.slug,
-            numero: fallbackDetalle?.guia.numero || '01',
-            titulo: data.titulo,
-            subtitulo: data.objetivo,
-            descripcion: data.objetivo,
-            duracionEstimadaMinutos: data.duracionEstimadaMin,
-            nivel: mapearNivel(data.nivel),
-            estado: 'PUBLICADA',
-            categoriaSlug: data.categoria,
-            objetivo: data.objetivo,
-          },
-          totalPasos: data.totalPasos,
-          tieneActividad: data.tieneActividad,
-          pasos,
-          preguntas: fallbackDetalle?.preguntas || [],
-        };
-      }
-    } catch {
-      // Fallback local ante desconexión
-    }
-
-    return fallbackDetalle;
+    return {
+      guia: {
+        slug: data.slug,
+        numero: '',
+        titulo: data.titulo,
+        subtitulo: data.objetivo,
+        descripcion: data.objetivo,
+        duracionEstimadaMinutos: data.duracionEstimadaMin,
+        nivel: mapearNivel(data.nivel),
+        estado: 'PUBLICADA',
+        categoriaSlug: data.categoria,
+        objetivo: data.objetivo,
+      },
+      totalPasos: data.totalPasos,
+      tieneActividad: data.tieneActividad,
+      pasos,
+      // El backend aún no expone preguntas de práctica (BE-01 / C-04).
+      preguntas: [],
+    };
   }
 
   async registrarAperturaGuia(slug: string): Promise<void> {
@@ -213,6 +303,7 @@ export class HttpGuiasRepository implements GuiasRepository {
         {
           method: 'POST',
           credentials: 'include',
+          signal: AbortSignal.timeout(TIMEOUT_MS),
         },
       );
     } catch {

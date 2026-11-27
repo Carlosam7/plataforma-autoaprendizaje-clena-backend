@@ -1,15 +1,19 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router';
-import { container } from '@/main/container';
 import type { CanalVerificacion } from '@/domain/auth/types';
+import { container } from '@/main/container';
 
 interface NavigationState {
+  solicitudId?: string;
   registroId?: string;
   canal?: CanalVerificacion;
   destino?: string;
   mensaje?: string;
   puedeReenviarEn?: string;
   expiraEn?: string;
+  tipo?: 'REGISTRO' | 'LOGIN';
+  numeroIdentificacion?: string;
+  contacto?: string;
 }
 
 export function VerificarAccesoPage() {
@@ -18,10 +22,22 @@ export function VerificarAccesoPage() {
   const [searchParams] = useSearchParams();
 
   const state = (location.state as NavigationState) || {};
-  const registroId = state.registroId || searchParams.get('registroId') || '';
+  const tipo =
+    state.tipo ||
+    (searchParams.get('tipo') as 'REGISTRO' | 'LOGIN') ||
+    'REGISTRO';
+  const esLogin = tipo === 'LOGIN';
+
+  const activeId =
+    state.solicitudId ||
+    state.registroId ||
+    searchParams.get('solicitudId') ||
+    searchParams.get('registroId') ||
+    '';
   const canal = state.canal || 'CORREO';
   const destino =
-    state.destino || (canal === 'CORREO' ? 'ana@correo.com' : 'tu celular');
+    state.destino ||
+    (canal === 'CORREO' ? 'tu correo electrónico' : 'tu celular');
 
   const [codigo, setCodigo] = useState('');
   const [verificando, setVerificando] = useState(false);
@@ -53,9 +69,11 @@ export function VerificarAccesoPage() {
     setExitoMensaje(null);
 
     const codigoLimpio = codigo.replace(/\s+/g, '');
-    if (!registroId) {
+    if (!activeId) {
       setErrorGeneral(
-        'No encontramos una solicitud de registro activa. Por favor vuelve a llenar el formulario.',
+        esLogin
+          ? 'No encontramos una solicitud de inicio de sesión activa. Por favor vuelve a escribir tus datos.'
+          : 'No encontramos una solicitud de registro activa. Por favor vuelve a llenar el formulario.',
       );
       return;
     }
@@ -66,14 +84,23 @@ export function VerificarAccesoPage() {
 
     setVerificando(true);
     try {
-      const sesion = await container.auth.verificarCodigo.ejecutar({
-        registroId,
-        codigo: codigoLimpio,
-      });
+      if (esLogin) {
+        const sesion = await container.auth.verificarInicioSesion.ejecutar({
+          solicitudId: activeId,
+          codigo: codigoLimpio,
+        });
 
-      setExitoMensaje(
-        `¡Bienvenida, ${sesion.usuario.nombre}! Tu cuenta fue creada con éxito.`,
-      );
+        setExitoMensaje(`¡Bienvenida(o) de nuevo, ${sesion.usuario.nombre}!`);
+      } else {
+        const sesion = await container.auth.verificarCodigo.ejecutar({
+          registroId: activeId,
+          codigo: codigoLimpio,
+        });
+
+        setExitoMensaje(
+          `¡Bienvenida, ${sesion.usuario.nombre}! Tu cuenta fue creada con éxito.`,
+        );
+      }
 
       setTimeout(() => {
         navigate('/guias');
@@ -91,24 +118,39 @@ export function VerificarAccesoPage() {
   };
 
   const handleReenviar = async () => {
-    if (segundosRestantes > 0 || reenviando || !registroId) return;
+    if (segundosRestantes > 0 || reenviando || !activeId) return;
 
     setErrorGeneral(null);
     setExitoMensaje(null);
     setReenviando(true);
 
     try {
-      const resultado =
-        await container.auth.reenviarCodigo.ejecutar(registroId);
-      setReenviando(false);
-      setExitoMensaje(
-        resultado.mensaje ||
-          'Te hemos enviado un nuevo código de verificación.',
-      );
-      const diff = Math.ceil(
-        (resultado.puedeReenviarEn.getTime() - Date.now()) / 1000,
-      );
-      setSegundosRestantes(diff > 0 ? diff : 60);
+      if (esLogin && state.numeroIdentificacion && state.contacto) {
+        const resultado = await container.auth.solicitarInicioSesion.ejecutar({
+          numeroIdentificacion: state.numeroIdentificacion,
+          contacto: state.contacto,
+        });
+        setReenviando(false);
+        setExitoMensaje(
+          resultado.mensaje || 'Te hemos enviado un nuevo código de acceso.',
+        );
+        const diff = Math.ceil(
+          (resultado.puedeReenviarEn.getTime() - Date.now()) / 1000,
+        );
+        setSegundosRestantes(diff > 0 ? diff : 60);
+      } else {
+        const resultado =
+          await container.auth.reenviarCodigo.ejecutar(activeId);
+        setReenviando(false);
+        setExitoMensaje(
+          resultado.mensaje ||
+            'Te hemos enviado un nuevo código de verificación.',
+        );
+        const diff = Math.ceil(
+          (resultado.puedeReenviarEn.getTime() - Date.now()) / 1000,
+        );
+        setSegundosRestantes(diff > 0 ? diff : 60);
+      }
     } catch (err) {
       setReenviando(false);
       if (err instanceof Error) {
@@ -127,7 +169,7 @@ export function VerificarAccesoPage() {
     >
       <main
         id="contenido"
-        className="flex-1 flex flex-col items-center justify-center px-4 sm:px-8 md:px-24 py-8 md:py-12 w-full max-w-[1440px] mx-auto"
+        className="flex-1 flex flex-col items-center justify-center px-4 sm:px-8 md:px-24 py-8 md:py-12 w-full max-w-360 mx-auto"
       >
         <div
           className="flex flex-col lg:flex-row gap-8 lg:gap-16 items-center justify-center w-full"
@@ -137,7 +179,7 @@ export function VerificarAccesoPage() {
           {/* Columna Izquierda: 552px */}
           <section
             aria-labelledby="titulo-aprender-cuenta"
-            className="bg-[#e7f2ee] flex flex-col gap-6 items-start p-6 sm:p-8 md:p-10 rounded-3xl w-full lg:w-[552px] shrink-0"
+            className="bg-[#e7f2ee] flex flex-col gap-6 items-start p-6 sm:p-8 md:p-10 rounded-3xl w-full lg:w-138 shrink-0"
             data-node-id="4:4616"
             data-name="Aprender con cuenta"
           >
@@ -181,32 +223,34 @@ export function VerificarAccesoPage() {
 
           {/* Columna Derecha: Tarjeta de 632px */}
           <section
-            aria-labelledby="titulo-revisa-correo"
-            className="bg-white border border-[#d7e2e7] flex flex-col gap-6 items-start p-6 sm:p-8 md:p-10 rounded-3xl w-full lg:w-[632px] shrink-0 shadow-sm"
+            aria-labelledby="titulo-revisa-codigo"
+            className="bg-white border border-[#d7e2e7] flex flex-col gap-6 items-start p-6 sm:p-8 md:p-10 rounded-3xl w-full lg:w-158 shrink-0 shadow-sm"
             data-node-id="4:4623"
-            data-name="Revisa tu correo"
+            data-name="Revisa tu correo o celular"
           >
             <div>
               <h2
-                id="titulo-revisa-correo"
+                id="titulo-revisa-codigo"
                 className="font-bold text-[#17324d] text-[30px] md:text-[36px] leading-[1.2] m-0"
                 data-node-id="4:4624"
               >
-                Revisa tu correo
+                {esLogin ? 'Revisa tu correo o celular' : 'Revisa tu correo'}
               </h2>
               <p
                 className="font-normal text-[#526575] text-[18px] md:text-[20px] leading-[1.45] mt-2 mb-0"
                 data-node-id="4:4625"
               >
-                Escribe el código de seis números que enviamos a tu correo.
+                {esLogin
+                  ? 'Escribe el código de seis números que enviamos para iniciar tu sesión.'
+                  : 'Escribe el código de seis números que enviamos a tu correo.'}
               </p>
             </div>
 
-            {/* Correo de destino */}
+            {/* Contacto de destino */}
             <div
               className="bg-[#e7f2ee] p-4 rounded-xl w-full"
               data-node-id="4:4626"
-              data-name="Correo de destino"
+              data-name="Contacto de destino"
             >
               <p
                 className="font-semibold text-[#0d6258] text-[20px] leading-[1.45] m-0 break-all"
@@ -217,10 +261,10 @@ export function VerificarAccesoPage() {
             </div>
 
             <Link
-              to="/registro"
+              to={esLogin ? '/iniciar-sesion' : '/registro'}
               className="inline-flex items-center justify-center min-h-14 px-6 py-4 rounded-xl bg-white border border-[#d7e2e7] text-[#0d6258] font-semibold text-[18px] leading-[1.45] hover:border-[#0d6258] hover:bg-[#f1f5f9] transition-colors no-underline cursor-pointer"
             >
-              Cambiar correo
+              {esLogin ? 'Cambiar datos de acceso' : 'Cambiar correo'}
             </Link>
 
             {errorGeneral && (
@@ -251,7 +295,7 @@ export function VerificarAccesoPage() {
                   htmlFor="codigo"
                   className="font-semibold text-[#17324d] text-[18px] leading-[1.45]"
                 >
-                  Código de verificación
+                  Código de acceso
                 </label>
                 <input
                   id="codigo"
@@ -278,12 +322,12 @@ export function VerificarAccesoPage() {
                 className="font-normal text-[#526575] text-[18px] leading-[1.45] m-0"
                 data-node-id="4:4634"
               >
-                Código de ejemplo para este recorrido visual.
+                Ingresa los 6 números que te llegaron.
               </p>
 
               <button
                 type="submit"
-                disabled={verificando || codigo.length < 6 || !registroId}
+                disabled={verificando || codigo.length < 6 || !activeId}
                 className="w-full sm:w-auto inline-flex items-center justify-center min-h-14 px-6 py-4 rounded-xl bg-[#0d6258] text-white font-semibold text-[18px] leading-[1.45] hover:bg-[#09493f] transition-colors cursor-pointer border-none disabled:opacity-50"
               >
                 {verificando
@@ -293,7 +337,7 @@ export function VerificarAccesoPage() {
 
               <button
                 type="button"
-                disabled={segundosRestantes > 0 || reenviando || !registroId}
+                disabled={segundosRestantes > 0 || reenviando || !activeId}
                 onClick={handleReenviar}
                 className="w-full sm:w-auto inline-flex items-center justify-center min-h-14 px-6 py-4 rounded-xl bg-white border border-[#d7e2e7] text-[#0d6258] font-semibold text-[18px] leading-[1.45] hover:border-[#0d6258] hover:bg-[#f1f5f9] transition-colors cursor-pointer disabled:opacity-50"
               >
@@ -308,7 +352,8 @@ export function VerificarAccesoPage() {
                 className="font-normal text-[#526575] text-[18px] leading-[1.45] m-0"
                 data-node-id="4:4639"
               >
-                Si no llega, revisa la carpeta de correo no deseado.
+                Si no llega a tu correo, revisa la carpeta de correo no deseado
+                o spam.
               </p>
             </form>
           </section>
@@ -317,7 +362,7 @@ export function VerificarAccesoPage() {
 
       {/* Cierre / Pie institucional según Figma */}
       <footer
-        className="w-full max-w-[1440px] mx-auto px-4 sm:px-8 md:px-24 py-6 flex flex-wrap gap-6 items-center justify-between"
+        className="w-full max-w-360 mx-auto px-4 sm:px-8 md:px-24 py-6 flex flex-wrap gap-6 items-center justify-between"
         data-node-id="4:3981"
         data-name="Cierre"
       >

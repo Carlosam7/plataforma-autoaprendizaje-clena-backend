@@ -2,11 +2,12 @@ export type EstadoGuia = 'PUBLICADA' | 'BORRADOR' | 'OCULTA';
 export type NivelGuia = 'Básico' | 'Intermedio' | 'Avanzado';
 
 export interface Categoria {
-  id: string;
+  id?: string;
   slug: string;
   nombre: string;
-  descripcion: string;
-  numero: string;
+  descripcion?: string;
+  icono?: string;
+  numero?: string;
 }
 
 export type BloquePaso =
@@ -80,11 +81,17 @@ export interface RespuestaIntento {
   esCorrecta: boolean;
 }
 
-export interface ResultadoPractica {
-  guiaSlug: string;
+export interface CalificacionPractica {
+  respuestasCorrectas: number;
   totalPreguntas: number;
-  aciertos: number;
   porcentaje: number;
+  aprobado: boolean;
+  porcentajeAprobacion: number;
+}
+
+export interface ResultadoPractica extends CalificacionPractica {
+  guiaSlug: string;
+  aciertos: number;
   aprobada: boolean;
   umbralAprobacion: number; // e.g. 70%
 }

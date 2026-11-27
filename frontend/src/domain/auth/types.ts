@@ -14,6 +14,7 @@ export type CanalVerificacion = 'CORREO' | 'TELEFONO';
 
 export interface CodigoEnviado {
   registroId: string;
+  solicitudId?: string;
   canal: CanalVerificacion;
   destino: string;
   mensaje: string;
@@ -38,10 +39,32 @@ export interface SolicitudRegistro {
 }
 
 export interface SolicitudInicioSesion {
-  correo: string;
+  numeroIdentificacion: string;
+  contacto: string;
+}
+
+export interface VerificarInicioSesionParams {
+  solicitudId: string;
+  codigo: string;
 }
 
 export interface VerificarRegistroParams {
   registroId: string;
+  codigo: string;
+}
+
+/** HU-05: código enviado para confirmar la eliminación de la cuenta (C-08). */
+export interface EliminacionSolicitada {
+  solicitudId: string;
+  canal: CanalVerificacion;
+  /** Correo o celular enmascarado. */
+  destino: string;
+  mensaje: string;
+  expiraEn: Date;
+  puedeReenviarEn: Date;
+}
+
+export interface ConfirmarEliminacionParams {
+  solicitudId: string;
   codigo: string;
 }

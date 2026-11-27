@@ -11,6 +11,19 @@ describe('InMemoryGuiasRepository', () => {
     expect(cat?.numero).toBe('01 / CATEGORÍA');
   });
 
+  it('lista las 5 categorías disponibles', async () => {
+    const categorias = await repo.listarCategorias();
+    expect(categorias).toHaveLength(5);
+    const slugs = categorias.map((c) => c.slug);
+    expect(slugs).toEqual([
+      'seguridad-digital',
+      'correo-electronico',
+      'busqueda-internet',
+      'documentos',
+      'redes-sociales',
+    ]);
+  });
+
   it('lista las cuatro guías publicadas (AC-HU09-02)', async () => {
     const guias = await repo.listarGuiasPublicadas('phishing');
     expect(guias).toHaveLength(4);

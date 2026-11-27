@@ -1,8 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { DetalleGuia, Guia } from '../../domain/guias/types';
 import { CalcularResultadoPractica } from './CalcularResultadoPractica';
+import { ListarCategorias } from './ListarCategorias';
 import { ListarGuias } from './ListarGuias';
 import { ObtenerDetalleGuia } from './ObtenerDetalleGuia';
+import { RegistrarAperturaGuia } from './RegistrarAperturaGuia';
 import type { GuiasRepository } from './ports';
 
 describe('Guias use cases', () => {
@@ -48,6 +50,7 @@ describe('Guias use cases', () => {
 
   it('ListarGuias: solo devuelve guías publicadas (AC-HU09-02)', async () => {
     const repo: GuiasRepository = {
+      listarCategorias: vi.fn(),
       obtenerCategoria: vi.fn(),
       listarGuiasPublicadas: vi.fn().mockResolvedValue(guiasMock),
       obtenerDetalleGuia: vi.fn(),
@@ -61,7 +64,27 @@ describe('Guias use cases', () => {
     expect(resultado.map((g) => g.slug)).toEqual(['smishing', 'vishing']);
   });
 
-  it('ObtenerDetalleGuia: retorna el detalle y registra la apertura (AC-HU10-05)', async () => {
+  it('ListarCategorias: devuelve las categorías del repositorio', async () => {
+    const categoriasMock = [
+      { slug: 'seguridad-digital', nombre: 'Seguridad digital' },
+      { slug: 'correo-electronico', nombre: 'Correo electrónico' },
+    ];
+    const repo: GuiasRepository = {
+      listarCategorias: vi.fn().mockResolvedValue(categoriasMock),
+      obtenerCategoria: vi.fn(),
+      listarGuiasPublicadas: vi.fn(),
+      obtenerDetalleGuia: vi.fn(),
+      registrarAperturaGuia: vi.fn(),
+    };
+
+    const usecase = new ListarCategorias(repo);
+    const resultado = await usecase.ejecutar();
+
+    expect(resultado).toEqual(categoriasMock);
+    expect(repo.listarCategorias).toHaveBeenCalledOnce();
+  });
+
+  it('ObtenerDetalleGuia: retorna el detalle sin registrar telemetría', async () => {
     const detalleMock: DetalleGuia = {
       guia: guiasMock[0],
       totalPasos: 1,
@@ -81,6 +104,7 @@ describe('Guias use cases', () => {
     };
 
     const repo: GuiasRepository = {
+      listarCategorias: vi.fn(),
       obtenerCategoria: vi.fn(),
       listarGuiasPublicadas: vi.fn(),
       obtenerDetalleGuia: vi.fn().mockResolvedValue(detalleMock),
@@ -91,7 +115,31 @@ describe('Guias use cases', () => {
     const resultado = await usecase.ejecutar('smishing');
 
     expect(resultado).toEqual(detalleMock);
-    expect(repo.registrarAperturaGuia).toHaveBeenCalledWith('smishing');
+    expect(repo.registrarAperturaGuia).not.toHaveBeenCalled();
+  });
+
+  it('ObtenerDetalleGuia: propaga los fallos del repositorio', async () => {
+    const repo = {
+      obtenerDetalleGuia: vi.fn().mockRejectedValue(new Error('caído')),
+    } as unknown as GuiasRepository;
+    await expect(new ObtenerDetalleGuia(repo).ejecutar('x')).rejects.toThrow(
+      'caído',
+    );
+  });
+
+  it('RegistrarAperturaGuia: registra la apertura y absorbe fallos (AC-HU10-05)', async () => {
+    const ok = {
+      registrarAperturaGuia: vi.fn().mockResolvedValue(undefined),
+    } as unknown as GuiasRepository;
+    await new RegistrarAperturaGuia(ok).ejecutar('smishing');
+    expect(ok.registrarAperturaGuia).toHaveBeenCalledWith('smishing');
+
+    const falla = {
+      registrarAperturaGuia: vi.fn().mockRejectedValue(new Error('500')),
+    } as unknown as GuiasRepository;
+    await expect(
+      new RegistrarAperturaGuia(falla).ejecutar('smishing'),
+    ).resolves.toBeUndefined();
   });
 
   it('CalcularResultadoPractica: aprueba con 70% o más (AC-HU21-04)', () => {
@@ -104,6 +152,7 @@ describe('Guias use cases', () => {
       aciertos: 4,
     });
     expect(res1.porcentaje).toBe(80);
+    expect(res1.aprobado).toBe(true);
     expect(res1.aprobada).toBe(true);
 
     // 3 de 5 = 60% -> No aprobada
@@ -113,6 +162,104 @@ describe('Guias use cases', () => {
       aciertos: 3,
     });
     expect(res2.porcentaje).toBe(60);
+    expect(res2.aprobado).toBe(false);
     expect(res2.aprobada).toBe(false);
+  });
+
+  it('CalcularResultadoPractica: cubre 0/N, 69 %, 70 % exacto, 100 % y distintos tamaños sin redondear a favor', () => {
+    const usecase = new CalcularResultadoPractica();
+
+    expect(
+      usecase.ejecutar({
+        guiaSlug: 'smishing',
+        totalPreguntas: 5,
+        respuestasCorrectas: 0,
+      }),
+    ).toMatchObject({
+      respuestasCorrectas: 0,
+      totalPreguntas: 5,
+      porcentaje: 0,
+      aprobado: false,
+      porcentajeAprobacion: 70,
+    });
+
+    // 69 % exacto con umbral 70 % -> no aprobado
+    expect(
+      usecase.ejecutar({
+        guiaSlug: 'smishing',
+        totalPreguntas: 100,
+        respuestasCorrectas: 69,
+        porcentajeAprobacion: 70,
+      }),
+    ).toMatchObject({
+      porcentaje: 69,
+      aprobado: false,
+    });
+
+    // 139/200 = 69.5 % (Math.round daría 70 %) -> NO aprueba porque 139*100 < 70*200
+    expect(
+      usecase.ejecutar({
+        guiaSlug: 'smishing',
+        totalPreguntas: 200,
+        respuestasCorrectas: 139,
+        porcentajeAprobacion: 70,
+      }),
+    ).toMatchObject({
+      porcentaje: 70,
+      aprobado: false,
+    });
+
+    // 70 % exacto -> aprobado
+    expect(
+      usecase.ejecutar({
+        guiaSlug: 'smishing',
+        totalPreguntas: 10,
+        respuestasCorrectas: 7,
+        porcentajeAprobacion: 70,
+      }),
+    ).toMatchObject({
+      respuestasCorrectas: 7,
+      totalPreguntas: 10,
+      porcentaje: 70,
+      aprobado: true,
+    });
+
+    // 100 % en actividades de 1, 3 y 10 preguntas
+    for (const total of [1, 3, 10]) {
+      expect(
+        usecase.ejecutar({
+          guiaSlug: 'smishing',
+          totalPreguntas: total,
+          respuestasCorrectas: total,
+        }),
+      ).toMatchObject({
+        respuestasCorrectas: total,
+        totalPreguntas: total,
+        porcentaje: 100,
+        aprobado: true,
+      });
+    }
+  });
+
+  it('CalcularResultadoPractica.desdeCalificacion: preserva exactamente los datos de C-03', () => {
+    const usecase = new CalcularResultadoPractica();
+    const res = usecase.desdeCalificacion('smishing', {
+      respuestasCorrectas: 2,
+      totalPreguntas: 3,
+      porcentaje: 67,
+      aprobado: false,
+      porcentajeAprobacion: 70,
+    });
+    expect(res).toEqual({
+      guiaSlug: 'smishing',
+      respuestasCorrectas: 2,
+      aciertos: 2,
+      totalPreguntas: 3,
+      porcentaje: 67,
+      aprobado: false,
+      aprobada: false,
+      porcentajeAprobacion: 70,
+      umbralAprobacion: 70,
+    });
   });
 });

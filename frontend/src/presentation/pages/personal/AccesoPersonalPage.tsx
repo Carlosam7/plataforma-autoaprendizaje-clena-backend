@@ -11,7 +11,8 @@ export function AccesoPersonalPage() {
   const [correo, setCorreo] = useState('');
   const [password, setPassword] = useState('');
   const [codigo, setCodigo] = useState('');
-  const [destino, setDestino] = useState('');
+  // C-09: el código se verifica con el id de la solicitud, no con el correo enmascarado.
+  const [solicitudId, setSolicitudId] = useState('');
   const [mensajeInfo, setMensajeInfo] = useState('');
 
   const [cargando, setCargando] = useState(false);
@@ -32,7 +33,7 @@ export function AccesoPersonalPage() {
         correo: correo.trim(),
         password,
       });
-      setDestino(res.destino);
+      setSolicitudId(res.solicitudId);
       setMensajeInfo(res.mensaje);
       setPaso('CODIGO');
     } catch (err) {
@@ -63,7 +64,7 @@ export function AccesoPersonalPage() {
     setCargando(true);
     try {
       const sesion = await container.personal.verificarInicioSesion.ejecutar({
-        destino,
+        solicitudId,
         codigo: cod,
       });
 
@@ -72,7 +73,7 @@ export function AccesoPersonalPage() {
       } else if (sesion.usuario.rol === 'ADMINISTRADOR') {
         navigate('/admin/personal');
       } else {
-        navigate('/guias');
+        navigate('/personal/solicitudes');
       }
     } catch (err) {
       if (err instanceof Error) {
@@ -93,6 +94,7 @@ export function AccesoPersonalPage() {
         correo: correo.trim(),
         password,
       });
+      setSolicitudId(res.solicitudId);
       setMensajeInfo(res.mensaje);
     } catch (err) {
       setError(

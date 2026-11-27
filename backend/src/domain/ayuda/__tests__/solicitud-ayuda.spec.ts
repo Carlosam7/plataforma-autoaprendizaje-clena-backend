@@ -19,13 +19,17 @@ function crear(cambios: { equipo?: string; guiaId?: string | null } = {}) {
     guiaId: 'g1',
     pasoId: 'p3',
     usuarioId: null,
+    titularHash: 'huella-a',
     ahora: AHORA,
     ...cambios,
   });
 }
 
 /** Solicitud ya guardada en ese estado; si la atienden o la atendieron, fue Ana. */
-function enEstado(estado: EstadoSolicitud): SolicitudAyuda {
+function enEstado(
+  estado: EstadoSolicitud,
+  titularHash: string | null = 'huella-a',
+): SolicitudAyuda {
   const atendida = estado === 'EN_ATENCION' || estado === 'RESUELTA';
   return SolicitudAyuda.reconstituir({
     id: 's2',
@@ -41,6 +45,7 @@ function enEstado(estado: EstadoSolicitud): SolicitudAyuda {
     resueltaEn: estado === 'RESUELTA' ? AHORA : null,
     comentarioResolucion: null,
     canceladaEn: estado === 'CANCELADA' ? AHORA : null,
+    titularHash,
   });
 }
 
@@ -68,6 +73,21 @@ describe('SolicitudAyuda', () => {
     ['de más de 100 letras', 'x'.repeat(101)],
   ])('rechaza un equipo %s', (_, equipo) => {
     expect(() => crear({ equipo })).toThrow(DatoInvalidoError);
+  });
+
+  describe('titular (C-05)', () => {
+    it('es del navegador cuya llave tiene esa huella, y de ningún otro', () => {
+      const solicitud = crear();
+      expect(solicitud.esDelTitular('huella-a')).toBe(true);
+      expect(solicitud.esDelTitular('huella-b')).toBe(false);
+      expect(solicitud.esDelTitular(null)).toBe(false);
+    });
+
+    it('una solicitud sin titular (anterior a BE-02) no es de ningún visitante', () => {
+      const antigua = enEstado('PENDIENTE', null);
+      expect(antigua.esDelTitular(null)).toBe(false);
+      expect(antigua.esDelTitular('huella-a')).toBe(false);
+    });
   });
 
   it('sin guía no guarda el paso', () => {

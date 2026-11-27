@@ -6,6 +6,10 @@ COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 
 COPY . .
+# FE-11: URL pública de los códigos QR (p. ej. https://kama.clena.example). Vite la fija
+# al construir; vacía, los QR usan la dirección con la que se abre la página.
+ARG VITE_URL_PUBLICA=
+ENV VITE_URL_PUBLICA=$VITE_URL_PUBLICA
 RUN pnpm build
 
 FROM nginx:alpine

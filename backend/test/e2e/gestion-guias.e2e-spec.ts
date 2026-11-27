@@ -474,4 +474,78 @@ describe('HU-13, HU-15 · Gestión de guías por el personal (e2e)', () => {
       await http().get(`${GESTION}/no-existe`).set(como(ana)).expect(404);
     });
   });
+
+  describe('BE-06 · lo que necesita el editor (FE-05, C-07)', () => {
+    it('el personal sin rol de administrador también gestiona guías', async () => {
+      await crear().expect(201);
+      await http().get(GESTION).set(como(ana)).expect(200);
+      await http().get(`${GESTION}/${SLUG}`).set(como(luis)).expect(200);
+    });
+
+    it('guardar lo mismo que devuelve el detalle no cambia nada (ida y vuelta del editor)', async () => {
+      const imagen = await prisma.imagen.create({
+        data: {
+          claveAlmacenamiento: 'e2e/ida-vuelta.png',
+          url: '/api/v1/archivos/e2e/ida-vuelta.png',
+          tipoMime: 'image/png',
+          tamanoBytes: 100,
+          textoAlternativo: 'Captura',
+          subidaPorId: ana.id,
+        },
+      });
+      await crear({
+        pasos: [
+          {
+            titulo: 'Uno',
+            bloques: [
+              { tipo: 'texto', texto: 'Texto.' },
+              {
+                tipo: 'imagen',
+                imagenId: imagen.id,
+                textoAlternativo: 'Captura',
+              },
+            ],
+          },
+          { bloques: [{ tipo: 'aviso', nivel: 'alerta', texto: 'Cuidado.' }] },
+        ],
+      }).expect(201);
+      const { body: antes } = await http()
+        .get(`${GESTION}/${SLUG}`)
+        .set(como(ana))
+        .expect(200);
+
+      // El editor reenvía los bloques tal como llegaron, con el `url` de la imagen.
+      const { body: despues } = await editar({
+        titulo: antes.titulo,
+        objetivo: antes.objetivo,
+        descripcion: antes.descripcion,
+        categoria: antes.categoria,
+        nivel: antes.nivel,
+        duracionEstimadaMin: antes.duracionEstimadaMin,
+        palabrasClave: antes.palabrasClave,
+        pasos: antes.pasos.map(
+          (p: { id: string; titulo: string | null; bloques: unknown[] }) => ({
+            id: p.id,
+            titulo: p.titulo,
+            bloques: p.bloques,
+          }),
+        ),
+      }).expect(200);
+
+      expect(despues.pasos).toEqual(antes.pasos);
+    });
+
+    it.each([
+      [{ limite: 101 }],
+      [{ ordenarPor: 'slug' }],
+      [{ estado: 'ARCHIVADA' }],
+    ])('el listado responde 400 DATOS_INVALIDOS con %o', async (query) => {
+      const { body } = await http()
+        .get(GESTION)
+        .query(query)
+        .set(como(ana))
+        .expect(400);
+      expect(body.codigo).toBe('DATOS_INVALIDOS');
+    });
+  });
 });
