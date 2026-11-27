@@ -43,7 +43,7 @@ Cada PR debe incluir: ID tarea, HU y criterios exactos vinculados, contrato C-XX
 | R2 — cola monitores | FE-06 | BE-02, BE-06 | C-06 existe; FE polling, BE transiciones | Dos monitores, una toma |
 | R2 — cuentas | FE-09, FE-10 | BE-05 | C-08, C-09 existentes | Registro/OTP, personal, eliminación |
 | R2 — progreso | FE-07 | BE-03 | C-10 propuesto; FE UI y mocks en tests; BE API y BD | Persistencia por usuario |
-| R2 — estadísticas | FE-08 | BE-04 | C-11 propuesto; FE gráficos con fixture; BE agregaciones | Panel real por fechas |
+| R2 — estadísticas | FE-08 | BE-04 | C-11 existente (BE-04); FE gráficos contra la API real | Panel real por fechas |
 | R3 — QR y deploy | FE-11, FE-14 | BE-09 | C-01 y ruta pública; FE QR, infra prueba reload | URL pública desde teléfono |
 | R3 — calidad Must | FE-13 | BE-09/CI | HU-36–39 (sin nuevo endpoint obligatorio) | Evidencia de accesibilidad y CI |
 
@@ -222,17 +222,40 @@ Todos requieren Bearer rol PERSONAL o ADMINISTRADOR: `GET /gestion/guias`, `POST
 - **Reglas propuestas:** porcentaje `Math.round(100*min(pasosLeidos,totalPasos)/totalPasos)` con `totalPasos=0 => 0`; `completada` requiere que el usuario haya llegado al último paso y haya aprobado alguna actividad de la guía cuando exista; si no hay actividad, basta lectura hasta el final. BE calcula desde `paso_leido`, `progreso_guia` e `intento`, nunca acepta `usuarioId`, `porcentaje` o `completada` del cliente. El FE marca cada paso **al confirmarse que se visualizó**, no al abrir solamente el listado; enviar como máximo un PUT por paso y sesión/UI. `401` no sesión; `403` rol personal; `404` guía/paso ajeno; reordenar conserva IDs y lectura.
 - **D-03 pendiente PO:** editar pasos después de publicación; no redefinir retroactivamente progreso sin acuerdo. Mostrar progreso cero para invitado sin invocar esta API y sin almacenar progreso en disco.
 
-### C-11 — Estadísticas agregadas [PROPUESTO, implementarlo solo tras verificar si ya existe]
+### C-11 — Estadísticas agregadas [EXISTENTE desde BE-04]
 
-`GET /gestion/estadisticas/resumen?desde=2026-11-20&hasta=2026-11-26` Bearer `PERSONAL`/`ADMINISTRADOR` (permiso propuesto a confirmar), fechas opcionales `YYYY-MM-DD`, por defecto últimos **7 días calendario incluyendo hoy** en zona `America/Bogota`, límite `desde<=hasta`, límite máximo de rango configurable (propuesta: 366 días), validación 400.
+`GET /gestion/estadisticas/resumen?desde=2026-11-20&hasta=2026-11-26` → `200`.
+
+| Aspecto | Comportamiento implementado |
+|---|---|
+| Permiso | `Authorization: Bearer` de `PERSONAL` o `ADMINISTRADOR`. `401` sin sesión o token inválido; `403` usuario público. |
+| `desde`, `hasta` | Opcionales, `AAAA-MM-DD`, días de calendario en `America/Bogota`, **ambos incluidos**. Sin `hasta`: hoy en Bogotá. Sin `desde`: 6 días antes de `hasta` (7 días contando `hasta`). |
+| Rango | `desde <= hasta`, máximo **366 días** contando los dos extremos (constante `RANGO_MAXIMO_DIAS`). |
+| Intervalo en BD | UTC semiabierto `[desde 00:00 Bogotá, día siguiente a hasta 00:00 Bogotá)`. Colombia es siempre UTC−5. Ej.: 20/11–26/11 = `[2026-11-20T05:00Z, 2026-11-27T05:00Z)`. |
+| Cabeceras | `Cache-Control: no-store`. |
 
 ```json
 {"periodo":{"desde":"2026-11-20","hasta":"2026-11-26","zonaHoraria":"America/Bogota"},"totales":{"consultasGuias":35,"solicitudesAyuda":6},"topGuias":[{"slug":"smishing","titulo":"Smishing","consultas":20}],"consultasPorCategoria":[{"slug":"seguridad-digital","nombre":"Seguridad digital","consultas":35}],"solicitudesPorTema":[{"tema":"SEGURIDAD_DIGITAL","cantidad":6}],"hayDatos":true}
 ```
 
-- Fuente: `consulta_guia` y `solicitud_ayuda`; `topGuias` máximo 10, orden por consultas DESC con desempate estable; `consultasPorCategoria` suma de consultas, `solicitudesPorTema` agrupa por enum; todas las cifras numéricas, nunca `null`; `hayDatos=false` si no hubo consultas **ni** solicitudes, listas vacías/totales 0. Consultas anónimas cuentan, sin datos de usuario en respuesta.
-- BE usa SQL con agregaciones (`groupBy`/`$queryRaw` parametrizada), filtros por fecha y join con categorías/guías. Rango de tiempo convertido a UTC con límites `[inicioBogota, inicioSiguienteDiaBogota)`, evitando off-by-one. Índice en `consulta_guia(guia_id,consultada_en)` y `solicitud_ayuda(creada_en,tema)` según modelo v2.0. Si una guía se oculta, sus consultas históricas deben seguir contabilizadas; no borrar datos editoriales para facilitar estadísticas.
-- FE no calcula sumas desde todas las filas ni inventa métricas; presenta `cargando`, `sin datos`, `error`, rangos inclusivos y gráfico/tabla; `401/403/400/500` explícitos. **Contrato propuesto**, no anunciar endpoint disponible hasta BE confirme.
+- **Fuente:** `consulta_guia` (una fila por cada `POST /guias/:slug/consultas`, con o sin cuenta) y `solicitud_ayuda` (por `creada_en`). Cuenta guías de **cualquier estado** (publicadas, ocultas y borradores): ocultar una guía no borra sus consultas históricas.
+- **`totales`:** `consultasGuias` = todas las consultas del periodo; `solicitudesAyuda` = todas las solicitudes del periodo, sin importar su estado.
+- **`topGuias`:** máximo **10**, por `consultas` DESC y, en empate, `slug` ASC. Puede haber más guías en `totales.consultasGuias` que en el top.
+- **`consultasPorCategoria`:** por `consultas` DESC y, en empate, `slug` ASC. **Solo categorías con al menos una consulta** (las de 0 no aparecen; el FE debe mostrarlas en 0 si las quiere en el gráfico, tomándolas de `GET /categorias`).
+- **`solicitudesPorTema`:** por `cantidad` DESC y, en empate, `tema` ASC (orden alfabético). **Solo temas con al menos una solicitud.** `tema` es uno de los enum de C-05.
+- **Sin datos:** cifras siempre números enteros, nunca `null`. `hayDatos=false` si no hubo consultas **ni** solicitudes; entonces totales en 0 y listas vacías.
+- **Sin datos personales:** la respuesta nunca incluye usuarios, cédulas ni equipos.
+- **Errores:**
+
+| Estado | `codigo` | Cuándo | `detalles` |
+|---|---|---|---|
+| `400` | `DATOS_INVALIDOS` | `desde`/`hasta` no tienen la forma `AAAA-MM-DD` (p. ej. `ayer`) | `{campos:{desde:[...]}}` |
+| `400` | `RANGO_FECHAS_INVALIDO` | fecha inexistente (`2026-02-30`), `desde > hasta` o más de 366 días | `{campo:'desde'\|'hasta'}` |
+| `401` | — | sin sesión | |
+| `403` | — | usuario público | |
+
+- **SQL:** agregaciones `GROUP BY` en PostgreSQL con `$queryRaw` parametrizada, sin traer eventos a Node. Índices: `consulta_guia(consultada_en)` (nuevo, migración `20261127120000_consulta_guia_fecha_idx`) y `solicitud_ayuda(creada_en, tema)`; verificado con `EXPLAIN`.
+- **FE:** no calcula sumas desde filas ni inventa métricas; muestra `cargando`, `sin datos` (`hayDatos=false`), `error` (con el `mensaje` del backend en 400) y la tabla accesible como alternativa al gráfico. Valida el rango en el formulario, pero el backend es quien decide.
 
 ### Prueba de compatibilidad cruzada por contrato
 
@@ -303,7 +326,9 @@ Para cada C-XX, el equipo backend registra: ejemplo request real, respuesta exit
 - No guardar avance del invitado en localStorage/sessionStorage; solo memoria durante navegación; prueba refresh limpia. Cerrar sesión y reingresar muestra avance registrado.
 - **DoD:** con BE-03 en test DB marca un paso, autentica, vuelve, ve mismo porcentaje; otro usuario no ve sus datos. Seguir D-03 si cambia pasos publicados.
 
-### FE-08 — Panel estadístico real (HU-31) · P0 · pareja BE-04 · C-11 PROPUESTO
+### FE-08 — Panel estadístico real (HU-31) · P0 · pareja BE-04 · C-11
+
+**Estado BE:** `GET /gestion/estadisticas/resumen` disponible en la rama `feat/be-04-estadisticas` (BE-04). Contrato completo, orden de las listas y errores en C-11.
 
 - UI protegida PERSONAL/ADMINISTRADOR: fechas calendario `desde/hasta` (últimos 7 días por defecto), top 10 guías, consultas por categoría y temas de ayuda, total de solicitudes; estados cargando, vacío (`hayDatos=false`), error y tabla accesible como alternativa a gráfico.
 - Consumir GET `/gestion/estadisticas/resumen` según C-11, **no** filtrar manualmente todos los eventos ni inventar métricas. Convertir datos de DTO sin cambiar zona/semántica.
