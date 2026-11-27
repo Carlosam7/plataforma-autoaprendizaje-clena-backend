@@ -4,6 +4,7 @@ import { CalcularResultadoPractica } from './CalcularResultadoPractica';
 import { ListarCategorias } from './ListarCategorias';
 import { ListarGuias } from './ListarGuias';
 import { ObtenerDetalleGuia } from './ObtenerDetalleGuia';
+import { RegistrarAperturaGuia } from './RegistrarAperturaGuia';
 import type { GuiasRepository } from './ports';
 
 describe('Guias use cases', () => {
@@ -83,7 +84,7 @@ describe('Guias use cases', () => {
     expect(repo.listarCategorias).toHaveBeenCalledOnce();
   });
 
-  it('ObtenerDetalleGuia: retorna el detalle y registra la apertura (AC-HU10-05)', async () => {
+  it('ObtenerDetalleGuia: retorna el detalle sin registrar telemetría', async () => {
     const detalleMock: DetalleGuia = {
       guia: guiasMock[0],
       totalPasos: 1,
@@ -114,7 +115,31 @@ describe('Guias use cases', () => {
     const resultado = await usecase.ejecutar('smishing');
 
     expect(resultado).toEqual(detalleMock);
-    expect(repo.registrarAperturaGuia).toHaveBeenCalledWith('smishing');
+    expect(repo.registrarAperturaGuia).not.toHaveBeenCalled();
+  });
+
+  it('ObtenerDetalleGuia: propaga los fallos del repositorio', async () => {
+    const repo = {
+      obtenerDetalleGuia: vi.fn().mockRejectedValue(new Error('caído')),
+    } as unknown as GuiasRepository;
+    await expect(new ObtenerDetalleGuia(repo).ejecutar('x')).rejects.toThrow(
+      'caído',
+    );
+  });
+
+  it('RegistrarAperturaGuia: registra la apertura y absorbe fallos (AC-HU10-05)', async () => {
+    const ok = {
+      registrarAperturaGuia: vi.fn().mockResolvedValue(undefined),
+    } as unknown as GuiasRepository;
+    await new RegistrarAperturaGuia(ok).ejecutar('smishing');
+    expect(ok.registrarAperturaGuia).toHaveBeenCalledWith('smishing');
+
+    const falla = {
+      registrarAperturaGuia: vi.fn().mockRejectedValue(new Error('500')),
+    } as unknown as GuiasRepository;
+    await expect(
+      new RegistrarAperturaGuia(falla).ejecutar('smishing'),
+    ).resolves.toBeUndefined();
   });
 
   it('CalcularResultadoPractica: aprueba con 70% o más (AC-HU21-04)', () => {

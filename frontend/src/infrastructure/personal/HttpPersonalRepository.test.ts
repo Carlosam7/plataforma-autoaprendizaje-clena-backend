@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpPersonalRepository } from './HttpPersonalRepository';
-import { CredencialesIncorrectasError } from '@/domain/personal/errors';
+import {
+  CredencialesIncorrectasError,
+  ServicioNoDisponiblePersonalError,
+} from '@/domain/personal/errors';
 
 describe('HttpPersonalRepository', () => {
   let repo: HttpPersonalRepository;
@@ -132,5 +135,100 @@ describe('HttpPersonalRepository', () => {
       }),
     );
     expect(res.datos[0].ultimoAccesoEn).toBeInstanceOf(Date);
+  });
+
+  describe('sin éxitos simulados ante fallos de API', () => {
+    const operaciones: [string, () => Promise<unknown>][] = [
+      [
+        'login',
+        () => repo.solicitarInicioSesion({ correo: 'a@b.c', password: 'x' }),
+      ],
+      [
+        'verificar',
+        () =>
+          repo.verificarInicioSesion({ destino: 'a@b.c', codigo: '123456' }),
+      ],
+      ['listar', () => repo.listarPersonal('t')],
+      [
+        'crear',
+        () =>
+          repo.crearPersonal('t', {
+            nombre: 'N',
+            correo: 'a@b.c',
+            rol: 'PERSONAL',
+            passwordTemporal: 'Temporal2026',
+          }),
+      ],
+      ['editar', () => repo.editarPersonal('t', 'id', { nombre: 'X' })],
+      ['desactivar', () => repo.desactivarPersonal('t', 'id')],
+      ['reactivar', () => repo.reactivarPersonal('t', 'id')],
+    ];
+
+    it.each(operaciones)(
+      '%s: fallo de red lanza error explícito',
+      async (_n, op) => {
+        vi.spyOn(globalThis, 'fetch').mockRejectedValue(new TypeError('fail'));
+        await expect(op()).rejects.toThrow(ServicioNoDisponiblePersonalError);
+      },
+    );
+
+    it.each(operaciones)(
+      '%s: HTTP 503 lanza error explícito',
+      async (_n, op) => {
+        vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+          ok: false,
+          status: 503,
+          json: async () => ({}),
+        } as unknown as Response);
+        await expect(op()).rejects.toThrow(ServicioNoDisponiblePersonalError);
+      },
+    );
+
+    it('timeout lanza error explícito', async () => {
+      vi.spyOn(globalThis, 'fetch').mockRejectedValue(
+        new DOMException('t', 'TimeoutError'),
+      );
+      await expect(repo.listarPersonal('t')).rejects.toThrow(/tardó demasiado/);
+    });
+
+    it('JSON inválido en 200 lanza error explícito', async () => {
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => {
+          throw new SyntaxError('x');
+        },
+      } as unknown as Response);
+      await expect(
+        repo.crearPersonal('t', {
+          nombre: 'N',
+          correo: 'a@b.c',
+          rol: 'PERSONAL',
+          passwordTemporal: 'Temporal2026',
+        }),
+      ).rejects.toThrow(ServicioNoDisponiblePersonalError);
+    });
+
+    it('no abre sesión local si la verificación falla', async () => {
+      vi.spyOn(globalThis, 'fetch').mockRejectedValue(new TypeError('fail'));
+      await expect(
+        repo.verificarInicioSesion({ destino: 'a@b.c', codigo: '123456' }),
+      ).rejects.toThrow();
+      await expect(repo.obtenerSesionPersonal()).resolves.toBeNull();
+    });
+
+    it('reintento tras reconexión funciona', async () => {
+      const f = vi.spyOn(globalThis, 'fetch');
+      f.mockRejectedValueOnce(new TypeError('fail'));
+      await expect(repo.listarPersonal('t')).rejects.toThrow();
+      f.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ datos: [], total: 0, pagina: 1, limite: 20 }),
+      } as unknown as Response);
+      await expect(repo.listarPersonal('t')).resolves.toMatchObject({
+        total: 0,
+      });
+    });
   });
 });
