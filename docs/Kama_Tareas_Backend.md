@@ -1,183 +1,314 @@
-# Kamá — Plan de tareas pendientes del backend
+# Kamá — BACKEND: tareas ejecutables y contratos de integración
 
-**Versión de trabajo:** 1.0 · **Fecha:** 26 de noviembre de 2026  
-**Responsable:** equipo backend · **Carpeta de implementación:** `backend/` y configuración compartida únicamente cuando esté autorizada.  
-**Objetivo inmediato:** validar y completar APIs/reglas necesarias para que el frontend cierre las historias Must usando PostgreSQL real.  
-**Estado:** propuesta de priorización; no supone que los endpoints faltan sin inspección de código y pruebas.
+**Versión:** 2.0 — propuesta técnica para aprobación por frontend, backend y Product Owner · **Fecha:** 26/11/2026  
+**Objetivo:** cerrar todas las historias Must con trabajo **realmente paralelo** y contratos explícitos desde el comienzo, sin reconstruir los módulos existentes.  
+**Alcance del documento:** tareas backend y **copia completa del mismo catálogo de contratos** que utiliza el otro equipo. Este archivo se puede usar de forma independiente en GitHub Projects o como instrucción para Claude Code.  
+**No es un acta de aprobación.** Los contratos marcados **PROPUESTO** requieren acuerdo de los dos equipos antes de implementarse en producción; ningún dato nuevo se presenta como si ya existiera.
 
-## 1. Fuentes, límites y evidencia
+## 0. Fuentes, prioridades y evidencia
 
-Fuentes: **Backlog Kamá v2.1 validado** (28 historias Must), **Modelo de datos Kamá v2.0**, diagnóstico frontend F00 de Claude Code facilitado el 26/11/2026, documentación académica y plan maestro del frontend.
+1. **Fuente de requisitos:** `Backlog_Kama_V2.1_validado.md` (45 HU, 28 Must) y decisiones formales de PO, mantenidos como fuentes del equipo, no necesariamente dentro del repositorio.
+2. **Modelo de persistencia:** `Modelo_de_Datos_Kama_v2.0.docx` (23 tablas, distinción invitado/registrado, datos mínimos).
+3. **Estado observado:** informe F00 de Claude Code proporcionado por el equipo el 26/11/2026 (FE 65/65 tests, lint/build OK, CRUD educativo, prácticas y ayuda parcialmente integradas, HTTP comprobado contra BD).
+4. **Código contrastado:** `Carlosam7/plataforma-autoaprendizaje-clena-backend`, rama `dev`, árbol Git SHA `f633e577b5cbb59a4d81b151ce92340b8d5cf4e2`, controladores, DTO y repositorios FE/BE consultados. **Puede diferir de la rama de trabajo local.** No sustituyen la revisión y ejecución de la rama actual.
+5. **Plan operativo frontend:** `docs/Kama_Plan_Maestro_Frontend_SDD.md` y `frontend/CLAUDE.md`. La priorización de cierre de este documento propone ejecutar integraciones funcionales primero; adaptar los documentos operativos mediante PR documental, sin reescribir historias ni sprints.
 
-- El informe F00 confirma respuestas HTTP reales de guías, actividades y creación de ayuda, pero **no equivale a auditoría completa de backend**.
-- La estructura del backend contiene módulos de `auth`, `personal`, `guia`, `practica`, `ayuda` y otros; por tanto **primero revisar lo existente y corregir/integrar**, no reconstruir.
-- Las entidades, DTO, controladores, Prisma, semillas y pruebas del backend solo los cambia el equipo autorizado de backend. Claude asignado a frontend mantiene backend **de solo lectura**.
-- Contenido educativo de las guías **protegido**: no reescribir, eliminar ni reducir material sin aprobación expresa del Product Owner.
-- No desarrollar Should/Could/Won't sin aprobación. **HU-16 (gestión dinámica de categorías) queda fuera del MVP**.
-- Aplicar Clean Architecture existente, validación uniforme, Swagger, 401/403 y pruebas unitarias/e2e; migraciones versionadas y sin operaciones destructivas sin autorización.
-- GitHub Flow: estudiantes realizan commits/PR manualmente, con Conventional Commits, una aprobación y CI verde.
+**Convenciones:** `P0` = imprescindible para demo y cierre de historias Must; `P1` = Must restante/estabilización; `EXISTENTE` = ruta + DTO visibles en la rama `dev`; `F00` = comprobado por Claude en su entorno; `PROPUESTO` = contrato que todavía NO está implementado ni aprobado; `POR_VERIFICAR` = código/contrato puede existir fuera de lo revisado. **La presencia de un archivo no es evidencia de implementación funcional.**
 
-**Prioridad de ejecución:** `P0` desbloquea una historia Must del frontend o protege datos; `P1` es cierre/despliegue/riesgo que sigue siendo necesario.  
-**Estados:** `REPORTADO` por F00, `REVISAR` sin evidencia E2E, `DEPENDENCIA PO` pendiente de decisión, `RIESGO HISTÓRICO` detectado antes pero no revalidado.
+**Decisiones de alcance que no se alteran en este documento:** las HU-36–39 siguen siendo Must aunque se reprogramen para después de integraciones; HU-16 es Won't; HU-25–27 son transversales; contenido educativo existente se conserva, sin borrar guías ni semillas. En la versión MVP formal se describen 4 guías y una categoría Phishing; F00 vio 15 guías en 5 categorías. Esa discrepancia se registra como **D-01 (Product Owner)**, sin ocultar ni eliminar datos unilateralmente. **D-02:** finalidad de fecha de nacimiento. **D-03:** progreso tras editar pasos de una guía publicada.
 
-### Línea base constatada por F00
+## 1. Acuerdo operativo para trabajar simultáneamente
 
-- `GET /api/v1/categorias`, `/guias`, `/guias/smishing`, `/guias/smishing/actividad` y `/aviso-privacidad/vigente` respondieron 200 con PostgreSQL activo.
-- `POST /api/v1/guias/smishing/actividad/intentos` y `POST /api/v1/intentos/:id/respuestas` funcionaron en una prueba. El backend devolvió resultados y evitó contestar un intento finalizado dos veces.
-- `POST /api/v1/solicitudes-ayuda` respondió 201; la lectura posterior sin la cookie de la solicitud devolvió 401. Esto **puede ser el control esperado de identidad**, no un fallo confirmado.
-- F00 reportó **15 guías en cinco categorías**, mientras el backlog aprobado describe el MVP inicial de **cuatro guías bajo Phishing**. El equipo quiere preservar el contenido actual; queda pendiente la decisión formal de alcance/visibilidad.
-- El árbol compartido no mostraba módulos explícitos de progreso o estadísticas; **su ausencia real debe comprobarse**, incluyendo rutas definidas en otros módulos.
+**El contrato se congela antes del código, no el código antes del contrato.** Ambas personas responsables aprueban literalmente este catálogo (IDs C-01 a C-11), indicando si la implementación coincide. Un cambio de ruta, nombre de propiedad, enum o error exige actualización simultánea de ambas copias del catálogo, revisión cruzada y tests; no se inventan nombres unilateralmente.
 
-## 2. Tablero resumido de backend
+- **Regla A — trabajo sin esperar:** FE crea tipos y puertos TS en `domain/application`, adaptador HTTP y pruebas con respuestas contractuales fijas en **tests**. BE implementa casos de uso/DTO/Swagger y e2e con esos mismos ejemplos. Se pueden crear pantallas/UI basadas en fixtures de test, pero **nunca activar fallback silencioso en producción**.
+- **Regla B — integration gate:** una tarea se marca `CONTRATO_VERIFICADO` cuando request + response + errores + permisos + paginación/cookies están confirmados con el servidor; `PASS_FE` cuando la UI y tests FE pasan; `PASS_BE` cuando la API y e2e BE pasan; y `PASS_INTEGRATED` solo tras prueba FE→HTTP→BD real. `MOCK_ONLY` no es Done.
+- **Regla C — versionado:** rutas existentes se preservan; toda ruta nueva lleva `/api/v1`, DTO camelCase JSON, fechas ISO 8601 UTC, UUID string, cantidades numéricas enteras y enum en mayúsculas (salvo bloque de guía `tipo` y `nivel`). Cambios incompatibles: versión de API o migración acordada; no romper a consumidores existentes.
+- **Regla D — privacidad:** sin sesión se puede leer, practicar y solicitar ayuda, pero invitados **no** guardan `intento`, `respuesta_intento`, `progreso_guia` ni `paso_leido` en BD ni localStorage/sessionStorage. `consulta_guia` y `solicitud_ayuda` sí pueden existir anónimas. Datos de cuentas y admin solo con autorización y pruebas ficticias.
+- **Regla E — Git:** GitHub Flow con issues FE/BE relacionados, rama `feat/<numero-issue>-...`/`fix/...`/`docs/...`, commits Conventional Commits y PR con aprobación + CI verde. **Agente Claude no hace commits, push, merge ni cambios Git de escritura**; estudiantes controlan esas acciones. Cambios fuera de `frontend/` o `backend/` requieren revisión compartida.
+- **Regla F — evitar bloqueos técnicos:** se podrán fusionar en ramas propias implementaciones de FE contra test doubles, marcadas como no integradas, pero no declarar finalizada ni desplegar una funcionalidad que requiera API aún ausente. Si el BE detecta un impedimento, entrega `BLOCKED_CONTRACT` con razón y alternativa concreta ese mismo incremento; FE continúa tareas independientes.
 
-| ID | Prioridad | Historia(s) | Estado | Resultado buscado | Desbloquea |
-|---|---|---|---|---|---|
-| **BE-01** | P0 | HU-03, 21, 23 | REPORTADO / verificar BD | Invitados practican **sin persistir** intentos educativos | FE-01, FE-02 |
-| **BE-02** | P0 | HU-29, 30 | API parcial probada | Solicitud, identificación, deduplicación y cancelación correctas | FE-04, FE-06 |
-| **BE-03** | P0 | HU-23 | REVISAR | API de pasos leídos y progreso persistente | FE-07 |
-| **BE-04** | P0 | HU-31 | REVISAR | Agregaciones estadísticas por periodo | FE-08 |
-| **BE-05** | P0 | HU-01, 02, 04–06 | REVISAR | Autenticación, personal y eliminación verificadas E2E | FE-09, FE-10 |
-| **BE-06** | P0 | HU-13, 15, 30 | REVISAR | Contratos seguros de gestión de guías y cola | FE-05, FE-06 |
-| **BE-07** | P0 protección de datos | HU-13, 15, 17–20 | RIESGO HISTÓRICO | Semillas no sobrescriben ediciones del personal | FE-05 |
-| **BE-08** | P0 decisión/aceptación | HU-09, 17–20, 25–27 | DEPENDENCIA PO | Alcance publicado coherente sin borrar contenido | FE-12 |
-| **BE-09** | P1 despliegue | Transversal; HU-45 | REVISAR | Entorno reproducible, proxy y URL pública real | FE-11, FE-14 |
+### Entrega mínima de cada PR
 
-## 3. Fichas ejecutables de backend
+Cada PR debe incluir: ID tarea, HU y criterios exactos vinculados, contrato C-XX y su estado, rutas/métodos/campos, ejemplos JSON, tabla de errores, autenticación/cookie/roles, pruebas unitarias y E2E/contract-tests, migración si corresponde, `PASS_FE/PASS_BE/PASS_INTEGRATED`, capturas o evidencia, decisiones pendientes y riesgos. No modificar `package.json`, lockfile, infraestructura ni semillas fuera del alcance aprobado.
 
-### BE-01 — Corregir o confirmar práctica de invitados no persistente
+### Matriz de emparejamiento (cada fila puede arrancar el mismo día)
 
-**Prioridad:** P0 · **HU:** 03, 21, 23 · **Tipo:** posible bloqueo funcional y de privacidad.
+| Frente | Frontend | Backend | Contrato y modo de avance paralelo | Entrega de integración |
+|---|---|---|---|---|
+| R1 — catálogo y estabilidad | FE-03, FE-12 | BE-08 | C-01, C-02; FE elimina fallback y BE valida catálogo | Catálogo real y error explícito |
+| R1 — práctica | FE-01, FE-02 | BE-01 | C-03 existente + C-04 propuesto; FE fixture+UI; BE eval sin persistencia | Invitado y registrado, resultados reales |
+| R1 — ayuda | FE-04 | BE-02 | C-05 y C-06; FE formulario+estado, BE ownership/concurrencia | Solicitar→ver→cancelar y dedupe |
+| R2 — guías del personal | FE-05 | BE-06, BE-07 | C-07 ya existe; FE editor, BE confirma seeds y permisos | Crear→editar→publicar→ocultar |
+| R2 — cola monitores | FE-06 | BE-02, BE-06 | C-06 existe; FE polling, BE transiciones | Dos monitores, una toma |
+| R2 — cuentas | FE-09, FE-10 | BE-05 | C-08, C-09 existentes | Registro/OTP, personal, eliminación |
+| R2 — progreso | FE-07 | BE-03 | C-10 propuesto; FE UI y mocks en tests; BE API y BD | Persistencia por usuario |
+| R2 — estadísticas | FE-08 | BE-04 | C-11 propuesto; FE gráficos con fixture; BE agregaciones | Panel real por fechas |
+| R3 — QR y deploy | FE-11, FE-14 | BE-09 | C-01 y ruta pública; FE QR, infra prueba reload | URL pública desde teléfono |
+| R3 — calidad Must | FE-13 | BE-09/CI | HU-36–39 (sin nuevo endpoint obligatorio) | Evidencia de accesibilidad y CI |
 
-**Evidencia y discrepancia:** en F00 se pudo crear un intento sin iniciar sesión usando `POST /guias/smishing/actividad/intentos` y responder cuatro preguntas. Esto **sugiere** persistencia anónima, pero hay que inspeccionar la base de datos para confirmar si se creó una fila. El modelo v2.0 exige **`intento.usuario_id NOT NULL`**, intentos persistentes solo para registrados y progreso de invitados únicamente en memoria de React.
+**Secuencia para evitar conflictos:** acordar C-04/C-10/C-11 y seguridad C-05 **al inicio**; FE-03/04/05/06/09/10 pueden avanzar sobre rutas existentes. FE-01 desarrolla soporte de UUID/opciones y resultado sin esperar C-04; BE-01 entrega el canal invitado en paralelo. FE-07/08 crean interfaz y tests con fixtures contractuales mientras BE-03/04 entrega API. Un único integrador valida el flujo completo por cada contrato.
 
-**Trabajo:**
-1. Comprobar esquema/migraciones efectivamente aplicadas y si existen filas de intento sin usuario; **no ejecutar limpiezas destructivas sin aprobación**.
-2. Revisar guard/flujo del intento, respuestas y feedback para público vs registrado.
-3. Definir con frontend contrato para **evaluar una pregunta de invitado sin guardar intento ni respuesta** y sin revelar respuesta correcta antes de contestar. Puede ser endpoint público de validación sin persistencia u otra solución acordada; no inventar ruta sin contrato.
-4. Conservar el flujo seguro/persistente para usuario registrado; errores y calificación >=70 %.
-5. Agregar pruebas: invitado no crea filas; registrado sí; intento finalizado no puede recontestarse; preguntas públicas no incluyen `es_correcta`.
+## 2. Catálogo de contratos compartidos (texto idéntico en ambos documentos)
 
-**Aceptación:** un visitante completa una actividad y ve aciertos/explicaciones, pero no genera `intento`, `respuesta_intento`, `progreso_guia` ni `paso_leido`; recarga y pierde progreso. Usuario autenticado conserva los registros previstos.  
-**Desbloquea:** FE-01 y FE-02.
+**Identificador de catálogo:** `KAMA-API-CLOSE-2026-11-26-v2`. Los contratos EXISTENTE fueron revisados en controladores/DTO en `dev` y deben **revalidarse en la rama donde se hagan los PR**; los PROPUESTO constituyen un diseño de integración para aceptar. Todos los paths son relativos al prefijo `/api/v1`.
 
-### BE-02 — Consolidar solicitudes de ayuda y cola
+### C-00 — Reglas comunes de transporte, errores, estado y seguridad [EXISTENTE + POLÍTICAS PROPUESTAS]
 
-**Prioridad:** P0 · **HU:** 29, 30 · **Tipo:** validación + corrección solo si falla.
+- **Origen local:** navegador FE `http://localhost:5173`, llamadas a `/api/v1` resueltas por proxy de Vite hacia Nest `:3000`; despliegue `:8080` requiere Nginx como SPA + proxy (verificar implementación). **Nunca codificar URL del backend en componentes React**.
+- **JSON:** `Accept: application/json`; `Content-Type: application/json` en solicitudes con cuerpo. Para sesión/cookies, `credentials: 'include'`; para endpoints privados, `Authorization: Bearer <accessToken>`. **Refresh token únicamente en cookie httpOnly** (implementación existente). No poner el refresh en JSON ni en URL.
+- **Códigos:** `200` lectura/actualización, `201` creación, `202` OTP solicitado, `204` efecto sin cuerpo, `400` validación, `401` no autenticado, `403` sin rol, `404` no encontrado/no publicado, `409` cambio concurrente/conflicto, `410` código expirado, `429` límites, `500` error interno, `503` temporal. Para DELETE 204, nunca llamar a `.json()`.
+- **Error uniforme EXISTENTE (el backend lo documenta):**
 
-**Evidencia:** `POST /solicitudes-ayuda` devolvió 201. `GET /solicitudes-ayuda/:id` sin cookie devolvió 401. F00 también obtuvo solicitudes separadas, pero **no está probado que se repitiera la misma sesión/cookie/equipo**.
+```json
+{"statusCode":409,"codigo":"CONFLICTO","mensaje":"Esta información ya existe o cambió hace un momento.","detalles":{},"ruta":"/api/v1/solicitudes-ayuda/UUID/tomar","fecha":"2026-11-26T19:00:00.000Z"}
+```
 
-**Trabajo:**
-1. Probar `POST → GET → POST repetido → CANCELAR`, reutilizando la **misma cookie**, mismo equipo y misma solicitud, con datos ficticios.
-2. Comprobar que se evita duplicar una solicitud activa por equipo según regla aprobada; devolver una solicitud/estado reutilizable y posición de cola si corresponde.
-3. Verificar que el visitante solo pueda leer/cancelar **su propia** solicitud. Según modelo v2.0, cancelar mientras esté `PENDIENTE`.
-4. Verificar listado por orden de llegada y transiciones del monitor `PENDIENTE → EN_ATENCION → RESUELTA`, comentario, identidad del monitor, y toma atómica para evitar doble asignación.
-5. Validar endpoints, DTO, cookies, CORS/SameSite, reglas de error/401/403/409 y Swagger.
+  `detalles` es opcional, `codigo` es estable y `mensaje` debe mostrarse en español comprensible. FE distingue error de negocio, autorización, timeout/red, servidor y respuesta inesperada; no traga errores para servir mocks. No mostrar cookies, contraseñas, JWT ni stack traces. Para 401 de endpoint privado: intentar renovación **una sola vez** con C-08 y reintentar solo petición segura/idempotente; no reenviar POSTs no idempotentes sin estrategia anti-duplicación.
+- **Paginación EXISTENTE:** `?pagina=1&limite=20` (limite 1–100), respuesta `{ "datos": [...], "total": 0, "pagina": 1, "limite": 20 }`. FE debe paginar o pedir un límite explícito; no asumir que primera página contiene todo.
+- **Fechas:** timestamps ISO 8601 UTC. Para filtros por día se propone calendario **America/Bogota**, rango inclusivo `desde/hasta` en el frontend; BE transforma a intervalos UTC semiabiertos al agregar. Las fechas sin zona son solo fechas de calendario.
+- **Cache:** endpoints sensibles `Cache-Control: no-store` propuesta; no guardar respuestas de sesión en almacenamiento compartido. Se recomienda deshabilitar múltiples invocaciones simultáneas de acciones de UI y presentar estado cargando sin ocultar errores.
+- **IDs:** `slug` de guía minúsculo con guiones (regex vigente), `id` de pregunta/opción/intento/solicitud/paso UUID. NUNCA asumir identificadores de opción A/B/C ni usar el orden como llave estable de persistencia.
+- **Categorías:** enum estable solo para roles `USUARIO_PUBLICO`/`PERSONAL`/`ADMINISTRADOR`; estados guía `BORRADOR`/`PUBLICADA`/`OCULTA`; ayuda `PENDIENTE`/`EN_ATENCION`/`RESUELTA`/`CANCELADA`; niveles `BASICO`/`INTERMEDIO`/`AVANZADO`.
+- **Verificación de contrato:** comparar OpenAPI `/docs` o `/docs-json` **si está servido** y JSON reales. El texto de este documento no modifica automáticamente los DTO del servidor.
 
-**Aceptación:** una sesión de visitante no duplica activas ni puede manipular solicitudes ajenas; dos monitores no toman el mismo caso; API ofrece lo que FE-04/06 necesitan. **No tratar un 401 sin cookie como bug por sí solo.**
+### C-01 — Catálogo y lectura de guías [EXISTENTE]
 
-### BE-03 — API de progreso de usuarios registrados
-
-**Prioridad:** P0 · **HU:** 23 · **Tipo:** verificar, implementar solo si falta.
-
-**Trabajo:**
-1. Buscar código, rutas y tablas reales `progreso_guia`, `paso_leido` y relación con intentos; no inferir ausencia por nombre del módulo.
-2. Confirmar o diseñar endpoints autenticados para **marcar paso leído** y **consultar progreso agregado por guía**, coordinando DTO con FE-07.
-3. Calcular porcentaje desde `pasos leídos / total de pasos`, con progreso como completado al llegar al último paso **y aprobar la actividad si existe**.
-4. Respetar aislamiento por usuario, autenticación, borrado tras HU-05 y no persistencia para invitados.
-5. Documentar pendiente PO: qué ocurre con progreso de una guía publicada al eliminar o modificar pasos.
-
-**Aceptación:** usuario A no ve progreso de B; avance sobrevive logout/login; respuestas sin autenticar están protegidas; los invitados no crean registros; pruebas unitarias y e2e.  
-**Desbloquea:** FE-07.
-
-### BE-04 — API de estadísticas agregadas del personal
-
-**Prioridad:** P0 · **HU:** 31 · **Tipo:** verificar, implementar si falta.
-
-**Trabajo:**
-1. Comprobar si ya existe controlador/ruta de reportes y registros de consulta de guías. Confirmar que la apertura pública genera la métrica requerida sin capturar datos personales del invitado.
-2. Exponer **top 10 de guías abiertas**, consultas agrupadas por categoría y número/temas de solicitudes, con filtro temporal y **últimos 7 días por defecto**.
-3. Usar agregaciones PostgreSQL (`groupBy` o SQL controlado), nunca cargar todas las filas en memoria. Revisar índices de consultas por guía/fecha, permisos de personal y error/vacío.
-4. Pactar un DTO mínimo con FE-08 y documentarlo en Swagger.
-
-**Aceptación:** resultados verificables contra la BD para intervalos conocidos; 401/403 según rol; consultas eficientes y fechas/zonas horarias correctamente delimitadas; pruebas e2e.  
-**Desbloquea:** FE-08.
-
-### BE-05 — E2E de cuentas públicas, personal y eliminación
-
-**Prioridad:** P0 · **HU:** 01, 02, 04, 05, 06 · **Tipo:** implementación existente por validar.
-
-**Trabajo:** probar **solo con cuentas ficticias y autorización para escrituras**: registro con consentimiento + OTP, duplicados, login, renovación/rotación refresh, logout, protección 401/403; login con segundo factor para personal; primer cambio de contraseña temporal; administración/desactivación de personal solo por admin; eliminación de cuenta con confirmación y borrado/anonimización conforme al modelo v2.0. Verificar que el aviso de privacidad recoja finalidades efectivas.
-
-**Bloqueo de alcance:** fecha de nacimiento exigida por HU-01 sin finalidad documentada; PO debe justificarla o tramitar formalmente su eliminación, sin improvisar motivos.
-
-**Aceptación:** casos positivos/negativos con datos ficticios, no mostrar OTP/JWT en evidencias ni logs públicos; aislamiento de roles; registros educativos eliminados y métricas agregadas anonimizadas al borrar cuenta.  
-**Desbloquea:** FE-09/10.
-
-### BE-06 — Contratos de administración de guías y cola
-
-**Prioridad:** P0 · **HU:** 13, 15, 30 · **Tipo:** confirmar antes de exigir desarrollo frontend.
-
-**Trabajo:** listar controladores/DTO actuales de gestión de guías y cola; probar crear borrador, editar metadatos/pasos, publicar solo con al menos un paso, ocultar conservando progreso, reordenar; verificar permisos monitor/admin y errores uniformes. Para cola, revisar rutas de listado/toma/resolución y control de concurrencia. Documentar payloads/ejemplos de respuesta reales en Swagger y entregar mini contrato a frontend.
-
-**Aceptación:** Swagger + pruebas E2E de respuestas 2xx/400/401/403/409 y reglas del dominio; no modificar material educativo existente durante las pruebas.  
-**Desbloquea:** FE-05/06.
-
-### BE-07 — Proteger ediciones del personal frente a seeds
-
-**Prioridad:** P0 antes de pruebas de edición reales · **HU:** 13, 15 y guías 17–20 · **Tipo:** riesgo histórico por revalidar.
-
-**Trabajo:** comprobar si `prisma/seed.ts` actualiza/reemplaza contenido por slug u orden al reiniciar; ejecutar prueba **sobre base desechable** `seed → editar guía ficticia → seed → verificar conservación`. Si el riesgo persiste, usar estrategia idempotente que inicialice ausentes sin sobrescribir cambios de personal, respetando datos obligatorios que sí deban actualizarse. Separar contenido de demostración de producción; documentar excepciones.
-
-**Aceptación:** las ediciones del personal sobreviven reinicio y repetición de semillas; tests de regresión; **sin alterar ni borrar guías reales**.
-
-### BE-08 — Definir visibilidad del catálogo y validar contenido
-
-**Prioridad:** P0 para aceptación · **HU:** 09, 17–20, 25–27 · **Tipo:** depende de PO.
-
-**Contexto:** F00 encontró **15 guías y cinco categorías**; el backlog v2.1/MDD v2.0 define como carga inicial del MVP una sola categoría Phishing y cuatro guías (Smishing, Vishing, Quishing, Falso soporte). El equipo indicó que el contenido ya existente cumple su finalidad. Una divergencia documental **no autoriza borrar ni modificar datos**.
-
-**Trabajo:** elevar al PO el inventario real (categorías, guías publicadas y actividades), comprobar cuatro modalidades, al menos cinco simulaciones de phishing y transversalidad HU-26/27. Pedir decisión escrita sobre catálogo público de la entrega. Solo implementar reglas de visibilidad o semillas si hay aprobación y pruebas para conservar datos.
-
-**Aceptación:** diferencia resuelta documentalmente y funcionalidad FE-12 validada; no crear nueva categoría/guía/actividad innecesaria ni implementar HU-16.
-
-### BE-09 — Despliegue, infraestructura y CI reproducible
-
-**Prioridad:** P1, pero bloqueante de demo pública y HU-45 · **Ámbito:** backend, operaciones y cambios compartidos aprobados.
-
-**Trabajo:** verificar `docker compose` con PostgreSQL 15, migraciones, seeds, estado de salud; rutas `/api/v1` y Swagger `/docs`; cookies/refresh/CORS en entorno real; `frontend/nginx.conf` para SPA y proxy; navegación directa a `/guias/:slug` sin 404; variables de entorno sin secretos por defecto de producción; CI `test/lint/build` de ambos proyectos y URL externa estable para QR.
-
-**Aceptación:** entorno limpio se levanta y reproduce flujos de visitante, registrado y personal; rutas internas no fallan al refrescar; migraciones y seeds no borran ediciones; evidencia de CI y documentación de despliegue. **No duplicar contenedores en puertos ya utilizados.**
-
-## 4. Contratos y dependencias con frontend
-
-| BE entrega | FE usa | Evidencia mínima que debe enviar backend |
+| Método y ruta | Permiso | Respuesta / notas |
 |---|---|---|
-| BE-01: práctica pública no persistente | FE-01/02 | Request/response de validación por pregunta y prueba de cero filas de invitado |
-| BE-02: ayuda / cookies / deduplicación / transiciones | FE-04/06 | Ejemplos de API en misma sesión, cancelar, tomar, resolver, permisos |
-| BE-03: progreso autenticado | FE-07 | DTO registrar paso + DTO resumen/porcentaje + reglas |
-| BE-04: reportes agregados | FE-08 | DTO top 10, categorías, ayudas, fechas por defecto |
-| BE-05: auth y privacidad | FE-09/10 | Auth/OTP/refresh/cuenta, errores 401/403 y cuenta ficticia de test |
-| BE-06: CMS + cola | FE-05/06 | Swagger, estados de guía, cambios de pasos, solicitudes |
-| BE-07: semillas seguras | FE-05 | Prueba de regresión de edición tras resembrar |
-| BE-08: decisión de catálogo | FE-12 | Acuerdo PO documentado y alcance visible |
-| BE-09: deploy y URL | FE-11/14 | Entorno disponible y acceso desde otra máquina |
+| `GET /categorias?pagina=1&limite=50` | Público | Paginada; cada categoría con `slug`, `nombre`, `icono` (consultar DTO exacto). |
+| `GET /guias?categoria=seguridad-digital&pagina=1&limite=20` | Público | `{datos:[{slug,categoria,titulo,objetivo,nivel,duracionEstimadaMin}],total,pagina,limite}`; solo PUBLICADA. |
+| `GET /guias/:slug` | Público | `DetalleGuia`: resumen anterior + `totalPasos`, `tieneActividad`, `pasos:[{orden,titulo,bloques:[{tipo,texto?,nivel?,url?,textoAlternativo?}]}]`. |
+| `POST /guias/:slug/consultas` | Sesión opcional | 204, sin cuerpo; registrar **una apertura** para HU-31. |
 
-## 5. Orden de trabajo en paralelo
+Ejemplo de detalle ilustrativo del **esquema DTO, no snapshot de DB**:
 
-1. **Día de arranque técnico:** auditar BE-01, BE-02, BE-03 y BE-04 en paralelo; entregar contratos existentes de BE-05/06 sin implementar duplicados. Revisar BE-07 **antes de que el personal edite**.
-2. **Primera integración:** cerrar BE-01 y BE-02 para permitir prácticas y ayuda; FE inicia inmediatamente con endpoints ya funcionales mientras se resuelven diferencias de invitados.
-3. **Segunda integración:** finalizar BE-03 y BE-04 para que FE monte progreso y estadísticas; BE-05/06 corrige hallazgos E2E puntuales.
-4. **Cierre de aceptación:** acuerdo PO para BE-08, CI y despliegue BE-09; pruebas cruzadas con FE-14.
+```json
+{"slug":"smishing","categoria":"seguridad-digital","titulo":"Smishing","objetivo":"Reconocer mensajes falsos","nivel":"BASICO","duracionEstimadaMin":8,"totalPasos":2,"tieneActividad":true,"pasos":[{"orden":1,"titulo":"Observa el mensaje","bloques":[{"tipo":"texto","texto":"Revisa el remitente."}]}]}
+```
 
-## 6. Definición de terminado para cada tarea backend
+**Reglas:** GET detalle **no registra automáticamente** apertura; FE realiza POST consultas al entrar en guía. Si falla este POST de telemetría, se informa en observabilidad pero no se bloquea lectura; no duplicarlo por rerender accidental. Evitar que el detalle use texto/ejemplos de mock mezclados con datos reales. `404` pública muestra guía no disponible, no mock. Las 15 guías/5 categorías reportadas por F00 **no autorizan** cambiar automáticamente los requisitos ni borrar material; D-01 requiere PO.
 
-- La historia se comprueba contra el **criterio exacto del backlog v2.1**, sin sustituirlo por la mera presencia de un endpoint.
-- Arquitectura limpia: reglas en dominio/aplicación, sin imports de NestJS/Prisma allí; DTO y errores uniformes.
-- Se probó autorización pública/JWT/roles; respuesta 401/403/409 según corresponda; entradas validadas (`whitelist`, `forbidNonWhitelisted` cuando aplique).
-- Pruebas unitarias de cambios y e2e de flujos; regresiones de invitados/consentimiento/privacidad y concurrencia cuando apliquen.
-- Swagger actualizado para cada contrato nuevo/modificado; migraciones y seeds reproducibles si se cambia BD.
-- No ejecutar actualizaciones de datos reales, operaciones destructivas ni pruebas con cuentas sin autorización.
-- Entregable de integración para frontend: ruta, método, esquema de request/response, ejemplos de error, permiso requerido y evidencia `PASS_INTEGRATED`.
-- Un integrante del equipo hace **manualmente** rama/commit/push/PR; revisión por al menos un compañero y CI verde antes de merge.
+### C-02 — Listado de categorías y contenido aprobado [EXISTENTE + D-01]
 
-**Fuera de alcance inmediato:** HU-07, 08, 11, 12, 14, 22, 24, 32–35, 40–44 y HU-16, salvo decisión formal. Las fechas/puntos de los tres sprints anteriores no se reescriben por esta planificación de cierre.
+Contrato actual: GET `/categorias`, GET `/guias?categoria=<slug>`. El frontend **no debe convertir silenciosamente** `phishing` en `seguridad-digital` ni imponer un conjunto artificial de categorías sin decisión PO y pruebas. Las cuatro guías exigidas por backlog son Smishing, Vishing, Quishing y Falso soporte técnico; sus preguntas incluyen HU-25/26/27 dentro de las actividades existentes. **La cantidad de datos semilla fuera de ellas no equivale a un nuevo requisito funcional.** FE puede mostrar los datos publicados reales; cambios de visibilidad/editorial requieren decisión D-01. Si la categoría está vacía, mensaje textual de HU-09, no error técnico.
+
+### C-03 — Actividad real y persistencia de usuario registrado [EXISTENTE]
+
+`GET /guias/:slug/actividad` **público** → `200`:
+
+```json
+{"titulo":"Práctica de Smishing","porcentajeAprobacion":70,"totalPreguntas":2,"preguntas":[{"id":"11111111-1111-4111-8111-111111111111","enunciado":"¿Qué harías ante un enlace sospechoso?","opciones":[{"id":"22222222-2222-4222-8222-222222222222","texto":"No abrirlo"},{"id":"33333333-3333-4333-8333-333333333333","texto":"Abrirlo inmediatamente"}]},{"id":"77777777-7777-4777-8777-777777777777","enunciado":"¿Debes compartir un código por teléfono?","opciones":[{"id":"88888888-8888-4888-8888-888888888888","texto":"No, nunca"},{"id":"99999999-9999-4999-8999-999999999999","texto":"Sí"}]}]}
+```
+
+Ejemplo didáctico de forma JSON: `totalPreguntas` debe igualar longitud de `preguntas` en respuestas reales; el servidor NO envía `esCorrecta`, `opcionCorrecta` ni explicación antes de responder. Actividad de 1–10 preguntas, cada una 2–4 opciones y exactamente una correcta en BD. `404` si la guía no existe/no está publicada/no tiene actividad.
+
+`POST /guias/:slug/actividad/intentos` con `Authorization: Bearer` de **USUARIO_PUBLICO** (en la implementación dev acepta sesión opcional, pero ver C-04) cuerpo vacío → `201`:
+
+```json
+{"id":"44444444-4444-4444-8444-444444444444","totalPreguntas":2}
+```
+
+`POST /intentos/:id/respuestas` con el mismo usuario → cuerpo:
+
+```json
+{"preguntaId":"11111111-1111-4111-8111-111111111111","opcionId":"22222222-2222-4222-8222-222222222222"}
+```
+
+→ `201`:
+
+```json
+{"esCorrecta":true,"opcionCorrecta":{"id":"22222222-2222-4222-8222-222222222222","texto":"No abrirlo"},"explicacion":"Los mensajes sospechosos deben verificarse.","respondidas":1,"totalPreguntas":2,"resultado":null}
+```
+
+Con última pregunta, `resultado` es `{ "respuestasCorrectas":2,"totalPreguntas":2,"porcentaje":100,"aprobado":true,"porcentajeAprobacion":70 }`. `409` si pregunta repetida o intento finalizado. FE solo avanza tras respuesta confirmada; bloquear doble clic; **no reintentar POST respuestas automáticamente** si se pierde la respuesta de red, porque ya pudo haberse registrado (consultar posibilidad de recuperación/idempotencia con BE si se necesita).
+
+### C-04 — Evaluación de práctica INVITADO sin persistencia [PROPUESTO: acuerdo crítico FE/BE]
+
+**Discrepancia comprobable en código `dev`:** el controller permite sesión opcional en `POST .../intentos`, y `IniciarIntentoUseCase` llama a `intentos.crear()` aun cuando `usuarioId=null`. No se verificó directamente desde aquí si se guardó en PostgreSQL o un repositorio temporal; F00 obtuvo un UUID anónimo. El modelo v2.0 prohíbe filas para invitados. El backend debe comprobar con SQL el repositorio usado y su efecto antes de corregir.
+
+**Propuesta de contrato único (NO EXISTE AÚN):** `POST /guias/:slug/actividad/evaluar-respuesta`, público, **sin guardar** intento/respuesta/progreso/paso. JSON:
+
+```json
+{"preguntaId":"11111111-1111-4111-8111-111111111111","opcionId":"22222222-2222-4222-8222-222222222222"}
+```
+
+→ `200`:
+
+```json
+{"esCorrecta":true,"opcionCorrecta":{"id":"22222222-2222-4222-8222-222222222222","texto":"No abrirlo"},"explicacion":"Los mensajes sospechosos deben verificarse."}
+```
+
+**Semántica propuesta:** validar que slug está publicado, pregunta pertenece a la actividad de esa guía, opción pertenece a pregunta, devolver el mismo feedback que C-03 sin exponer correcto en GET; no escribir tablas educativas ni crear sesión. `400` UUID/formato inválido, `404` guía/actividad/pregunta inexistente, `400` opción no pertenece. Como contrato stateless no detecta repetición ni puede impedir que un cliente técnico consulte varias opciones; **no prometer antitrampas que no existe**. El frontend mantiene `respuestas`, `paso` y calificación local **solo en estado React en memoria**. Calcula resultado con `correctas/total*100` y umbral recibido en C-03; se pierde al recargar. Mostrar invitación no obligatoria a registrarse. FE y BE **deben aprobar la ruta y forma exactas** antes del código. Alternativa viable solo mediante decisión compartida: sesión anónima efímera no persistente en servidor; no se asumirá por defecto.
+
+### C-05 — Ayuda de visitante y estado [EXISTENTE + seguridad POR VALIDAR]
+
+`POST /solicitudes-ayuda` público o sesión opcional. JSON exacto del DTO existente:
+
+```json
+{"equipo":"12","tema":"SEGURIDAD_DIGITAL","guiaSlug":"smishing","pasoOrden":2}
+```
+
+- `equipo`: string no vacío, máximo 100; deduplicación por normalización de mayúsculas/espacios para solicitud activa; `tema` uno de `CORREO`, `BUSQUEDA_INTERNET`, `DOCUMENTOS`, `REDES_SOCIALES`, `SEGURIDAD_DIGITAL`, `USO_DEL_EQUIPO`, `IMPRESION`, `OTRO`; `guiaSlug` opcional, patrón `[a-z0-9]+(-[a-z0-9]+)*`, máximo 80; `pasoOrden` opcional integer >=1 **solo si existe `guiaSlug`** (confirmar validación dominio).
+- `201` solicitud nueva; `200` solicitud activa existente: `{id,equipo,tema,estado,posicion,creadaEn,yaExistia}`. Ejemplo:
+
+```json
+{"id":"55555555-5555-4555-8555-555555555555","equipo":"12","tema":"SEGURIDAD_DIGITAL","estado":"PENDIENTE","posicion":2,"creadaEn":"2026-11-26T19:00:00.000Z","yaExistia":false}
+```
+
+- `GET /solicitudes-ayuda/:id` → `200` mismo estado sin `yaExistia`; `DELETE /solicitudes-ayuda/:id` → `204` solo si PENDIENTE; conserva fila `CANCELADA`, `409` si no puede cancelarse; `404` si no existe. **Seguridad todavía no resuelta:** el controller `dev` anota GET/DELETE públicos, pero F00 observó 401 al consultar sin cookie. No se debe afirmar un contrato de identidad/cookie que no está probado. `BE-02` debe verificar rama local y fijar una prueba `POST→GET→DELETE` desde el mismo navegador; establecer mecanismo de titularidad para impedir consultar/cancelar ajenos (por ejemplo cookie de sesión/capacidad opaca httpOnly), y entregar a FE si debe usar `credentials: include`. **No diseñar el frontend alrededor de una cookie imaginaria.**
+- UI FE: formulario con ubicación/contexto, deshabilitar envío doble, mostrar `posicion`, estado y botón cancelar solo PENDIENTE, consultar cada 15s mientras espera, detener polling al salir. No mostrar datos sensibles del personal ni exponer IDs de otras solicitudes.
+
+### C-06 — Cola y acciones del personal [EXISTENTE]
+
+`GET /solicitudes-ayuda?estado=PENDIENTE&pagina=1&limite=20&ordenarPor=creadaEn&direccion=asc` con Bearer PERSONAL/ADMINISTRADOR → `200` paginado `{datos:[SolicitudEnCola],total,pagina,limite}`. Registro:
+
+```json
+{"id":"55555555-5555-4555-8555-555555555555","equipo":"12","tema":"SEGURIDAD_DIGITAL","estado":"PENDIENTE","guia":{"slug":"smishing","titulo":"Smishing"},"paso":2,"creadaEn":"2026-11-26T19:00:00.000Z","atendidaPor":null,"tomadaEn":null,"resueltaEn":null,"comentarioResolucion":null}
+```
+
+`POST /solicitudes-ayuda/:id/tomar` Bearer PERSONAL/ADMINISTRADOR, sin body → `200` `SolicitudEnCola`, estado `EN_ATENCION`, `atendidaPor` nombre. Transición debe ser atómica `UPDATE ... WHERE estado='PENDIENTE'`; si tomó otro monitor `409`, FE recarga lista.
+
+`POST /solicitudes-ayuda/:id/resolver` Bearer PERSONAL/ADMINISTRADOR, body `{"comentario":"Se explicó cómo verificar el mensaje."}` con texto opcional/null y máximo 500 → `200`, estado `RESUELTA`; `403` si no es quien la tomó; `409` si nadie la tomó o ya cerrada. FE polling **cada 15s**, lista ascendente por fecha y tiempo de espera calculado por `Date.now - creadaEn`; al desmontar cancelar intervalo/solicitudes. Para ver propios en atención usar GET con filtro `estado=EN_ATENCION` (ya soportado); nunca perderlos al pasar de pendiente a en atención.
+
+### C-07 — Gestión de guías por personal [EXISTENTE]
+
+Todos requieren Bearer rol PERSONAL o ADMINISTRADOR: `GET /gestion/guias`, `POST /gestion/guias`, `GET /gestion/guias/:slug`, `PUT /gestion/guias/:slug`, `POST /gestion/guias/:slug/publicar`, `POST /gestion/guias/:slug/ocultar`. GET listado paginado; POST crea en BORRADOR y genera slug; PUT **reemplaza** campos de guía y, si viene `pasos`, reemplaza la lista de pasos exactamente y en orden (omitir `pasos` no los modifica). DTO de escritura:
+
+```json
+{"titulo":"Guía de prueba","objetivo":"Identificar señales de engaño.","descripcion":"Guía temporal para pruebas.","categoria":"seguridad-digital","nivel":"BASICO","duracionEstimadaMin":8,"palabrasClave":["smishing"],"pasos":[{"titulo":"Comprueba el mensaje","bloques":[{"tipo":"texto","texto":"Verifica el remitente."},{"tipo":"aviso","nivel":"alerta","texto":"No compartas códigos."}]}]}
+```
+
+**Campos y validaciones EXISTENTE:** título 1–150; objetivo 1–300; descripción opcional <=2000; categoría es `slug` existente <=40; nivel BASICO/INTERMEDIO/AVANZADO; duración integer 1–600 min; palabras clave <=15, cada una <=40; pasos opcionales <=50; cada paso `{id?:UUID,titulo?:string|null (<=120),bloques:[...]} `, <=10 bloques por paso; tipos de bloque texto `{tipo:'texto',texto}`, aviso `{tipo:'aviso',nivel:'consejo'|'alerta',texto}`, imagen `{tipo:'imagen',imagenId:UUID,textoAlternativo}`; contenido max 600 letras por bloque texto. Si se edita paso existente conservar `id` UUID estable; si se omite el id el servidor lo crea nuevo. **No subir archivos**: HU-14 es Should y requiere módulo aparte si se activa.
+
+**Salida existente:** `GuiaGestionDetalle` con `slug,categoria,titulo,objetivo,nivel,duracionEstimadaMin,estado,totalPasos,publicadaEn,creadaPor,actualizadaPor,creadoEn,actualizadoEn,descripcion,palabrasClave,pasos:[{id,orden,titulo,bloques}]`. `POST` 201, `PUT`/publicar/ocultar 200; publicar sin pasos 409; una PUBLICADA no puede quedar sin pasos 409; ocultar conserva datos y progreso. No editar guías reales en pruebas; usar un borrador ficticio y limpiarlo con autorización, ya que controlador no declara DELETE de guía.
+
+**Dependencia BE-07:** resembrar dos veces tras editar el borrador **no debe pisar las ediciones**; antes de usar el editor con datos reales verificar el seed.
+
+### C-08 — Cuenta pública, OTP y sesión [EXISTENTE]
+
+- `GET /aviso-privacidad/vigente` público: `{version,contenido,vigenteDesde}`.
+- `POST /auth/registro` público → 202; body:
+
+```json
+{"nombre":"Persona de prueba","numeroIdentificacion":"00000001","fechaNacimiento":"1955-08-21","correo":"prueba@example.test","aceptaAvisoPrivacidad":true,"canalVerificacion":"CORREO"}
+```
+
+  `telefono` alternativo, al menos teléfono o correo; DOB requerida en DTO actual aunque D-02 pide justificación. Salida `{registroId,canal,destino,mensaje,expiraEn,puedeReenviarEn}`; nombre <=100, identificación <=30, fecha `YYYY-MM-DD`, email <=254, teléfono <=20, consentimiento true. `409` identificador/email/teléfono duplicado; `429` tasa límite.
+- `POST /auth/registro/verificar` público → 201; body `{ "registroId":"UUID", "codigo":"123456" }`, seis dígitos. `POST /auth/registro/reenviar-codigo` → 202, `{registroId}`.
+- `POST /auth/login` público → 202, `{numeroIdentificacion,contacto}`; salida `{solicitudId,canal,destino,mensaje,expiraEn,puedeReenviarEn}`. `POST /auth/login/verificar` público → 200, `{solicitudId,codigo}`. Login incorrecto 401 genérico sin revelar cuál dato.
+- Verificación exitosa (login o registro) → `{usuario:{nombre,rol},accessToken,accessTokenExpiraEn,refreshTokenExpiraEn}` **más cookie `refresh_token` httpOnly**; el cuerpo no contiene refresh token. `POST /auth/refresh` con cookie y `credentials:'include'` → 200 `{accessToken,accessTokenExpiraEn,refreshTokenExpiraEn}` y nueva cookie; refresh token rota. `POST /auth/logout` con cookie → 204 y la elimina.
+- `POST /auth/cuenta/eliminacion` Bearer USUARIO_PUBLICO → 202, `{canal?:'CORREO'|'TELEFONO'}`; `{solicitudId,canal,destino,mensaje,expiraEn,puedeReenviarEn}`. `POST /auth/cuenta/eliminacion/confirmar` Bearer → 204, `{solicitudId,codigo}`. Borrar datos y progreso, conservar métricas anonimizadas; limpiar estado FE y cookie. Sólo con **cuenta de prueba** y autorización.
+- **Riesgo FE verificado en código:** `HttpAuthRepository` guarda access token en localStorage. Se requiere revisión de seguridad en equipos compartidos; no asumir que almacenar refresh ahí es aceptable. El refresh queda exclusivamente en cookie. Si se cambia estrategia de almacenamiento, hacerlo en un issue separado compatible con todos los módulos.
+
+### C-09 — Personal y acceso privilegiado [EXISTENTE]
+
+- `POST /auth/personal/login` público → 202, `{correo,password}`; OTP enviado a correo, salida con `{solicitudId,canal,destino,mensaje,expiraEn,puedeReenviarEn}`. `POST /auth/personal/login/verificar` → 200, `{solicitudId,codigo}`; `{usuario:{nombre,rol,debeCambiarPassword},accessToken,...}` + cookie httpOnly. `auth/refresh` y `auth/logout` compartidos con usuario público.
+- `POST /personal/yo/password/codigo` Bearer PERSONAL/ADMINISTRADOR → 202, sin body, salida `{destino,expiraEn,mensaje}`. `POST /personal/yo/password` → 204, DTO **verificado en `CambiarPasswordInicialDto` de `dev`** `{codigo:"123456",passwordNueva:"NuevaClave2026"}`. **No** envía `solicitudId` ni `nuevaPassword`; FE debe respetar `passwordNueva`, código de seis dígitos y contraseña de hasta 72 caracteres. Revalidar rama de PR.
+- `GET /personal?pagina=1&limite=20`, `GET /personal/:uuid`, `POST /personal`, `PATCH /personal/:uuid`, `POST /personal/:uuid/desactivar`, `POST /personal/:uuid/reactivar`: **solo ADMINISTRADOR**. POST JSON `{nombre,correo,passwordTemporal,rol:'PERSONAL'|'ADMINISTRADOR'}`, edición parcial `{nombre?,correo?,rol?}`. Respuesta `{id,nombre,correo,rol,activo,debeCambiarPassword,ultimoAccesoEn,creadoEn}`, listado paginado. `409` correo en uso; 403 personal normal. La contraseña temporal 8–72 con letra y número según DTO.
+- **Riesgo FE verificado en código:** `HttpPersonalRepository` hace fallback a `InMemoryPersonalRepository` ante excepciones no `PersonalError`, incluso en acciones de autenticación/administración. **Nunca permitir credenciales ficticias exitosas ante un 500/offline**. Retirar fallback en entorno integrado.
+
+### C-10 — Mi progreso persistente [PROPUESTO, implementarlo solo tras confirmar ausencia]
+
+**Desacople clave:** GET `/guias/:slug` existente devuelve pasos con `orden` pero **sin `id` UUID**; la tabla `paso_leido` requiere ID persistente. Se propone extender **sin romper** el DTO público `pasos[]` con `id:UUID` estable. FE usa ese ID, no el ordinal, para marcar paso.
+
+- `PUT /mi-progreso/guias/:slug/pasos/:pasoId` Bearer `USUARIO_PUBLICO`; cuerpo **vacío**; operación idempotente. Valida que el paso pertenece a la guía. Respuesta `200` con `ProgresoGuiaDTO` actualizado. Repetir no duplica `paso_leido` (PK usuario/paso).
+- `GET /mi-progreso` Bearer `USUARIO_PUBLICO` → `200` `{datos:[ProgresoGuiaDTO]}`; opcionalmente solo guías publicadas; para guías ocultas con progreso conservar referencia no exponer contenido (definir presentación). `GET /mi-progreso/guias/:slug` → `200` un DTO y, si no hay avance, ceros.
+
+```json
+{"guia":{"slug":"smishing","titulo":"Smishing"},"pasosLeidos":2,"totalPasos":5,"porcentajeLectura":40,"actividadAprobada":false,"completada":false,"ultimoPasoId":"66666666-6666-4666-8666-666666666666","actualizadoEn":"2026-11-26T19:10:00.000Z"}
+```
+
+- **Reglas propuestas:** porcentaje `Math.round(100*min(pasosLeidos,totalPasos)/totalPasos)` con `totalPasos=0 => 0`; `completada` requiere que el usuario haya llegado al último paso y haya aprobado alguna actividad de la guía cuando exista; si no hay actividad, basta lectura hasta el final. BE calcula desde `paso_leido`, `progreso_guia` e `intento`, nunca acepta `usuarioId`, `porcentaje` o `completada` del cliente. El FE marca cada paso **al confirmarse que se visualizó**, no al abrir solamente el listado; enviar como máximo un PUT por paso y sesión/UI. `401` no sesión; `403` rol personal; `404` guía/paso ajeno; reordenar conserva IDs y lectura.
+- **D-03 pendiente PO:** editar pasos después de publicación; no redefinir retroactivamente progreso sin acuerdo. Mostrar progreso cero para invitado sin invocar esta API y sin almacenar progreso en disco.
+
+### C-11 — Estadísticas agregadas [PROPUESTO, implementarlo solo tras verificar si ya existe]
+
+`GET /gestion/estadisticas/resumen?desde=2026-11-20&hasta=2026-11-26` Bearer `PERSONAL`/`ADMINISTRADOR` (permiso propuesto a confirmar), fechas opcionales `YYYY-MM-DD`, por defecto últimos **7 días calendario incluyendo hoy** en zona `America/Bogota`, límite `desde<=hasta`, límite máximo de rango configurable (propuesta: 366 días), validación 400.
+
+```json
+{"periodo":{"desde":"2026-11-20","hasta":"2026-11-26","zonaHoraria":"America/Bogota"},"totales":{"consultasGuias":35,"solicitudesAyuda":6},"topGuias":[{"slug":"smishing","titulo":"Smishing","consultas":20}],"consultasPorCategoria":[{"slug":"seguridad-digital","nombre":"Seguridad digital","consultas":35}],"solicitudesPorTema":[{"tema":"SEGURIDAD_DIGITAL","cantidad":6}],"hayDatos":true}
+```
+
+- Fuente: `consulta_guia` y `solicitud_ayuda`; `topGuias` máximo 10, orden por consultas DESC con desempate estable; `consultasPorCategoria` suma de consultas, `solicitudesPorTema` agrupa por enum; todas las cifras numéricas, nunca `null`; `hayDatos=false` si no hubo consultas **ni** solicitudes, listas vacías/totales 0. Consultas anónimas cuentan, sin datos de usuario en respuesta.
+- BE usa SQL con agregaciones (`groupBy`/`$queryRaw` parametrizada), filtros por fecha y join con categorías/guías. Rango de tiempo convertido a UTC con límites `[inicioBogota, inicioSiguienteDiaBogota)`, evitando off-by-one. Índice en `consulta_guia(guia_id,consultada_en)` y `solicitud_ayuda(creada_en,tema)` según modelo v2.0. Si una guía se oculta, sus consultas históricas deben seguir contabilizadas; no borrar datos editoriales para facilitar estadísticas.
+- FE no calcula sumas desde todas las filas ni inventa métricas; presenta `cargando`, `sin datos`, `error`, rangos inclusivos y gráfico/tabla; `401/403/400/500` explícitos. **Contrato propuesto**, no anunciar endpoint disponible hasta BE confirme.
+
+### Prueba de compatibilidad cruzada por contrato
+
+Para cada C-XX, el equipo backend registra: ejemplo request real, respuesta exitosa real, error de validación, 401/403 cuando corresponde, 409 si hay concurrencia, test e2e y referencia Swagger. El equipo frontend prueba los **mismos JSON** con fixtures contractuales, valida el mapeo en `Http*Repository`, muestra errores reales y demuestra en navegador la ruta integrada. En acciones que escriben BD se usa ambiente de prueba aislado + cuentas/equipos ficticios y aprobación. La evidencia común se adjunta al issue emparejado.
+
+## 3. Tareas del BACKEND — fichas de implementación
+
+**Política BE:** modificar solo `backend/`, migraciones/semillas relacionadas y pruebas; cambios Docker/Nginx/CI con aprobación conjunta. Reusar Clean Architecture y evitar imports de NestJS o Prisma en dominio/aplicación. El catálogo C-00…C-11 está copiado íntegro aquí y es la especificación para coordinación; propuestas deben aprobarse. No alterar contenido educativo ni credenciales reales. **Git de escritura siempre a cargo de estudiantes.**
+
+### BE-01 — Prácticas de invitados y persistencia correcta (HU-03/21/23) · P0 · pareja FE-01/02 · C-03/C-04
+
+- Inspeccionar `IniciarIntentoUseCase`, `ResponderPreguntaUseCase`, repositorios Prisma y migraciones reales; comprobar con SELECT en entorno de prueba si `POST intentos` anónimo persiste (fue autorizado y ejecutado en F00). Verificar nulidad `intento.usuario_id` real; modelo v2.0 obliga NOT NULL.
+- Mantener C-03 para `USUARIO_PUBLICO` con UUID, exclusión entre cuentas y 409; **no romper consumidores existentes** sin versión/aviso. Definir si un cliente anónimo invocando `POST /.../intentos` debe recibir `401` o `403` y testearlo; se propone `401` como sesión requerida para crear intento persistente.
+- Implementar **C-04 propuesto** solo cuando FE apruebe ruta/body/salida: validación pública stateless por pregunta, sin escrituras educativas; comparar opcionId y preguntaId y pertenencia a guía/actividad, mantener regla 70% y no revelar respuesta en GET. NO insertar filas en `intento`, `respuesta_intento`, `paso_leido`, `progreso_guia` para visitantes.
+- Si hay datos anónimos previos, definir migración de depuración **solo autorizada** y aplicar `usuario_id NOT NULL` en ambiente controlado; pruebas de rollback y compatibilidad.
+- Tests unitarios y e2e: 1–10 preguntas, 2–4 opciones, GET sin correcta, visitante evaluar y 0 filas, usuario crear/contestar/calificar y persistencia, reintento finalizado 409, UUID ajeno 404, correctas >=70%, 69% no aprobado.
+- **Entrega FE:** OpenAPI C-03+C-04, JSON real, error 400/401/404/409 y prueba SQL cero filas para guest. `PASS_BE` antes de `PASS_INTEGRATED`.
+
+### BE-02 — Propiedad, deduplicación y ciclo de ayuda (HU-29/30) · P0 · pareja FE-04/06 · C-05/C-06
+
+- Verificar ruta exacta y versión desplegada: controller `dev` GET/DELETE públicos por id, F00 reporta 401 en GET sin cookie; por tanto investigar middleware/guards y pruebas de la rama local. No asumir que pasar un UUID autoriza cancelar solicitud ajena.
+- Probar `POST` 201, 200 duplicado con **misma sesión y mismo equipo**, normalización de equipo, consulta y cancelación con la misma identidad, cancelación solo PENDIENTE, 409 al cambiar estado.
+- **Fijar mecanismo acordado de titularidad C-05**: sesión/capability del visitante opaca y de vida limitada, preferible cookie httpOnly SameSite apropiada y verificación server-side; gestionar navegador compartido, origen cross-site/cookie en prod y limpieza. Si cambia body/cookies, actualizar sección C-05 en ambos archivos antes de code.
+- Cola: GET asc paginada, POST tomar atómico `UPDATE WHERE estado=PENDIENTE`, solo asignado resuelve; `409` carrera, `403` ajeno. Probar dos monitores concurrentes y polling sin fuga.
+- **Entrega FE:** ejemplos de `Set-Cookie` / request y estados reales preservando cookie; documentación Swagger + tests de pertenencia, 201/200/204/401/403/404/409.
+
+### BE-03 — Servicio progreso persistente (HU-23) · P0 · pareja FE-07 · C-10 PROPUESTO
+
+- Buscar cualquier ruta/caso de uso existente antes de crear uno nuevo. Si no existe, módulo de progreso en capas `domain/application/infrastructure/presentation` y registrar en Nest. Tablas modelo `progreso_guia`, `paso_leido`, relaciones con `intento`/`actividad` en Prisma; migración versionada si faltan.
+- Extender DetalleGuiaDto.pasos[] con `id: UUID` estable de paso sin quitar `orden` ni cambiar bloques; nunca devolver ID de usuario en cliente público. Marcar leído `PUT /mi-progreso/guias/:slug/pasos/:pasoId` idempotente y GET listado/detalle según C-10; identificar usuario mediante JWT, nunca desde body/path.
+- Resolver lecturas, porcentaje numérico, aprobó actividad, flag `completada` de acuerdo al criterio: último paso alcanzado y actividad aprobada si existe. Corregir si se edita/oculta una guía sin borrar progreso; **D-03 requiere PO** para supresión de pasos ya registrados.
+- Pruebas SQL de 2 usuarios, PK (usuario,paso), leer dos veces, reordenar pasos, guía oculta, sin pasos, logout/login, invitado 401 sin filas, eliminación de cuenta cascada; no cambiar un sistema correcto si ya existe.
+- **Entrega FE:** fixtures reales de C-10, DTO, casos e2e y doc breve de semántica; `PASS_BE`.
+
+### BE-04 — Estadísticas PostgreSQL del panel (HU-31) · P0 · pareja FE-08 · C-11 PROPUESTO
+
+- Buscar antes si `consulta_guia` y API agregada ya existen. Asegurar `POST /guias/:slug/consultas` crea una fila por apertura efectiva de la guía; no exponer identificación de invitado.
+- Implementar endpoint único C-11 con rol de personal aprobado, filtro rango `desde/hasta` 7 días por defecto en `America/Bogota`, UTC [desde, hasta+1 día), top10 guías, agrupación categorías y ayuda por tema, `hayDatos`. Datos cero -> estructuras vacías; consultas validan rango y coste.
+- Agregar en SQL (`groupBy`/query raw parametrizada) con índices del modelo; agrupar por categoría mediante joins. No descargar cada evento en Node para contar.
+- Pruebas deterministas: fechas borde medianoche, solicitud sin guía, consultas anónimas, cero eventos, guía oculta, agrupación, 401/403, índices/plan básico; verificar sumatorias contra SELECT controlado.
+- **Entrega FE:** JSON real conforme C-11 + ejemplos de vacíos y error por rango; pruebas e2e autorizadas.
+
+### BE-05 — Autenticación/cuentas/privacidad (HU-01/02/04/05/06) · P0 · pareja FE-09/10 · C-08/C-09
+
+- El backend ya expone rutas OTP de registro/login, refresh/logout, cuenta/eliminación y personal. Validarlas con fixtures ficticios autorizados; NO reimplementarlas por defecto. Verificar cobertura de JWT rotación refresh, auth cookie httpOnly, throttling, datos mínimos, roles, 401/403, OTP expirado/incorrecto, caducidad, invalidación de sesión y doble uso de refresh.
+- Cuenta pública: consentimiento/vigencia, duplicados por identificación/contacto, OTP 6 dígitos, sesión, supresión transaccional de usuario y progresos y anonimización de `consulta_guia`, `solicitud_ayuda`, calificación; evitar logs de códigos en producción. D-02 fecha nacimiento aún requiere justificación.
+- Personal: admin crea/desactiva/reactiva; contraseña temporal y cambio inicial OTP; solo ADMIN maneja otros empleados; PERSONAL solo puede atender cola y gestionar guías; desactivar revoca tokens.
+- Confirmar que `POST /personal/yo/password` use `{codigo,passwordNueva}` (verificado en `dev`), no `{solicitudId,nuevaPassword}`; entregar a FE prueba y ejemplo real. Probar que `auth/refresh` también funcione para personal.
+- **Entrega FE:** postman/HTTP ejemplos anónimos sanitizados, status 202/200/204, error 400/401/403/409/410/429, cookie flags, id ficticios.
+
+### BE-06 — Estabilidad de gestión guías y cola (HU-13/15/30) · P0 · pareja FE-05/06 · C-06/C-07
+
+- **No crear nuevos controllers si ya existen.** `gestion/guias` GET/POST/PUT/publicar/ocultar y `solicitudes-ayuda` list/tomar/resolver constan en dev.
+- Revisar autorización PERSONAL/ADMINISTRADOR; validación DTO y serialización: crear BORRADOR, publicación exige >=1 paso, ocultar no elimina, `PUT pasos` conserva UUID de los que existían, orden nuevo estable, `PUT` omitidos pasos no elimina; 409 por guía publicada sin pasos.
+- Seguridad de toma concurrente por dos monitores, solo el asignado resuelve; error 409 consistente. Confirmar paginación 1..100, filtros `estado,tema,ordenarPor=creadaEn,direccion` y fechas de cola.
+- Entrega FE por cada endpoint existente: ruta, permiso, request/salida/error; pruebas de regresión de todos los flujos. Si faltan ajustes, PR puntual que no cambia el contrato sin acuerdo.
+
+### BE-07 — Semillas no destructivas (HU-13/15; integridad) · P0 · pareja FE-05 · C-07
+
+- Auditar seed actual: debe crear datos iniciales ausentes sin machacar guías y pasos editados por el personal. Si se autoriza actualizar semillas, usar marcas de autor/propiedad y control de modificaciones, evitando reemplazo por slug en cada inicio.
+- Prueba automática `seed→modificar título/paso por gestión→seed→comparar`: edición persiste; `seed` idempotente; datos obligatorios nuevos se incorporan sin duplicarse; no tocar guías reales para la prueba; no resetear DB de otro miembro.
+- Si el problema anterior ya está resuelto, dejar evidencias y cerrar como verificado, no aplicar refactor. **Entregar seguridad de datos antes de las pruebas del editor.**
+
+### BE-08 — Contenido/alcance, aprobación editorial (HU-09/17–20/25–27) · P0 coordinación · pareja FE-12 · C-02
+
+- Documentar categorías y guías publicadas reales (F00: 5/15), confirmar 4 modalidades obligatorias y una actividad por guía, >=5 casos de phishing y contenidos de contraseñas/verificación.
+- Presentar D-01 al PO: mantener contenido extra publicado vs limitar visibilidad según backlog; **no eliminar ni reescribir contenido**; cambios editoriales y seeds solo con aprobación. Documentar versión de semilla/estado para evitar sorpresas.
+- FE recibe decisión editorial y query/filtro usado; BE garantiza que GET público devuelve solo PUBLICADA. Esta decisión no debe impedir trabajo de FE-01..11 en paralelo.
+
+### BE-09 — Infraestructura e integración general (transversal; HU-45) · P1 · pareja FE-11/14 · C-00/C-01
+
+- Verificar en entorno aislado Docker PostgreSQL 15, migraciones/seeds idempotentes, Nest health + DB readiness (health actual no verifica BD), CORS/cookies HTTPOnly/secure en despliegue, Vite proxy local y frontend Nginx `/api/v1` + SPA fallback.
+- Verificar `GET /guias/:slug` y recarga navegador `/guias/smishing` desde URL pública real, `POST consultas`, QR de FE-11, Swagger en entorno adecuado, logs sin secretos, configuración production sin claves de desarrollo.
+- CI FE `pnpm test/lint/format:check/build` + backend test/unit/e2e (según scripts existentes); las HU-36–39 exigen validación frontend y se evidencian en FE-13. Documentar pasos reproducibles, sin borrar volumen ni aplicar migraciones destructivas sin aprobación.
+- **Entrega FE:** URL pública, cookies correctas, rutas deep link y API con certificación de funcionamiento desde otro equipo.
+
+## 4. Primera ejecución sugerida para agente BACKEND
+
+> Antes de editar audita **solo** BE-01/BE-02 y revisa existencia real de BE-03/BE-04. Contrasta C-03/C-04/C-05/C-06/C-10/C-11 con los controladores/Prisma actuales. Entrega contratos concretos, mapa de migraciones y pruebas previstas para aprobación. No modifiques frontend, no reescribas seeds/contenido educativo y no hagas Git de escritura. Cuando aprueben una sola unidad, implementa/testea y detente para revisión humana.
