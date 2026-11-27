@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { EvaluarRespuestaUseCase } from '../application/practica/evaluar-respuesta.use-case.js';
 import { IniciarIntentoUseCase } from '../application/practica/iniciar-intento.use-case.js';
 import { ObtenerActividadUseCase } from '../application/practica/obtener-actividad.use-case.js';
 import { ResponderPreguntaUseCase } from '../application/practica/responder-pregunta.use-case.js';
@@ -24,6 +25,12 @@ import { ProgresoModule } from './progreso.module.js';
       provide: ObtenerActividadUseCase,
       useFactory: (actividades: ActividadRepository) =>
         new ObtenerActividadUseCase(actividades),
+      inject: [ActividadRepository],
+    },
+    {
+      provide: EvaluarRespuestaUseCase,
+      useFactory: (actividades: ActividadRepository) =>
+        new EvaluarRespuestaUseCase(actividades),
       inject: [ActividadRepository],
     },
     {

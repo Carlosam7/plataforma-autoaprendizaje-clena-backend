@@ -28,8 +28,9 @@ interface CodigoPendiente {
 }
 
 /**
- * Doble de pruebas del repositorio de personal. **Solo para tests**: la app usa siempre
- * HttpPersonalRepository y nunca cae aquí ante un error del servidor (C-09).
+ * Repositorio de personal en memoria, para tests y para el modo demo explícito
+ * (`VITE_USAR_DATOS_DEMO=true`, FE-03). Nunca es un respaldo automático: ante un error del
+ * servidor la app muestra el error (C-09).
  */
 export class InMemoryPersonalRepository implements PersonalRepository {
   private cuentas: Map<string, Personal & { passwordHash: string }> = new Map();

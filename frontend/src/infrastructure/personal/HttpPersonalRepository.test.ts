@@ -7,8 +7,8 @@ import {
   CorreoEnUsoError,
   CredencialesIncorrectasError,
   PersonalError,
+  ServicioNoDisponiblePersonalError,
   SesionPersonalExpiradaError,
-  SinConexionPersonalError,
 } from '@/domain/personal/errors';
 
 const storageMap = new Map<string, string>();
@@ -182,14 +182,14 @@ describe('HttpPersonalRepository (C-09)', () => {
   });
 
   describe('nunca simula una respuesta', () => {
-    it('sin conexión lanza SinConexionPersonalError y no abre sesión', async () => {
+    it('sin conexión lanza ServicioNoDisponiblePersonalError y no abre sesión', async () => {
       fetchMock.mockRejectedValueOnce(new TypeError('Failed to fetch'));
       await expect(
         repo.solicitarInicioSesion({
           correo: 'admin@clena.org',
           password: 'Admin1234',
         }),
-      ).rejects.toBeInstanceOf(SinConexionPersonalError);
+      ).rejects.toBeInstanceOf(ServicioNoDisponiblePersonalError);
       expect(fetchMock).toHaveBeenCalledTimes(1);
       expect(sesionGuardada()).toBeNull();
     });
@@ -362,6 +362,92 @@ describe('HttpPersonalRepository (C-09)', () => {
         SesionPersonalExpiradaError,
       );
       expect(sesionGuardada()).toBeNull();
+    });
+  });
+
+  describe('FE-03 · sin éxitos simulados ante fallos de la API', () => {
+    beforeEach(() => guardarSesion('t', VIGENTE));
+    const operaciones: [string, () => Promise<unknown>][] = [
+      [
+        'login',
+        () => repo.solicitarInicioSesion({ correo: 'a@b.c', password: 'x' }),
+      ],
+      [
+        'verificar',
+        () =>
+          repo.verificarInicioSesion({ solicitudId: 'id', codigo: '123456' }),
+      ],
+      ['listar', () => repo.listarPersonal('t')],
+      [
+        'crear',
+        () =>
+          repo.crearPersonal('t', {
+            nombre: 'N',
+            correo: 'a@b.c',
+            rol: 'PERSONAL',
+            passwordTemporal: 'Temporal2026',
+          }),
+      ],
+      ['editar', () => repo.editarPersonal('t', 'id', { nombre: 'X' })],
+      ['desactivar', () => repo.desactivarPersonal('t', 'id')],
+      ['reactivar', () => repo.reactivarPersonal('t', 'id')],
+    ];
+
+    it.each(operaciones)(
+      '%s: fallo de red lanza error explícito',
+      async (_n, op) => {
+        fetchMock.mockRejectedValue(new TypeError('fail'));
+        await expect(op()).rejects.toThrow(ServicioNoDisponiblePersonalError);
+      },
+    );
+
+    it.each(operaciones)(
+      '%s: HTTP 503 lanza error explícito',
+      async (_n, op) => {
+        fetchMock.mockResolvedValue(respuesta(503, {}));
+        await expect(op()).rejects.toThrow(ServicioNoDisponiblePersonalError);
+      },
+    );
+
+    it('timeout lanza error explícito', async () => {
+      fetchMock.mockRejectedValue(new DOMException('t', 'TimeoutError'));
+      await expect(repo.listarPersonal('t')).rejects.toThrow(/tardó demasiado/);
+    });
+
+    it('JSON inválido en 200 lanza error explícito', async () => {
+      fetchMock.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => {
+          throw new SyntaxError('x');
+        },
+      } as unknown as Response);
+      await expect(
+        repo.crearPersonal('t', {
+          nombre: 'N',
+          correo: 'a@b.c',
+          rol: 'PERSONAL',
+          passwordTemporal: 'Temporal2026',
+        }),
+      ).rejects.toThrow(ServicioNoDisponiblePersonalError);
+    });
+
+    it('no abre sesión local si la verificación falla', async () => {
+      storageMap.clear();
+      fetchMock.mockRejectedValue(new TypeError('fail'));
+      await expect(
+        repo.verificarInicioSesion({ solicitudId: 'id', codigo: '123456' }),
+      ).rejects.toThrow();
+      await expect(repo.obtenerSesionPersonal()).resolves.toBeNull();
+    });
+
+    it('reintento tras reconexión funciona', async () => {
+      fetchMock.mockRejectedValueOnce(new TypeError('fail'));
+      await expect(repo.listarPersonal('t')).rejects.toThrow();
+      fetchMock.mockResolvedValueOnce(respuesta(200, LISTADO));
+      await expect(repo.listarPersonal('t')).resolves.toMatchObject({
+        total: 1,
+      });
     });
   });
 

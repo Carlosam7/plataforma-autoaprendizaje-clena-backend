@@ -355,4 +355,133 @@ describe('HU-23 · Ver mi progreso (e2e)', () => {
       });
     });
   });
+
+  describe('BE-03 · casos del contrato C-10', () => {
+    const GESTION = '/api/v1/gestion/guias';
+    const comoMonitor = () => con(monitor.token);
+
+    /** Reemplaza los pasos de una guía desde la gestión (HU-13), en el orden de `ids`. */
+    const guardarPasos = async (slug: string, ids: (string | undefined)[]) => {
+      const { body: g } = await http()
+        .get(`${GESTION}/${slug}`)
+        .set(comoMonitor())
+        .expect(200);
+      await http()
+        .put(`${GESTION}/${slug}`)
+        .set(comoMonitor())
+        .send({
+          titulo: g.titulo,
+          objetivo: g.objetivo,
+          categoria: g.categoria,
+          nivel: g.nivel,
+          duracionEstimadaMin: g.duracionEstimadaMin,
+          palabrasClave: g.palabrasClave,
+          // Cada paso necesita al menos un bloque (regla de la gestión de guías).
+          pasos: ids.map((id) => ({
+            ...(id ? { id } : {}),
+            bloques: [{ tipo: 'texto', texto: 'Lee con calma.' }],
+          })),
+        })
+        .expect(200);
+    };
+    const idsDePasos = async (slug: string): Promise<string[]> =>
+      (
+        await prisma.paso.findMany({
+          where: { guia: { slug } },
+          orderBy: { orden: 'asc' },
+          select: { id: true },
+        })
+      ).map((p) => p.id);
+
+    it('un invitado recibe 401 y no se guarda nada', async () => {
+      await http().post('/api/v1/guias/smishing/pasos/1/lectura').expect(401);
+      await http().get('/api/v1/progreso').expect(401);
+      expect(await prisma.pasoLeido.count()).toBe(0);
+      expect(await prisma.progresoGuia.count()).toBe(0);
+    });
+
+    it('el progreso sigue ahí en una sesión nueva (cerrar e iniciar sesión)', async () => {
+      await leer('enviar-un-correo', 1).expect(200);
+      const nueva = await app
+        .get(EmisorSesion)
+        .iniciar({ id: CARMEN, rol: 'USUARIO_PUBLICO' });
+      expect(
+        (await miProgreso(nueva.accessToken))['enviar-un-correo'],
+      ).toMatchObject({ pasosLeidos: 1, ultimoPaso: 1 });
+    });
+
+    it('si el personal reordena los pasos, lo leído se conserva y ultimoPaso trae el número nuevo', async () => {
+      const [primero, segundo] = await idsDePasos('enviar-un-correo');
+      await leer('enviar-un-correo', 1).expect(200);
+
+      await guardarPasos('enviar-un-correo', [segundo, primero]);
+
+      expect((await miProgreso())['enviar-un-correo']).toMatchObject({
+        pasosLeidos: 1,
+        // El paso que leyó ahora es el número 2.
+        ultimoPaso: 2,
+      });
+      // «Paso 1» ahora es el otro: leerlo cuenta como un paso distinto.
+      const { body } = await leer('enviar-un-correo', 1).expect(200);
+      expect(body).toMatchObject({ pasosLeidos: 2, completada: true });
+    });
+
+    it('si el personal quita un paso leído, deja de contar', async () => {
+      const [primero, segundo] = await idsDePasos('enviar-un-correo');
+      await leer('enviar-un-correo', 1).expect(200);
+
+      await guardarPasos('enviar-un-correo', [segundo]);
+
+      expect((await miProgreso())['enviar-un-correo']).toMatchObject({
+        totalPasos: 1,
+        pasosLeidos: 0,
+        ultimoPaso: null,
+      });
+      expect(await prisma.pasoLeido.count({ where: { pasoId: primero } })).toBe(
+        0,
+      );
+    });
+
+    it('D-03: si a una guía completada le agregan un paso, vuelve a EN_CURSO y conserva completadaEn', async () => {
+      await leerTodos('enviar-un-correo', 2);
+      const antes = (await miProgreso())['enviar-un-correo'];
+      expect(antes).toMatchObject({ completada: true, estado: 'COMPLETADA' });
+
+      await guardarPasos('enviar-un-correo', [
+        ...(await idsDePasos('enviar-un-correo')),
+        undefined,
+      ]);
+
+      expect((await miProgreso())['enviar-un-correo']).toMatchObject({
+        totalPasos: 3,
+        pasosLeidos: 2,
+        porcentaje: 66,
+        completada: false,
+        estado: 'EN_CURSO',
+        // Fecha de la primera vez que la completó.
+        completadaEn: antes.completadaEn,
+      });
+    });
+
+    it('una guía oculta no sale en «Mi progreso» ni deja leer pasos, y al volver a publicarla el progreso sigue', async () => {
+      await leer('enviar-un-correo', 1).expect(200);
+
+      await http()
+        .post(`${GESTION}/enviar-un-correo/ocultar`)
+        .set(comoMonitor())
+        .expect(200);
+      expect(await miProgreso()).not.toHaveProperty('enviar-un-correo');
+      const { body } = await leer('enviar-un-correo', 2).expect(404);
+      expect(body.codigo).toBe('PASO_NO_ENCONTRADO');
+
+      await http()
+        .post(`${GESTION}/enviar-un-correo/publicar`)
+        .set(comoMonitor())
+        .expect(200);
+      expect((await miProgreso())['enviar-un-correo']).toMatchObject({
+        pasosLeidos: 1,
+        ultimoPaso: 1,
+      });
+    });
+  });
 });

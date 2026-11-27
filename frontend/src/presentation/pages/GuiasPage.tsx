@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
+import { CatalogoError } from '../../domain/guias/errors';
 import type { Categoria, Guia } from '../../domain/guias/types';
 import { container } from '../../main/container';
 
@@ -175,12 +176,21 @@ function getIconForGuide(slug: string, categoriaSlug?: string) {
   }
 }
 
+function mensajeDeError(err: unknown): string {
+  return err instanceof CatalogoError
+    ? err.message
+    : 'Ocurrió un error inesperado.';
+}
+
 export function GuiasPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [guias, setGuias] = useState<Guia[]>([]);
   const [cargandoCategorias, setCargandoCategorias] = useState(true);
   const [cargandoGuias, setCargandoGuias] = useState(true);
+  const [errorCategorias, setErrorCategorias] = useState<string | null>(null);
+  const [errorGuias, setErrorGuias] = useState<string | null>(null);
+  const [intento, setIntento] = useState(0);
 
   const categoriaSeleccionada =
     searchParams.get('categoria') || 'seguridad-digital';
@@ -196,8 +206,10 @@ export function GuiasPage() {
           setCargandoCategorias(false);
         }
       })
-      .catch(() => {
+      .catch((err: unknown) => {
         if (!cancelado) {
+          setCategorias([]);
+          setErrorCategorias(mensajeDeError(err));
           setCargandoCategorias(false);
         }
       });
@@ -205,7 +217,7 @@ export function GuiasPage() {
     return () => {
       cancelado = true;
     };
-  }, []);
+  }, [intento]);
 
   // Cargar guías de la categoría seleccionada
   useEffect(() => {
@@ -218,9 +230,10 @@ export function GuiasPage() {
           setCargandoGuias(false);
         }
       })
-      .catch(() => {
+      .catch((err: unknown) => {
         if (!cancelado) {
           setGuias([]);
+          setErrorGuias(mensajeDeError(err));
           setCargandoGuias(false);
         }
       });
@@ -228,23 +241,50 @@ export function GuiasPage() {
     return () => {
       cancelado = true;
     };
-  }, [categoriaSeleccionada]);
+  }, [categoriaSeleccionada, intento]);
+
+  const reintentar = () => {
+    setCargandoCategorias(true);
+    setCargandoGuias(true);
+    setErrorCategorias(null);
+    setErrorGuias(null);
+    setIntento((n) => n + 1);
+  };
 
   const handleSeleccionarCategoria = (slug: string) => {
     if (slug === categoriaSeleccionada) return;
     setCargandoGuias(true);
+    setErrorGuias(null);
     setSearchParams({ categoria: slug });
   };
 
   const categoriaActual = categorias.find(
     (c) => c.slug === categoriaSeleccionada,
-  ) || {
-    slug: categoriaSeleccionada,
-    nombre: 'Seguridad digital',
-    numero: '01 / CATEGORÍA',
-    descripcion:
-      'Reconoce los engaños antes de actuar. Algunas personas se hacen pasar por alguien de confianza para pedirte datos o dinero. Aprende a reconocer sus señales en mensajes, llamadas, códigos QR y alertas falsas.',
-  };
+  );
+  const errorCarga = errorCategorias ?? errorGuias;
+
+  if (errorCarga) {
+    return (
+      <main
+        id="contenido"
+        className="max-w-360 mx-auto px-4 md:px-12 lg:px-24 py-16 flex flex-col items-center gap-6 text-center"
+      >
+        <h1 className="text-[2rem] font-bold text-[#17324d]">
+          No pudimos cargar las guías
+        </h1>
+        <p className="text-[1.111rem] text-[#526575] max-w-125" role="alert">
+          {errorCarga}
+        </p>
+        <button
+          type="button"
+          onClick={reintentar}
+          className="inline-flex items-center justify-center min-h-14 px-8 font-semibold text-white bg-[#0d6258] rounded-xl hover:bg-[#09473f] cursor-pointer"
+        >
+          Reintentar
+        </button>
+      </main>
+    );
+  }
 
   return (
     <main
@@ -301,35 +341,39 @@ export function GuiasPage() {
       </section>
 
       {/* Banner explicativo de la categoría activa */}
-      <section
-        className="bg-[#e7f2ee] border-2 border-[#c2ded3] rounded-2xl p-6 md:p-8 flex flex-col md:flex-row gap-6 md:gap-8 items-start"
-        aria-label={`Información de la categoría ${categoriaActual.nombre}`}
-      >
-        <div className="bg-white border border-[#d7e2e7] rounded-xl p-4 shrink-0 flex flex-col gap-1">
-          <p className="text-[0.95rem] font-bold text-[#0d6258] tracking-wider uppercase m-0">
-            {categoriaActual.numero || 'CATEGORÍA'}
-          </p>
-          <div className="flex items-center gap-2 mt-1">
-            <span className="text-[#0d6258]">
-              {getCategoryIcon(categoriaActual.icono, categoriaActual.slug)}
-            </span>
-            <p className="text-[1.5rem] font-bold text-[#17324d] m-0">
-              {categoriaActual.nombre}
+      {categoriaActual && (
+        <section
+          className="bg-[#e7f2ee] border-2 border-[#c2ded3] rounded-2xl p-6 md:p-8 flex flex-col md:flex-row gap-6 md:gap-8 items-start"
+          aria-label={`Información de la categoría ${categoriaActual.nombre}`}
+        >
+          <div className="bg-white border border-[#d7e2e7] rounded-xl p-4 shrink-0 flex flex-col gap-1">
+            <p className="text-[0.95rem] font-bold text-[#0d6258] tracking-wider uppercase m-0">
+              {categoriaActual.numero || 'CATEGORÍA'}
+            </p>
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-[#0d6258]">
+                {getCategoryIcon(categoriaActual.icono, categoriaActual.slug)}
+              </span>
+              <p className="text-[1.5rem] font-bold text-[#17324d] m-0">
+                {categoriaActual.nombre}
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-col gap-2">
+            <h2 className="text-[1.333rem] md:text-[1.5rem] font-bold text-[#17324d] m-0">
+              Aprende sobre {categoriaActual.nombre.toLowerCase()}.
+            </h2>
+            <p className="text-[1.111rem] text-[#253b38] leading-relaxed m-0">
+              {categoriaActual.descripcion}
             </p>
           </div>
-        </div>
-        <div className="flex flex-col gap-2">
-          <h2 className="text-[1.333rem] md:text-[1.5rem] font-bold text-[#17324d] m-0">
-            Aprende sobre {categoriaActual.nombre.toLowerCase()}.
-          </h2>
-          <p className="text-[1.111rem] text-[#253b38] leading-relaxed m-0">
-            {categoriaActual.descripcion}
-          </p>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* Lista de guías publicadas */}
-      <section aria-label={`Guías disponibles de ${categoriaActual.nombre}`}>
+      <section
+        aria-label={`Guías disponibles de ${categoriaActual?.nombre ?? 'la categoría'}`}
+      >
         {cargandoGuias ? (
           <div
             className="p-12 text-center text-[1.111rem] text-[#526575]"

@@ -18,16 +18,6 @@ export class SesionPersonalExpiradaError extends PersonalError {
   }
 }
 
-/** No hubo respuesta del servidor (sin red o backend caído). Nunca se simula el éxito. */
-export class SinConexionPersonalError extends PersonalError {
-  constructor(
-    message = 'No se pudo conectar con el servidor. Revisa tu conexión e inténtalo de nuevo.',
-  ) {
-    super(message, 0, 'SIN_CONEXION');
-    this.name = 'SinConexionPersonalError';
-  }
-}
-
 export class CredencialesIncorrectasError extends PersonalError {
   constructor(message = 'Credenciales incorrectas') {
     super(message, 401);
@@ -73,5 +63,15 @@ export class PasswordDebilError extends PersonalError {
   ) {
     super(message, 400);
     this.name = 'PasswordDebilError';
+  }
+}
+
+export class ServicioNoDisponiblePersonalError extends PersonalError {
+  constructor(
+    message = 'No pudimos comunicarnos con el servidor. Revisa tu conexión e inténtalo de nuevo.',
+    statusCode?: number,
+  ) {
+    super(message, statusCode);
+    this.name = 'ServicioNoDisponiblePersonalError';
   }
 }

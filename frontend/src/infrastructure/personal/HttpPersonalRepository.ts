@@ -6,8 +6,8 @@ import {
   CorreoEnUsoError,
   CredencialesIncorrectasError,
   PersonalError,
+  ServicioNoDisponiblePersonalError,
   SesionPersonalExpiradaError,
-  SinConexionPersonalError,
 } from '@/domain/personal/errors';
 import type {
   CambiarPasswordInicialComando,
@@ -33,6 +33,8 @@ import {
 // El access token se guarda en localStorage, como la sesión pública (ver C-08: riesgo
 // documentado en computadores compartidos). El refresh token nunca: va en cookie httpOnly.
 const STORAGE_KEY_PERSONAL_SESION = 'kama_personal_session';
+/** FE-03: sin respuesta en 10 s se avisa en vez de dejar la pantalla esperando. */
+const TIMEOUT_MS = 10_000;
 
 interface PersonalBackend {
   id: string;
@@ -69,7 +71,7 @@ const JSON_HEADERS = { 'Content-Type': 'application/json' };
 
 /**
  * Adaptador de las rutas de personal (C-09). Nunca simula una respuesta: si el servidor no
- * responde lanza SinConexionPersonalError, y cada error del backend llega tal cual a la
+ * responde lanza ServicioNoDisponiblePersonalError, y cada error del backend llega tal cual a la
  * pantalla con su `mensaje`.
  */
 export class HttpPersonalRepository implements PersonalRepository {
@@ -85,13 +87,13 @@ export class HttpPersonalRepository implements PersonalRepository {
     });
     if (!res.ok) await this.lanzarError(res);
 
-    const data = (await res.json()) as {
+    const data = await this.leerJson<{
       solicitudId: string;
       destino: string;
       expiraEn: string;
       puedeReenviarEn: string;
       mensaje: string;
-    };
+    }>(res);
     const puedeReenviarEn = new Date(data.puedeReenviarEn);
     return {
       solicitudId: data.solicitudId,
@@ -119,7 +121,7 @@ export class HttpPersonalRepository implements PersonalRepository {
     });
     if (!res.ok) await this.lanzarError(res);
 
-    const data = (await res.json()) as {
+    const data = await this.leerJson<{
       usuario: {
         id?: string;
         nombre: string;
@@ -128,7 +130,7 @@ export class HttpPersonalRepository implements PersonalRepository {
       };
       accessToken: string;
       accessTokenExpiraEn?: string;
-    };
+    }>(res);
     const sesion: SesionPersonal = {
       usuario: {
         // El backend no devuelve el id en la sesión; la solicitud es el id de la cuenta.
@@ -151,11 +153,11 @@ export class HttpPersonalRepository implements PersonalRepository {
       method: 'POST',
     });
     if (!res.ok) await this.lanzarError(res);
-    const data = (await res.json()) as {
+    const data = await this.leerJson<{
       destino: string;
       expiraEn: string;
       mensaje: string;
-    };
+    }>(res);
     return {
       destino: data.destino,
       expiraEn: new Date(data.expiraEn),
@@ -195,7 +197,7 @@ export class HttpPersonalRepository implements PersonalRepository {
 
     const res = await this.autenticada(token, `/personal${qs}`);
     if (!res.ok) await this.lanzarError(res);
-    const data = (await res.json()) as PersonalPaginadoBackend;
+    const data = await this.leerJson<PersonalPaginadoBackend>(res);
     return {
       datos: data.datos.map(mapearPersonal),
       total: data.total,
@@ -214,7 +216,7 @@ export class HttpPersonalRepository implements PersonalRepository {
       body: JSON.stringify(comando),
     });
     if (!res.ok) await this.lanzarError(res);
-    return mapearPersonal((await res.json()) as PersonalBackend);
+    return mapearPersonal(await this.leerJson<PersonalBackend>(res));
   }
 
   async obtenerPersonal(token: string, id: string): Promise<Personal> {
@@ -223,7 +225,7 @@ export class HttpPersonalRepository implements PersonalRepository {
       `/personal/${encodeURIComponent(id)}`,
     );
     if (!res.ok) await this.lanzarError(res);
-    return mapearPersonal((await res.json()) as PersonalBackend);
+    return mapearPersonal(await this.leerJson<PersonalBackend>(res));
   }
 
   async editarPersonal(
@@ -241,7 +243,7 @@ export class HttpPersonalRepository implements PersonalRepository {
       },
     );
     if (!res.ok) await this.lanzarError(res);
-    return mapearPersonal((await res.json()) as PersonalBackend);
+    return mapearPersonal(await this.leerJson<PersonalBackend>(res));
   }
 
   async desactivarPersonal(token: string, id: string): Promise<Personal> {
@@ -251,7 +253,7 @@ export class HttpPersonalRepository implements PersonalRepository {
       { method: 'POST' },
     );
     if (!res.ok) await this.lanzarError(res);
-    return mapearPersonal((await res.json()) as PersonalBackend);
+    return mapearPersonal(await this.leerJson<PersonalBackend>(res));
   }
 
   async reactivarPersonal(token: string, id: string): Promise<Personal> {
@@ -261,7 +263,7 @@ export class HttpPersonalRepository implements PersonalRepository {
       { method: 'POST' },
     );
     if (!res.ok) await this.lanzarError(res);
-    return mapearPersonal((await res.json()) as PersonalBackend);
+    return mapearPersonal(await this.leerJson<PersonalBackend>(res));
   }
 
   async obtenerSesionPersonal(): Promise<SesionPersonal | null> {
@@ -293,7 +295,10 @@ export class HttpPersonalRepository implements PersonalRepository {
     }
   }
 
-  /** `fetch` con cookies; sin respuesta del servidor lanza SinConexionPersonalError. */
+  /**
+   * `fetch` con cookies y un tiempo máximo de 10 s (FE-03). Sin respuesta del servidor lanza
+   * ServicioNoDisponiblePersonalError: nunca se simula una respuesta.
+   */
   private async enviar(
     ruta: string,
     init: RequestInit = {},
@@ -303,10 +308,28 @@ export class HttpPersonalRepository implements PersonalRepository {
         ...init,
         credentials: 'include',
         headers: { Accept: 'application/json', ...init.headers },
+        signal: AbortSignal.timeout(TIMEOUT_MS),
       });
     } catch (err) {
-      if (esFalloDeRed(err)) throw new SinConexionPersonalError();
+      if (err instanceof DOMException && err.name === 'TimeoutError') {
+        throw new ServicioNoDisponiblePersonalError(
+          'El servidor tardó demasiado en responder. Inténtalo de nuevo.',
+        );
+      }
+      if (esFalloDeRed(err)) throw new ServicioNoDisponiblePersonalError();
       throw err;
+    }
+  }
+
+  /** El cuerpo JSON de una respuesta correcta; si no lo es, error explícito (FE-03). */
+  private async leerJson<T>(res: Response): Promise<T> {
+    try {
+      return (await res.json()) as T;
+    } catch {
+      throw new ServicioNoDisponiblePersonalError(
+        'El servidor envió una respuesta inesperada.',
+        res.status,
+      );
     }
   }
 
@@ -357,7 +380,7 @@ export class HttpPersonalRepository implements PersonalRepository {
     try {
       renovado = await renovarAccessToken(this.baseUrl);
     } catch (err) {
-      if (esFalloDeRed(err)) throw new SinConexionPersonalError();
+      if (esFalloDeRed(err)) throw new ServicioNoDisponiblePersonalError();
       throw new PersonalError(
         'No se pudo renovar la sesión. Vuelve a iniciar sesión.',
       );
@@ -399,6 +422,10 @@ export class HttpPersonalRepository implements PersonalRepository {
         break;
       case 410:
         throw new CodigoPersonalExpiradoError(e.mensaje);
+      case 502:
+      case 503:
+      case 504:
+        throw new ServicioNoDisponiblePersonalError(e.mensaje, res.status);
       case 400:
         if (e.codigo === 'CODIGO_INCORRECTO')
           throw new CodigoPersonalInvalidoError(e.mensaje);

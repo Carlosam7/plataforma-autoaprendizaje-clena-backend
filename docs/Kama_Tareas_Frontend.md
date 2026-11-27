@@ -42,7 +42,7 @@ Cada PR debe incluir: ID tarea, HU y criterios exactos vinculados, contrato C-XX
 | R2 — guías del personal | FE-05 | BE-06, BE-07 | C-07 ya existe; FE editor, BE confirma seeds y permisos | Crear→editar→publicar→ocultar |
 | R2 — cola monitores | FE-06 | BE-02, BE-06 | C-06 existe; FE polling, BE transiciones | Dos monitores, una toma |
 | R2 — cuentas | FE-09, FE-10 | BE-05 | C-08, C-09 existentes y verificados (rama `feat/be-05-fe-09-10-auth`) | Registro/OTP, personal, eliminación |
-| R2 — progreso | FE-07 | BE-03 | C-10 propuesto; FE UI y mocks en tests; BE API y BD | Persistencia por usuario |
+| R2 — progreso | FE-07 | BE-03 | C-10 existente (verificado en BE-03); FE UI contra la API real | Persistencia por usuario |
 | R2 — estadísticas | FE-08 | BE-04 | C-11 propuesto; FE gráficos con fixture; BE agregaciones | Panel real por fechas |
 | R3 — QR y deploy | FE-11, FE-14 | BE-09 | C-01 y ruta pública; FE QR, infra prueba reload | URL pública desde teléfono |
 | R3 — calidad Must | FE-13 | BE-09/CI | HU-36–39 (sin nuevo endpoint obligatorio) | Evidencia de accesibilidad y CI |
@@ -51,7 +51,7 @@ Cada PR debe incluir: ID tarea, HU y criterios exactos vinculados, contrato C-XX
 
 ## 2. Catálogo de contratos compartidos (texto idéntico en ambos documentos)
 
-**Identificador de catálogo:** `KAMA-API-CLOSE-2026-11-26-v2`. Los contratos EXISTENTE fueron revisados en controladores/DTO en `dev` y deben **revalidarse en la rama donde se hagan los PR**; los PROPUESTO constituyen un diseño de integración para aceptar. Todos los paths son relativos al prefijo `/api/v1`.
+**Identificador de catálogo:** `KAMA-API-CLOSE-2026-11-27-v2.1` (v2.1: C-03 exige cuenta y C-04 pasa a EXISTENTE con BE-01, PR #93). Los contratos EXISTENTE fueron revisados en controladores/DTO en `dev` y deben **revalidarse en la rama donde se hagan los PR**; los PROPUESTO constituyen un diseño de integración para aceptar. Todos los paths son relativos al prefijo `/api/v1`.
 
 ### C-00 — Reglas comunes de transporte, errores, estado y seguridad [EXISTENTE + POLÍTICAS PROPUESTAS]
 
@@ -103,13 +103,13 @@ Contrato actual: GET `/categorias`, GET `/guias?categoria=<slug>`. El frontend *
 
 Ejemplo didáctico de forma JSON: `totalPreguntas` debe igualar longitud de `preguntas` en respuestas reales; el servidor NO envía `esCorrecta`, `opcionCorrecta` ni explicación antes de responder. Actividad de 1–10 preguntas, cada una 2–4 opciones y exactamente una correcta en BD. `404` si la guía no existe/no está publicada/no tiene actividad.
 
-`POST /guias/:slug/actividad/intentos` con `Authorization: Bearer` de **USUARIO_PUBLICO** (en la implementación dev acepta sesión opcional, pero ver C-04) cuerpo vacío → `201`:
+`POST /guias/:slug/actividad/intentos` con `Authorization: Bearer` de **USUARIO_PUBLICO**, obligatorio desde BE-01: `401` sin sesión o con token inválido, `403` con sesión del personal (el personal y los invitados practican con C-04). Cuerpo vacío → `201`:
 
 ```json
 {"id":"44444444-4444-4444-8444-444444444444","totalPreguntas":2}
 ```
 
-`POST /intentos/:id/respuestas` con el mismo usuario → cuerpo:
+`POST /intentos/:id/respuestas` con el Bearer del mismo usuario (`401`/`403` como arriba; intento de otra cuenta o inexistente `404` `INTENTO_NO_ENCONTRADO`) → cuerpo:
 
 ```json
 {"preguntaId":"11111111-1111-4111-8111-111111111111","opcionId":"22222222-2222-4222-8222-222222222222"}
@@ -121,13 +121,13 @@ Ejemplo didáctico de forma JSON: `totalPreguntas` debe igualar longitud de `pre
 {"esCorrecta":true,"opcionCorrecta":{"id":"22222222-2222-4222-8222-222222222222","texto":"No abrirlo"},"explicacion":"Los mensajes sospechosos deben verificarse.","respondidas":1,"totalPreguntas":2,"resultado":null}
 ```
 
-Con última pregunta, `resultado` es `{ "respuestasCorrectas":2,"totalPreguntas":2,"porcentaje":100,"aprobado":true,"porcentajeAprobacion":70 }`. `409` si pregunta repetida o intento finalizado. FE solo avanza tras respuesta confirmada; bloquear doble clic; **no reintentar POST respuestas automáticamente** si se pierde la respuesta de red, porque ya pudo haberse registrado (consultar posibilidad de recuperación/idempotencia con BE si se necesita).
+Con última pregunta, `resultado` es `{ "respuestasCorrectas":2,"totalPreguntas":2,"porcentaje":100,"aprobado":true,"porcentajeAprobacion":70 }`. `409` si pregunta repetida (`PREGUNTA_YA_RESPONDIDA`) o intento finalizado (`INTENTO_FINALIZADO`); `400` `RESPUESTA_INVALIDA` si la opción no es de la pregunta. `intento.usuario_id` es `NOT NULL` (migración `20261126120000_intento_usuario_obligatorio`). FE solo avanza tras respuesta confirmada; bloquear doble clic; **no reintentar POST respuestas automáticamente** si se pierde la respuesta de red, porque ya pudo haberse registrado (consultar posibilidad de recuperación/idempotencia con BE si se necesita).
 
-### C-04 — Evaluación de práctica INVITADO sin persistencia [PROPUESTO: acuerdo crítico FE/BE]
+### C-04 — Evaluación de práctica INVITADO sin persistencia [EXISTENTE desde BE-01, PR #93]
 
-**Discrepancia comprobable en código `dev`:** el controller permite sesión opcional en `POST .../intentos`, y `IniciarIntentoUseCase` llama a `intentos.crear()` aun cuando `usuarioId=null`. No se verificó directamente desde aquí si se guardó en PostgreSQL o un repositorio temporal; F00 obtuvo un UUID anónimo. El modelo v2.0 prohíbe filas para invitados. El backend debe comprobar con SQL el repositorio usado y su efecto antes de corregir.
+**Resuelto en BE-01:** antes el controller aceptaba sesión opcional en `POST .../intentos` e `IniciarIntentoUseCase` guardaba el intento con `usuarioId=null`. Ahora solo el usuario público crea intentos (C-03) y la migración `20261126120000_intento_usuario_obligatorio` borró los intentos anónimos y dejó `intento.usuario_id NOT NULL`. Prueba e2e: tras practicar como invitado (o con sesión del personal) quedan 0 filas en `intento`, `respuesta_intento`, `progreso_guia` y `paso_leido`.
 
-**Propuesta de contrato único (NO EXISTE AÚN):** `POST /guias/:slug/actividad/evaluar-respuesta`, público, **sin guardar** intento/respuesta/progreso/paso. JSON:
+**Contrato implementado:** `POST /guias/:slug/actividad/evaluar-respuesta`, público, **sin guardar** intento/respuesta/progreso/paso. JSON:
 
 ```json
 {"preguntaId":"11111111-1111-4111-8111-111111111111","opcionId":"22222222-2222-4222-8222-222222222222"}
@@ -139,7 +139,7 @@ Con última pregunta, `resultado` es `{ "respuestasCorrectas":2,"totalPreguntas"
 {"esCorrecta":true,"opcionCorrecta":{"id":"22222222-2222-4222-8222-222222222222","texto":"No abrirlo"},"explicacion":"Los mensajes sospechosos deben verificarse."}
 ```
 
-**Semántica propuesta:** validar que slug está publicado, pregunta pertenece a la actividad de esa guía, opción pertenece a pregunta, devolver el mismo feedback que C-03 sin exponer correcto en GET; no escribir tablas educativas ni crear sesión. `400` UUID/formato inválido, `404` guía/actividad/pregunta inexistente, `400` opción no pertenece. Como contrato stateless no detecta repetición ni puede impedir que un cliente técnico consulte varias opciones; **no prometer antitrampas que no existe**. El frontend mantiene `respuestas`, `paso` y calificación local **solo en estado React en memoria**. Calcula resultado con `correctas/total*100` y umbral recibido en C-03; se pierde al recargar. Mostrar invitación no obligatoria a registrarse. FE y BE **deben aprobar la ruta y forma exactas** antes del código. Alternativa viable solo mediante decisión compartida: sesión anónima efímera no persistente en servidor; no se asumirá por defecto.
+**Semántica:** valida que el slug está publicado y tiene actividad, que la pregunta pertenece a esa actividad y que la opción pertenece a la pregunta; devuelve el mismo feedback que C-03 sin exponer la correcta en GET; no escribe tablas educativas ni crea sesión. Errores: `400` `DATOS_INVALIDOS` (UUID/formato inválido), `404` `ACTIVIDAD_NO_ENCONTRADA` (guía inexistente, no publicada o sin actividad), `404` `PREGUNTA_NO_ENCONTRADA` (la pregunta no es de esa guía), `400` `RESPUESTA_INVALIDA` (la opción no es de la pregunta). Ignora `Authorization`: responde igual con o sin token, sea válido o no. Como contrato stateless no detecta repetición ni puede impedir que un cliente técnico consulte varias opciones; **no prometer antitrampas que no existe**. El frontend mantiene `respuestas`, `paso` y calificación local **solo en estado React en memoria**. Calcula resultado con `correctas/total*100` y umbral recibido en C-03; se pierde al recargar. Mostrar invitación no obligatoria a registrarse.
 
 ### C-05 — Ayuda de visitante y estado [EXISTENTE + seguridad POR VALIDAR]
 
@@ -220,21 +220,55 @@ Todos requieren Bearer rol PERSONAL o ADMINISTRADOR: `GET /gestion/guias`, `POST
 - `POST /auth/personal/login` público → `202`, `{correo,password}`; OTP enviado a correo, salida `{solicitudId,canal,destino,mensaje,expiraEn,puedeReenviarEn}`. **`solicitudId` es el id de la cuenta del personal** y es lo que se envía al verificar (no el `destino` enmascarado). `POST /auth/personal/login/verificar` → `200`, `{solicitudId,codigo}`; `{usuario:{nombre,rol,debeCambiarPassword},accessToken,accessTokenExpiraEn,refreshTokenExpiraEn}` + cookie httpOnly. Correo o contraseña incorrectos, o cuenta desactivada: `401 CREDENCIALES_INCORRECTAS` (mismo mensaje). `auth/refresh` y `auth/logout` compartidos con usuario público (verificado en e2e para el personal).
 - `POST /personal/yo/password/codigo` Bearer PERSONAL/ADMINISTRADOR → `202`, sin body, salida `{destino,expiraEn,mensaje}`. `POST /personal/yo/password` → `204`, DTO **`{codigo:"123456",passwordNueva:"NuevaClave2026"}`** (no `solicitudId` ni `nuevoPassword`); contraseña 8–72 caracteres con letra y número. Vencido → `410 CODIGO_EXPIRADO`.
 - `GET /personal?pagina=1&limite=20`, `GET /personal/:uuid`, `POST /personal`, `PATCH /personal/:uuid`, `POST /personal/:uuid/desactivar`, `POST /personal/:uuid/reactivar`: **solo ADMINISTRADOR** (`403 SIN_PERMISO` al personal). POST JSON `{nombre,correo,passwordTemporal,rol:'PERSONAL'|'ADMINISTRADOR'}`, edición parcial `{nombre?,correo?,rol?}`. Respuesta `{id,nombre,correo,rol,activo,debeCambiarPassword,ultimoAccesoEn,creadoEn}`, listado paginado. `409 CORREO_EN_USO`. La contraseña temporal 8–72 con letra y número según DTO. Un administrador no puede desactivarse ni quitarse el rol (`403 AUTO_MODIFICACION_NO_PERMITIDA`). **Desactivar revoca de inmediato sus sesiones y tokens**; el rol se lee de la BD en cada petición.
-- **Corregido en FE-10:** `HttpPersonalRepository` ya **no** usa `InMemoryPersonalRepository` como respaldo: sin red lanza `SinConexionPersonalError` y cualquier error del backend llega a la pantalla con su `mensaje` (`InMemoryPersonalRepository` queda solo para tests). La verificación del login envía `{solicitudId,codigo}` y el cambio inicial `{codigo,passwordNueva}`; antes enviaba `{destino,codigo}` y `{codigo,nuevoPassword}`, que el backend rechazaba con `400`. Aplica la misma política de sesión de C-08: renueva antes de vencer, ante `401` solo reintenta los `GET`, y con la sesión vencida `GestionPersonalPage` vuelve a `/personal/acceso`.
+- **Corregido en FE-03/FE-10:** `HttpPersonalRepository` ya **no** usa `InMemoryPersonalRepository` como respaldo (solo en modo demo explícito, `VITE_USAR_DATOS_DEMO=true`): sin red, con *timeout* de 10 s o con `502/503/504` lanza `ServicioNoDisponiblePersonalError` y cualquier error del backend llega a la pantalla con su `mensaje` . La verificación del login envía `{solicitudId,codigo}` y el cambio inicial `{codigo,passwordNueva}`; antes enviaba `{destino,codigo}` y `{codigo,nuevoPassword}`, que el backend rechazaba con `400`. Aplica la misma política de sesión de C-08: renueva antes de vencer, ante `401` solo reintenta los `GET`, y con la sesión vencida `GestionPersonalPage` vuelve a `/personal/acceso`.
 
-### C-10 — Mi progreso persistente [PROPUESTO, implementarlo solo tras confirmar ausencia]
+### C-10 — Mi progreso persistente [EXISTENTE desde HU-23 (PR #91); verificado y documentado en BE-03]
 
-**Desacople clave:** GET `/guias/:slug` existente devuelve pasos con `orden` pero **sin `id` UUID**; la tabla `paso_leido` requiere ID persistente. Se propone extender **sin romper** el DTO público `pasos[]` con `id:UUID` estable. FE usa ese ID, no el ordinal, para marcar paso.
+**Decisión BE-03:** se conserva el contrato que ya existe en `dev` (Regla C). El paso se identifica por su **número de orden** (el `orden` de `pasos[]` en `GET /guias/:slug`, C-01), no por UUID. La propuesta anterior (`/mi-progreso`, `PUT .../pasos/:pasoId`, `porcentajeLectura`, `ultimoPasoId`) **no existe** y no se implementará.
 
-- `PUT /mi-progreso/guias/:slug/pasos/:pasoId` Bearer `USUARIO_PUBLICO`; cuerpo **vacío**; operación idempotente. Valida que el paso pertenece a la guía. Respuesta `200` con `ProgresoGuiaDTO` actualizado. Repetir no duplica `paso_leido` (PK usuario/paso).
-- `GET /mi-progreso` Bearer `USUARIO_PUBLICO` → `200` `{datos:[ProgresoGuiaDTO]}`; opcionalmente solo guías publicadas; para guías ocultas con progreso conservar referencia no exponer contenido (definir presentación). `GET /mi-progreso/guias/:slug` → `200` un DTO y, si no hay avance, ceros.
+| Método y ruta | Permiso | Respuesta |
+|---|---|---|
+| `GET /progreso?categoria=&ordenarPor=titulo&direccion=asc&pagina=1&limite=20` | Bearer `USUARIO_PUBLICO` | `200` paginado `{datos:[ProgresoGuia],total,pagina,limite}` |
+| `POST /guias/:slug/pasos/:orden/lectura` | Bearer `USUARIO_PUBLICO` | `200` `ProgresoGuia` de esa guía, ya actualizado. Cuerpo vacío. |
+
+Ambas: `401` sin sesión o token inválido, `403` personal/administrador. El usuario sale siempre del token, nunca del body ni de la ruta.
+
+`ProgresoGuia` (ejemplo real de las pruebas):
 
 ```json
-{"guia":{"slug":"smishing","titulo":"Smishing"},"pasosLeidos":2,"totalPasos":5,"porcentajeLectura":40,"actividadAprobada":false,"completada":false,"ultimoPasoId":"66666666-6666-4666-8666-666666666666","actualizadoEn":"2026-11-26T19:10:00.000Z"}
+{"slug":"smishing","categoria":"seguridad-digital","titulo":"Smishing","nivel":"BASICO","totalPasos":3,"pasosLeidos":1,"porcentaje":25,"estado":"EN_CURSO","completada":false,"tieneActividad":true,"actividadAprobada":false,"ultimoPaso":2,"completadaEn":null}
 ```
 
-- **Reglas propuestas:** porcentaje `Math.round(100*min(pasosLeidos,totalPasos)/totalPasos)` con `totalPasos=0 => 0`; `completada` requiere que el usuario haya llegado al último paso y haya aprobado alguna actividad de la guía cuando exista; si no hay actividad, basta lectura hasta el final. BE calcula desde `paso_leido`, `progreso_guia` e `intento`, nunca acepta `usuarioId`, `porcentaje` o `completada` del cliente. El FE marca cada paso **al confirmarse que se visualizó**, no al abrir solamente el listado; enviar como máximo un PUT por paso y sesión/UI. `401` no sesión; `403` rol personal; `404` guía/paso ajeno; reordenar conserva IDs y lectura.
-- **D-03 pendiente PO:** editar pasos después de publicación; no redefinir retroactivamente progreso sin acuerdo. Mostrar progreso cero para invitado sin invocar esta API y sin almacenar progreso en disco.
+| Campo | Significado |
+|---|---|
+| `categoria` | slug de la categoría |
+| `totalPasos`, `pasosLeidos` | pasos actuales de la guía y cuántos de ellos leyó el usuario |
+| `porcentaje` | entero 0–100, **redondeado hacia abajo**. La actividad (si tiene preguntas) pesa como un paso más: `floor(100 * (pasosLeidos + actividadAprobada) / (totalPasos + tieneActividad))`. Solo llega a 100 si `completada`. Ej.: 1 de 3 pasos + actividad sin aprobar = 25. |
+| `estado` | `SIN_EMPEZAR` (mostrar «Empezar»), `EN_CURSO`, `COMPLETADA` (mostrar la marca) |
+| `completada` | leyó **todos** los pasos actuales y, si la guía tiene actividad, la aprobó en algún intento suyo. Se calcula en cada respuesta. |
+| `tieneActividad`, `actividadAprobada` | `actividadAprobada` solo cuenta intentos del propio usuario (C-03) |
+| `ultimoPaso` | **número** del último paso que abrió, para «Continuar donde quedé» (HU-24); `null` si no ha empezado o ese paso ya no existe |
+| `completadaEn` | ISO 8601 de la **primera vez** que la completó; `null` si nunca |
+
+**`GET /progreso`:**
+- Trae **todas las guías publicadas**, también las no empezadas (en 0 % y `SIN_EMPEZAR`). Las ocultas y los borradores no salen.
+- `categoria` (opcional, slug, máximo 40): filtra; una categoría sin guías da lista vacía. `ordenarPor` solo admite `titulo` (por defecto); `direccion` `asc` (por defecto) o `desc`. Paginación de C-00 (`limite` 1–100).
+- `400 DATOS_INVALIDOS` si `ordenarPor`, `direccion`, `pagina` o `limite` no son válidos.
+
+**`POST /guias/:slug/pasos/:orden/lectura`:**
+- `orden` entero ≥ 1. Idempotente: repetirlo no cuenta doble (guarda la fecha de la primera lectura) y actualiza `ultimoPaso`.
+- Si con esa lectura la guía queda completada, guarda `completadaEn`. Aprobar la actividad (C-03) también puede completarla.
+- Errores: `404 PASO_NO_ENCONTRADO` si la guía no existe, no está publicada (borrador u oculta) o no tiene ese número de paso; `400 DATOS_INVALIDOS` si `orden` no es un entero ≥ 1 o el slug no tiene formato válido. En ningún error se guarda nada.
+
+**Cambios de la guía hechos por el personal (C-07), verificados en e2e:**
+- **Reordenar pasos:** la lectura se guarda por el UUID del paso, así que lo leído se conserva y `ultimoPaso` devuelve el número **nuevo**. Como la ruta usa el número, si el personal reordena mientras alguien lee, «paso 3» pasa a ser otro paso. Por eso el FE debe usar el `orden` del último `GET /guias/:slug` que cargó y, ante un `404`, recargar el detalle.
+- **Quitar un paso leído:** su lectura se borra y deja de contar; si era el `ultimoPaso`, este pasa a `null`.
+- **Ocultar la guía:** sale de `GET /progreso` y la lectura responde `404`, pero los datos se conservan: al volver a publicarla, el progreso sigue igual.
+- **D-03 (pendiente PO), comportamiento actual:** si a una guía completada le agregan un paso, vuelve a `EN_CURSO` y `completada:false`, pero `completadaEn` conserva la fecha original. El PO debe decidir si esto es lo correcto.
+
+**Invitados y cuenta:** sin sesión no se llama a ninguna de estas rutas ni se guarda progreso en `localStorage`/`sessionStorage`: el FE muestra el progreso en 0 (Regla D). Eliminar la cuenta (C-08) borra `progreso_guia` y `paso_leido` en cascada. El progreso es del usuario, no de la sesión: sigue igual al cerrar e iniciar sesión.
+
+**Uso en el FE:** marcar el paso cuando el usuario lo visualiza (no al abrir el listado), una sola vez por paso y por visita, y solo con sesión de `USUARIO_PUBLICO`. Usar la respuesta del `POST` para actualizar la barra sin volver a pedir `GET /progreso`.
 
 ### C-11 — Estadísticas agregadas [PROPUESTO, implementarlo solo tras verificar si ya existe]
 
@@ -257,6 +291,8 @@ Para cada C-XX, el equipo backend registra: ejemplo request real, respuesta exit
 **Política FE:** modificar solo `frontend/`. Conservar `domain/application/infrastructure/presentation/main` y componentes educativos ya escritos. Backend solo lectura. No repetir F00, no reescribir contenido/semillas, no instalar librerías sin justificación. Cada tarea termina con revisión y commit humano. **Los ejemplos JSON obligatorios están íntegros en C-00…C-11 de este mismo archivo.**
 
 ### FE-01 — Prácticas reales (HU-03/21/25) · P0 · pareja BE-01 · contratos C-03/C-04
+
+**Estado BE:** C-04 (`POST /guias/:slug/actividad/evaluar-respuesta`) disponible desde BE-01, PR #93. `POST .../intentos` ya exige Bearer de `USUARIO_PUBLICO` (`401` sin sesión, `403` personal).
 
 **Diagnóstico:** mock trae A/B/C y correctas en cliente; backend usa UUID y devuelve pregunta sin respuesta. 
 
@@ -309,11 +345,13 @@ Para cada C-XX, el equipo backend registra: ejemplo request real, respuesta exit
 - Tests dos monitores compitiendo, 409 de segundo, 403 del ajeno, lista ordenada, polling con fake timers 15s, latencia/red/401, atenciones propias conservadas.
 - **DoD:** dos sesiones de personal reales muestran propiedad de la solicitud; ninguna doble asignación.
 
-### FE-07 — Mi progreso real (HU-23) · P0 · pareja BE-03 · C-10 PROPUESTO
+### FE-07 — Mi progreso real (HU-23) · P0 · pareja BE-03 · C-10
+
+**Estado BE:** C-10 existe y está verificado (BE-03, rama `test/be-03-progreso`). Se usa el contrato real por **número de orden**; no hay `PUT`, `pasoId` ni `/mi-progreso`.
 
 - Crear tipos `ProgresoGuiaDTO` exactamente C-10 y repositorio HTTP independiente; FE **puede hacer toda la UI y contract tests desde ahora con fixtures**. No exponer barra estática como si fuese dato real.
-- `GuiaDetallePage`: al leer cada paso, si hay USUARIO_PUBLICO autenticado, llamar PUT con `pasoId` UUID estable; BE agrega `id` a paso en GET público. Al salir/volver mantener idempotencia; evitar escribir progreso de invitado.
-- `ProgresoPage`: GET `/mi-progreso`, render barra y porcentaje numérico y `Completada` o `Empezar`; estado sin progreso y error red diferenciados; usuarios no logueados ven invitación opcional a registrarse.
+- `GuiaDetallePage`: al visualizar cada paso, si hay USUARIO_PUBLICO autenticado, llamar `POST /guias/:slug/pasos/:orden/lectura` con el `orden` del último `GET /guias/:slug` cargado; ante `404 PASO_NO_ENCONTRADO`, recargar el detalle (el personal pudo reordenar). Es idempotente; usar su respuesta para la barra. Nunca llamar sin sesión.
+- `ProgresoPage`: `GET /progreso` (paginado, filtro `categoria`), render barra y `porcentaje` numérico y `Completada` (`estado=COMPLETADA`) o `Empezar` (`SIN_EMPEZAR`), y «Continuar en el paso N» con `ultimoPaso`; estado sin progreso y error red diferenciados; usuarios no logueados ven invitación opcional a registrarse.
 - No guardar avance del invitado en localStorage/sessionStorage; solo memoria durante navegación; prueba refresh limpia. Cerrar sesión y reingresar muestra avance registrado.
 - **DoD:** con BE-03 en test DB marca un paso, autentica, vuelve, ve mismo porcentaje; otro usuario no ve sus datos. Seguir D-03 si cambia pasos publicados.
 
