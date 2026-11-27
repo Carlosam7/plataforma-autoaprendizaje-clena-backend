@@ -28,11 +28,30 @@ export interface RespuestaCalificada {
   explicacion: string;
 }
 
+export function evaluarRespuestaActividad(
+  actividad: Actividad,
+  preguntaId: string,
+  opcionId: string,
+): RespuestaCalificada {
+  const pregunta = actividad.preguntas.find((p) => p.id === preguntaId);
+  const elegida = pregunta?.opciones.find((o) => o.id === opcionId);
+  if (!pregunta || !elegida) throw new RespuestaInvalidaError();
+  const correcta = pregunta.opciones.find((o) => o.esCorrecta);
+  if (!correcta) {
+    throw new Error(`La pregunta ${pregunta.id} no tiene opción correcta`);
+  }
+  return {
+    esCorrecta: elegida.esCorrecta,
+    opcionCorrecta: { id: correcta.id, texto: correcta.texto },
+    explicacion: pregunta.explicacion,
+  };
+}
+
 export interface IntentoProps {
   id: string;
   actividad: Actividad;
-  /** Cédula del usuario público; null si practica sin cuenta. */
-  usuarioId: string | null;
+  /** Cédula del usuario público; los visitantes sin cuenta no persisten intentos. */
+  usuarioId: string;
   respuestas: RespuestaDada[];
   iniciadoEn: Date;
   finalizadoEn: Date | null;
@@ -48,7 +67,7 @@ export class Intento {
   static iniciar(datos: {
     id: string;
     actividad: Actividad;
-    usuarioId: string | null;
+    usuarioId: string;
     ahora: Date;
   }): Intento {
     return new Intento({
@@ -71,7 +90,7 @@ export class Intento {
   get actividadId(): string {
     return this.props.actividad.id;
   }
-  get usuarioId(): string | null {
+  get usuarioId(): string {
     return this.props.usuarioId;
   }
   get respuestas(): readonly RespuestaDada[] {
@@ -87,9 +106,9 @@ export class Intento {
     return this.props.actividad.preguntas.length;
   }
 
-  /** Un intento sin cuenta lo puede seguir quien tenga su id; uno con cuenta, solo su dueño. */
-  perteneceA(usuarioId: string | null): boolean {
-    return this.props.usuarioId === null || this.props.usuarioId === usuarioId;
+  /** Solo el usuario público dueño del intento puede responderlo. */
+  perteneceA(usuarioId: string): boolean {
+    return this.props.usuarioId === usuarioId;
   }
 
   responder(
@@ -98,33 +117,25 @@ export class Intento {
     ahora: Date,
   ): RespuestaCalificada {
     if (this.props.finalizadoEn) throw new IntentoFinalizadoError();
-    const pregunta = this.props.actividad.preguntas.find(
-      (p) => p.id === preguntaId,
+    const resultado = evaluarRespuestaActividad(
+      this.props.actividad,
+      preguntaId,
+      opcionId,
     );
-    const elegida = pregunta?.opciones.find((o) => o.id === opcionId);
-    if (!pregunta || !elegida) throw new RespuestaInvalidaError();
     if (this.props.respuestas.some((r) => r.preguntaId === preguntaId)) {
       throw new PreguntaYaRespondidaError();
-    }
-    const correcta = pregunta.opciones.find((o) => o.esCorrecta);
-    if (!correcta) {
-      throw new Error(`La pregunta ${pregunta.id} no tiene opción correcta`);
     }
 
     this.props.respuestas.push({
       preguntaId,
       opcionId,
-      esCorrecta: elegida.esCorrecta,
+      esCorrecta: resultado.esCorrecta,
       respondidaEn: ahora,
     });
     if (this.props.respuestas.length === this.totalPreguntas) {
       this.props.finalizadoEn = ahora;
     }
-    return {
-      esCorrecta: elegida.esCorrecta,
-      opcionCorrecta: { id: correcta.id, texto: correcta.texto },
-      explicacion: pregunta.explicacion,
-    };
+    return resultado;
   }
 
   /** Aciertos hasta ahora y si alcanzan el porcentaje de aprobación de la actividad. */

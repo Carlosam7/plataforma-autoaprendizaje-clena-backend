@@ -1,6 +1,7 @@
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { App } from 'supertest/types.js';
+import { EmisorSesion } from '../../src/application/auth/emisor-sesion.port.js';
 import { PrismaService } from '../../src/infrastructure/database/prisma.service.js';
 import {
   crearApp,
@@ -14,6 +15,8 @@ const GUIAS = '/api/v1/guias';
 describe('HU-21 · Resolver una pregunta con retroalimentación inmediata (e2e)', () => {
   let app: INestApplication<App>;
   let prisma: PrismaService;
+  let autor: { id: string; token: string };
+  let tokenUsuario: string;
   /** Ids de las opciones por pregunta: `opciones[0].correcta` es la correcta de la pregunta 1. */
   let preguntas: { id: string; correcta: string; incorrecta: string }[];
 
@@ -23,7 +26,8 @@ describe('HU-21 · Resolver una pregunta con retroalimentación inmediata (e2e)'
 
   beforeEach(async () => {
     await limpiarBaseDatos(prisma);
-    const autor = await sesionPersonal(app, { rol: 'PERSONAL' });
+    autor = await sesionPersonal(app, { rol: 'PERSONAL' });
+    tokenUsuario = await sesionUsuarioPublico(app);
     const comun = {
       categoriaId: 1,
       nivel: 'BASICO' as const,
@@ -91,9 +95,10 @@ describe('HU-21 · Resolver una pregunta con retroalimentación inmediata (e2e)'
 
   const http = () => request(app.getHttpServer());
 
-  const iniciar = async (token?: string): Promise<string> => {
-    const peticion = http().post(`${GUIAS}/smishing/actividad/intentos`);
-    if (token) peticion.set('Authorization', `Bearer ${token}`);
+  const iniciar = async (token = tokenUsuario): Promise<string> => {
+    const peticion = http()
+      .post(`${GUIAS}/smishing/actividad/intentos`)
+      .set('Authorization', `Bearer ${token}`);
     const { body } = await peticion.expect(201);
     expect(body.totalPreguntas).toBe(2);
     return body.id as string;
@@ -103,7 +108,7 @@ describe('HU-21 · Resolver una pregunta con retroalimentación inmediata (e2e)'
     intentoId: string,
     pregunta: number,
     acierta: boolean,
-    token?: string,
+    token: string | null = tokenUsuario,
   ) => {
     const p = preguntas[pregunta - 1];
     const peticion = http()
@@ -147,8 +152,80 @@ describe('HU-21 · Resolver una pregunta con retroalimentación inmediata (e2e)'
     );
   });
 
-  describe('responder la actividad', () => {
-    it('sin sesión: cada respuesta trae la retroalimentación y la última, el resultado', async () => {
+  describe('POST /guias/:slug/actividad/evaluar-respuesta (C-04 invitado)', () => {
+    it('sin sesión evalúa acierto y fallo sin guardar filas educativas en BD', async () => {
+      const { body: fallo } = await http()
+        .post(`${GUIAS}/smishing/actividad/evaluar-respuesta`)
+        .send({
+          preguntaId: preguntas[0].id,
+          opcionId: preguntas[0].incorrecta,
+        })
+        .expect(200);
+      expect(fallo).toEqual({
+        esCorrecta: false,
+        opcionCorrecta: { id: preguntas[0].correcta, texto: 'Correcta' },
+        explicacion: 'Explicación 1',
+      });
+
+      const { body: acierto } = await http()
+        .post(`${GUIAS}/smishing/actividad/evaluar-respuesta`)
+        .send({ preguntaId: preguntas[1].id, opcionId: preguntas[1].correcta })
+        .expect(200);
+      expect(acierto).toEqual({
+        esCorrecta: true,
+        opcionCorrecta: { id: preguntas[1].correcta, texto: 'Correcta' },
+        explicacion: 'Explicación 2',
+      });
+
+      expect(await prisma.intento.count()).toBe(0);
+      expect(await prisma.respuestaIntento.count()).toBe(0);
+      expect(await prisma.progresoGuia.count()).toBe(0);
+      expect(await prisma.pasoLeido.count()).toBe(0);
+    });
+
+    it('responde 404 si la guía no existe o no tiene actividad', async () => {
+      for (const slug of ['vishing', 'no-existe']) {
+        const { body } = await http()
+          .post(`${GUIAS}/${slug}/actividad/evaluar-respuesta`)
+          .send({
+            preguntaId: preguntas[0].id,
+            opcionId: preguntas[0].correcta,
+          })
+          .expect(404);
+        expect(body.codigo).toBe('ACTIVIDAD_NO_ENCONTRADA');
+      }
+    });
+
+    it('responde 400 si la opción no es de esa pregunta o los UUID son inválidos', async () => {
+      const { body: invalida } = await http()
+        .post(`${GUIAS}/smishing/actividad/evaluar-respuesta`)
+        .send({ preguntaId: preguntas[0].id, opcionId: preguntas[1].correcta })
+        .expect(400);
+      expect(invalida.codigo).toBe('RESPUESTA_INVALIDA');
+
+      const { body: formato } = await http()
+        .post(`${GUIAS}/smishing/actividad/evaluar-respuesta`)
+        .send({ preguntaId: 'x', opcionId: 'y' })
+        .expect(400);
+      expect(formato.codigo).toBe('DATOS_INVALIDOS');
+    });
+  });
+
+  describe('responder la actividad (C-03 usuario registrado)', () => {
+    it('responde 401 sin sesión y 403 al personal sin guardar filas', async () => {
+      await http().post(`${GUIAS}/smishing/actividad/intentos`).expect(401);
+      await http()
+        .post(`${GUIAS}/smishing/actividad/intentos`)
+        .set('Authorization', `Bearer ${autor.token}`)
+        .expect(403);
+
+      const intentoId = await iniciar();
+      await responder(intentoId, 1, true, null).expect(401);
+      await responder(intentoId, 1, true, autor.token).expect(403);
+      expect(await prisma.respuestaIntento.count()).toBe(0);
+    });
+
+    it('con sesión de usuario público: cada respuesta trae la retroalimentación y la última, el resultado', async () => {
       const intentoId = await iniciar();
 
       const { body: primera } = await responder(intentoId, 1, false).expect(
@@ -181,11 +258,11 @@ describe('HU-21 · Resolver una pregunta con retroalimentación inmediata (e2e)'
         include: { respuestas: true },
       });
       expect(intento).toMatchObject({
-        usuarioId: null,
         respuestasCorrectas: 1,
         porcentaje: 50,
         aprobado: false,
       });
+      expect(intento.usuarioId).not.toBeNull();
       expect(intento.finalizadoEn).not.toBeNull();
       expect(intento.respuestas).toHaveLength(2);
     });
@@ -228,6 +305,7 @@ describe('HU-21 · Resolver una pregunta con retroalimentación inmediata (e2e)'
       const intentoId = await iniciar();
       const { body } = await http()
         .post(`/api/v1/intentos/${intentoId}/respuestas`)
+        .set('Authorization', `Bearer ${tokenUsuario}`)
         .send({ preguntaId: preguntas[0].id, opcionId: preguntas[1].correcta })
         .expect(400);
       expect(body.codigo).toBe('RESPUESTA_INVALIDA');
@@ -236,6 +314,7 @@ describe('HU-21 · Resolver una pregunta con retroalimentación inmediata (e2e)'
     it('responde 400 si los ids no tienen formato válido', async () => {
       const { body } = await http()
         .post('/api/v1/intentos/no-es-uuid/respuestas')
+        .set('Authorization', `Bearer ${tokenUsuario}`)
         .send({ preguntaId: 'x', opcionId: 'y' })
         .expect(400);
       expect(body.codigo).toBe('DATOS_INVALIDOS');
@@ -250,13 +329,22 @@ describe('HU-21 · Resolver una pregunta con retroalimentación inmediata (e2e)'
       expect(body.codigo).toBe('INTENTO_NO_ENCONTRADO');
     });
 
-    it('con sesión de usuario público el intento es suyo y nadie más lo responde', async () => {
-      const token = await sesionUsuarioPublico(app);
-      const intentoId = await iniciar(token);
+    it('el intento es de su usuario y otro usuario público recibe 404', async () => {
+      const intentoId = await iniciar(tokenUsuario);
+      await prisma.usuarioPublico.create({
+        data: {
+          numeroIdentificacion: '88888888',
+          nombre: 'Otro usuario',
+          fechaNacimiento: new Date('1965-01-01'),
+        },
+      });
+      const otraSesion = await app
+        .get(EmisorSesion)
+        .iniciar({ id: '88888888', rol: 'USUARIO_PUBLICO' });
 
-      await responder(intentoId, 1, true).expect(404);
-      await responder(intentoId, 1, true, 'token-falso').expect(404);
-      await responder(intentoId, 1, true, token).expect(201);
+      await responder(intentoId, 1, true, 'token-falso').expect(401);
+      await responder(intentoId, 1, true, otraSesion.accessToken).expect(404);
+      await responder(intentoId, 1, true, tokenUsuario).expect(201);
 
       const intento = await prisma.intento.findUniqueOrThrow({
         where: { id: intentoId },

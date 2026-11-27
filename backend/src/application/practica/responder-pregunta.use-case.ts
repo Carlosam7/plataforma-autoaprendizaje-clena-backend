@@ -1,4 +1,3 @@
-import { Rol } from '../../domain/auth/tipos.js';
 import { IntentoNoEncontradoError } from '../../domain/practica/errores.js';
 import {
   Calificacion,
@@ -31,10 +30,10 @@ export class ResponderPreguntaUseCase {
 
   async ejecutar(
     { intentoId, preguntaId, opcionId }: ResponderPreguntaComando,
-    usuario: { id: string; rol: Rol } | null,
+    usuarioId: string,
   ): Promise<RespuestaResultado> {
     const salida = await this.intentos.modificar(intentoId, (intento) => {
-      if (!intento.perteneceA(usuario?.id ?? null)) {
+      if (!intento.perteneceA(usuarioId)) {
         throw new IntentoNoEncontradoError();
       }
       const respuesta = intento.responder(

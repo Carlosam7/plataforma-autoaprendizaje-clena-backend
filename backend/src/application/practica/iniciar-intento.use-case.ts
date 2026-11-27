@@ -1,4 +1,3 @@
-import { Rol } from '../../domain/auth/tipos.js';
 import { ActividadRepository } from '../../domain/practica/actividad.repository.js';
 import { ActividadNoEncontradaError } from '../../domain/practica/errores.js';
 import { Intento } from '../../domain/practica/intento.js';
@@ -11,7 +10,7 @@ export interface IntentoIniciado {
   totalPreguntas: number;
 }
 
-/** HU-21: empieza (o repite) la actividad de una guía. Sin cuenta también se puede practicar. */
+/** HU-21: empieza (o repite) la actividad de una guía para un usuario público autenticado. */
 export class IniciarIntentoUseCase {
   constructor(
     private readonly actividades: ActividadRepository,
@@ -22,7 +21,7 @@ export class IniciarIntentoUseCase {
 
   async ejecutar(
     slugGuia: string,
-    usuario: { id: string; rol: Rol } | null,
+    usuarioId: string,
   ): Promise<IntentoIniciado> {
     const actividad = await this.actividades.buscarDeGuiaPublicada(slugGuia);
     if (!actividad) throw new ActividadNoEncontradaError();
@@ -30,8 +29,7 @@ export class IniciarIntentoUseCase {
     const intento = Intento.iniciar({
       id: this.ids.generar(),
       actividad,
-      // intento.usuario_id apunta a usuario_publico: el personal practica sin cuenta.
-      usuarioId: usuario?.rol === 'USUARIO_PUBLICO' ? usuario.id : null,
+      usuarioId,
       ahora: this.reloj.ahora(),
     });
     await this.intentos.crear(intento);

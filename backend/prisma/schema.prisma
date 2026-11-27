@@ -393,7 +393,7 @@ model Opcion {
 model Intento {
   id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   actividadId         String    @map("actividad_id") @db.Uuid
-  usuarioId           String?   @map("usuario_id") @db.VarChar(20)
+  usuarioId           String    @map("usuario_id") @db.VarChar(20)
   totalPreguntas      Int       @map("total_preguntas") @db.SmallInt
   respuestasCorrectas Int       @default(0) @map("respuestas_correctas") @db.SmallInt
   porcentaje          Int?      @db.SmallInt
@@ -401,8 +401,8 @@ model Intento {
   iniciadoEn          DateTime  @default(now()) @map("iniciado_en") @db.Timestamptz
   finalizadoEn        DateTime? @map("finalizado_en") @db.Timestamptz
 
-  actividad Actividad       @relation(fields: [actividadId], references: [id], onDelete: Cascade)
-  usuario   UsuarioPublico? @relation(fields: [usuarioId], references: [numeroIdentificacion], onDelete: Cascade)
+  actividad Actividad      @relation(fields: [actividadId], references: [id], onDelete: Cascade)
+  usuario   UsuarioPublico @relation(fields: [usuarioId], references: [numeroIdentificacion], onDelete: Cascade)
 
   respuestas RespuestaIntento[]
 

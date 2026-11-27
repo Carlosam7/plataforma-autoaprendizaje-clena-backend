@@ -5,7 +5,7 @@ import {
   PreguntaYaRespondidaError,
   RespuestaInvalidaError,
 } from '../errores.js';
-import { Intento } from '../intento.js';
+import { evaluarRespuestaActividad, Intento } from '../intento.js';
 
 const AHORA = new Date('2026-11-12T15:00:00.000Z');
 
@@ -22,8 +22,11 @@ function pregunta(n: number): PreguntaActividad {
   };
 }
 
-function iniciar(totalPreguntas = 4, porcentajeAprobacion = 70): Intento {
-  const actividad: Actividad = {
+function crearActividad(
+  totalPreguntas = 4,
+  porcentajeAprobacion = 70,
+): Actividad {
+  return {
     id: 'a1',
     titulo: 'Practica',
     porcentajeAprobacion,
@@ -31,10 +34,13 @@ function iniciar(totalPreguntas = 4, porcentajeAprobacion = 70): Intento {
       pregunta(i + 1),
     ),
   };
+}
+
+function iniciar(totalPreguntas = 4, porcentajeAprobacion = 70): Intento {
   return Intento.iniciar({
     id: 'i1',
-    actividad,
-    usuarioId: null,
+    actividad: crearActividad(totalPreguntas, porcentajeAprobacion),
+    usuarioId: '41234567',
     ahora: AHORA,
   });
 }
@@ -140,13 +146,85 @@ describe('Intento', () => {
       responder(intento, true, true, true, false);
       expect(intento.calificar().aprobado).toBe(false);
     });
+
+    it('0 de N da 0 % y no aprueba', () => {
+      const intento = iniciar(5, 70);
+      responder(intento, false, false, false, false, false);
+      expect(intento.calificar()).toEqual({
+        respuestasCorrectas: 0,
+        totalPreguntas: 5,
+        porcentaje: 0,
+        aprobado: false,
+        porcentajeAprobacion: 70,
+      });
+    });
+
+    it('69 % no aprueba con umbral de 70 %', () => {
+      const intento = iniciar(100, 70);
+      responder(intento, ...Array.from({ length: 100 }, (_, i) => i < 69));
+      expect(intento.calificar()).toEqual({
+        respuestasCorrectas: 69,
+        totalPreguntas: 100,
+        porcentaje: 69,
+        aprobado: false,
+        porcentajeAprobacion: 70,
+      });
+    });
+
+    it('70 % exacto aprueba con umbral de 70 %', () => {
+      const intento = iniciar(10, 70);
+      responder(intento, ...Array.from({ length: 10 }, (_, i) => i < 7));
+      expect(intento.calificar()).toEqual({
+        respuestasCorrectas: 7,
+        totalPreguntas: 10,
+        porcentaje: 70,
+        aprobado: true,
+        porcentajeAprobacion: 70,
+      });
+    });
+
+    it('100 % aprueba en actividades de 1, 5 y 10 preguntas', () => {
+      for (const total of [1, 5, 10]) {
+        const intento = iniciar(total, 70);
+        responder(intento, ...Array.from({ length: total }, () => true));
+        expect(intento.calificar()).toEqual({
+          respuestasCorrectas: total,
+          totalPreguntas: total,
+          porcentaje: 100,
+          aprobado: true,
+          porcentajeAprobacion: 70,
+        });
+      }
+    });
   });
 
-  it('un intento sin cuenta lo sigue cualquiera; uno con cuenta, solo su dueño', () => {
-    const anonimo = iniciar();
-    expect(anonimo.perteneceA(null)).toBe(true);
-    expect(anonimo.perteneceA('41234567')).toBe(true);
+  describe('evaluarRespuestaActividad()', () => {
+    it('evalúa sin modificar estado y devuelve la opción correcta y explicación', () => {
+      const actividad = crearActividad(2);
+      expect(evaluarRespuestaActividad(actividad, 'p1', 'p1-si')).toEqual({
+        esCorrecta: true,
+        opcionCorrecta: { id: 'p1-si', texto: 'Sí' },
+        explicacion: 'Explicación 1',
+      });
+      expect(evaluarRespuestaActividad(actividad, 'p2', 'p2-no')).toEqual({
+        esCorrecta: false,
+        opcionCorrecta: { id: 'p2-si', texto: 'Sí' },
+        explicacion: 'Explicación 2',
+      });
+    });
 
+    it('rechaza pregunta u opción que no corresponde', () => {
+      const actividad = crearActividad(2);
+      expect(() => evaluarRespuestaActividad(actividad, 'p9', 'p9-si')).toThrow(
+        RespuestaInvalidaError,
+      );
+      expect(() => evaluarRespuestaActividad(actividad, 'p1', 'p2-si')).toThrow(
+        RespuestaInvalidaError,
+      );
+    });
+  });
+
+  it('un intento pertenece solo a su dueño', () => {
     const conCuenta = Intento.reconstituir({
       id: 'i2',
       actividad: {
@@ -162,6 +240,5 @@ describe('Intento', () => {
     });
     expect(conCuenta.perteneceA('41234567')).toBe(true);
     expect(conCuenta.perteneceA('99999999')).toBe(false);
-    expect(conCuenta.perteneceA(null)).toBe(false);
   });
 });
