@@ -23,6 +23,14 @@ export async function configurarApp(app: INestApplication): Promise<void> {
   const config = app.get<ConfigService<VariablesEntorno, true>>(ConfigService);
 
   app.setGlobalPrefix(PREFIJO_API);
+  // Detrás de Nginx todas las peticiones llegan desde el contenedor del proxy: sin esto el
+  // límite de peticiones por IP (ThrottlerGuard) contaría a todo el mundo como una sola IP.
+  // Solo se cree X-Forwarded-For si viene de una red privada o local (el proxy de Docker),
+  // nunca de una IP pública que podría inventarse el encabezado.
+  (app as NestExpressApplication).set(
+    'trust proxy',
+    'loopback, linklocal, uniquelocal',
+  );
   (app as NestExpressApplication).useStaticAssets(DIRECTORIO_ARCHIVOS, {
     prefix: `/${PREFIJO_API}/archivos/`,
     index: false,
@@ -34,18 +42,21 @@ export async function configurarApp(app: INestApplication): Promise<void> {
     credentials: true,
   });
 
-  const documento = SwaggerModule.createDocument(
-    app,
-    new DocumentBuilder()
-      .setTitle('Kamá — API de autoaprendizaje CLENA')
-      .setDescription(
-        'API REST de la plataforma de autoaprendizaje digital de la Sala de Internet del CLENA.',
-      )
-      .setVersion('1.0')
-      .addBearerAuth()
-      .build(),
-  );
-  SwaggerModule.setup('docs', app, documento);
+  // BE-09: en producción no se publica la documentación de la API, salvo SWAGGER_HABILITADO=true.
+  if (config.get('SWAGGER_HABILITADO', { infer: true })) {
+    const documento = SwaggerModule.createDocument(
+      app,
+      new DocumentBuilder()
+        .setTitle('Kamá — API de autoaprendizaje CLENA')
+        .setDescription(
+          'API REST de la plataforma de autoaprendizaje digital de la Sala de Internet del CLENA.',
+        )
+        .setVersion('1.0')
+        .addBearerAuth()
+        .build(),
+    );
+    SwaggerModule.setup('docs', app, documento);
+  }
 
   await app.init();
   // Las rutas fuera de /api/v1 no pasan por Nest; sin esto Express responde un 404 en HTML.

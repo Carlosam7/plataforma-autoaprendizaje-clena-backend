@@ -43,8 +43,8 @@ Cada PR debe incluir: ID tarea, HU y criterios exactos vinculados, contrato C-XX
 | R2 — cola monitores | FE-06 | BE-02, BE-06 | C-06 existe; FE polling, BE transiciones | Dos monitores, una toma |
 | R2 — cuentas | FE-09, FE-10 | BE-05 | C-08, C-09 existentes y verificados (rama `feat/be-05-fe-09-10-auth`) | Registro/OTP, personal, eliminación |
 | R2 — progreso | FE-07 | BE-03 | C-10 existente (verificado en BE-03); FE UI contra la API real | Persistencia por usuario |
-| R2 — estadísticas | FE-08 | BE-04 | C-11 existente (BE-04); FE gráficos contra la API real | Panel real por fechas |
-| R3 — QR y deploy | FE-11, FE-14 | BE-09 | C-01 y ruta pública; FE QR, infra prueba reload | URL pública desde teléfono |
+| R2 — estadísticas | FE-08 | BE-04 | C-11 propuesto; FE gráficos con fixture; BE agregaciones | Panel real por fechas |
+| R3 — QR y deploy | FE-11, FE-14 | BE-09 | C-00 despliegue y C-01 QR verificados (rama `feat/be-09-fe-11-infra-qr`); FE-14 pendiente | URL pública desde teléfono |
 | R3 — calidad Must | FE-13 | BE-09/CI | HU-36–39 (sin nuevo endpoint obligatorio) | Evidencia de accesibilidad y CI |
 
 **Secuencia para evitar conflictos:** acordar C-04/C-10/C-11 y seguridad C-05 **al inicio**; FE-03/04/05/06/09/10 pueden avanzar sobre rutas existentes. FE-01 desarrolla soporte de UUID/opciones y resultado sin esperar C-04; BE-01 entrega el canal invitado en paralelo. FE-07/08 crean interfaz y tests con fixtures contractuales mientras BE-03/04 entrega API. Un único integrador valida el flujo completo por cada contrato.
@@ -70,7 +70,15 @@ Cada PR debe incluir: ID tarea, HU y criterios exactos vinculados, contrato C-XX
 - **Cache:** endpoints sensibles `Cache-Control: no-store` propuesta; no guardar respuestas de sesión en almacenamiento compartido. Se recomienda deshabilitar múltiples invocaciones simultáneas de acciones de UI y presentar estado cargando sin ocultar errores.
 - **IDs:** `slug` de guía minúsculo con guiones (regex vigente), `id` de pregunta/opción/intento/solicitud/paso UUID. NUNCA asumir identificadores de opción A/B/C ni usar el orden como llave estable de persistencia.
 - **Categorías:** enum estable solo para roles `USUARIO_PUBLICO`/`PERSONAL`/`ADMINISTRADOR`; estados guía `BORRADOR`/`PUBLICADA`/`OCULTA`; ayuda `PENDIENTE`/`EN_ATENCION`/`RESUELTA`/`CANCELADA`; niveles `BASICO`/`INTERMEDIO`/`AVANZADO`.
-- **Verificación de contrato:** comparar OpenAPI `/docs` o `/docs-json` **si está servido** y JSON reales. El texto de este documento no modifica automáticamente los DTO del servidor.
+- **Verificación de contrato:** comparar OpenAPI `/docs` o `/docs-json` **si está servido** y JSON reales. El texto de este documento no modifica automáticamente los DTO del servidor. Swagger se sirve fuera de producción; en producción solo con `SWAGGER_HABILITADO=true` (BE-09).
+- **Despliegue (BE-09, verificado con `docker compose`):**
+  - `GET /health` → `200 {status:"ok",service:"clena-backend",baseDatos:"ok",timestamp}`; si PostgreSQL no responde en 2 s, **`503`** con `status:"error",baseDatos:"no_disponible"`. Es el healthcheck del contenedor: sin base de datos el backend queda *unhealthy* y el frontend no arranca.
+  - Nginx (`frontend/nginx.conf`) sirve la SPA en `:8080`, reenvía `/api/` al backend y devuelve `index.html` en cualquier ruta que no sea un archivo: `/guias/smishing`, `/guias?categoria=…` y `/codigos-qr` se pueden recargar o abrir desde un QR. Así el navegador ve un solo origen (cookie `SameSite=Strict` sin CORS). En local, Vite hace lo mismo con su proxy de `/api` a `:3000`.
+  - El backend confía en `X-Forwarded-For` solo si la petición viene de una red local o privada (el proxy de Docker): el límite de peticiones por IP cuenta a cada persona y no a todo el proxy. Una IP pública no puede inventarse ese encabezado.
+  - Cookie del refresh: `Secure` según `COOKIE_SEGURA` (vacía = solo con `NODE_ENV=production`). **Si producción se sirve por `http` (la sala sin certificado), `COOKIE_SEGURA=false`**, o el navegador no envía la cookie y la sesión no se renueva.
+  - Logs sin secretos: `Authorization`, `Cookie` y `Set-Cookie` salen como `[Redacted]` (verificado en los logs del contenedor). En producción los OTP no pueden ir a `consola` (C-08).
+  - Variables nuevas: `SWAGGER_HABILITADO`, `COOKIE_SEGURA` (backend, `.env.example` y `docker-compose.yml`) y `URL_PUBLICA` → `VITE_URL_PUBLICA` (argumento de construcción del frontend, ver C-01).
+  - CI (`.github/workflows/ci.yml`): backend `format:check`, `lint`, `test:cov`, `test:e2e` con PostgreSQL 15 y `build`; frontend `format:check`, `lint`, **`test`** (antes estaba comentado) y `build`.
 
 ### C-01 — Catálogo y lectura de guías [EXISTENTE]
 
@@ -88,6 +96,8 @@ Ejemplo de detalle ilustrativo del **esquema DTO, no snapshot de DB**:
 ```
 
 **Reglas:** GET detalle **no registra automáticamente** apertura; FE realiza POST consultas al entrar en guía. Si falla este POST de telemetría, se informa en observabilidad pero no se bloquea lectura; no duplicarlo por rerender accidental. Evitar que el detalle use texto/ejemplos de mock mezclados con datos reales. `404` pública muestra guía no disponible, no mock. Las 15 guías/5 categorías reportadas por F00 **no autorizan** cambiar automáticamente los requisitos ni borrar material; D-01 requiere PO.
+
+**Códigos QR (HU-45, FE-11):** la página `/codigos-qr` (no está en el menú; datos públicos, sin sesión) genera un QR por el inicio (`/`), cada categoría (`/guias?categoria=<slug>`) y cada guía publicada (`/guias/<slug>`), leídos del backend recorriendo todas las páginas y **sin datos de ejemplo** ante errores. Nunca incluye rutas del personal ni de la cuenta. La URL base es `VITE_URL_PUBLICA` (en Docker, `URL_PUBLICA` al construir el frontend); sin ella usa la dirección del navegador y, si es `localhost`/`127.0.0.1`, avisa «No los imprimas todavía». Cada QR se descarga como SVG (corrección M, margen 4) y «Imprimir todos» imprime solo las tarjetas.
 
 ### C-02 — Listado de categorías y contenido aprobado [EXISTENTE + D-01]
 
@@ -382,6 +392,8 @@ Para cada C-XX, el equipo backend registra: ejemplo request real, respuesta exit
 - FE recibe decisión editorial y query/filtro usado; BE garantiza que GET público devuelve solo PUBLICADA. Esta decisión no debe impedir trabajo de FE-01..11 en paralelo.
 
 ### BE-09 — Infraestructura e integración general (transversal; HU-45) · P1 · pareja FE-11/14 · C-00/C-01
+
+**Estado:** `PASS_BE` en la rama `feat/be-09-fe-11-infra-qr` (junto con FE-11). Hecho: `/health` comprueba la BD (`503` si no responde); Swagger apagado en producción salvo `SWAGGER_HABILITADO=true`; `Secure` de la cookie configurable con `COOKIE_SEGURA`; `trust proxy` para redes privadas (límite por IP detrás de Nginx); `pnpm test` del frontend en el CI. Verificado en Docker: health 200/503 y recuperación, rutas profundas y `/codigos-qr` por Nginx, `POST /consultas` 204, cookie `HttpOnly; SameSite=Strict; Path=/api/v1/auth`, refresh y reuso por el proxy, eliminación de la cuenta de prueba, logs sin tokens. Ya estaba bien: Nginx (proxy + SPA fallback), redacción de logs, PostgreSQL 15 en CI. Pendiente: URL pública real con HTTPS (decisión de despliegue) y FE-14.
 
 - Verificar en entorno aislado Docker PostgreSQL 15, migraciones/seeds idempotentes, Nest health + DB readiness (health actual no verifica BD), CORS/cookies HTTPOnly/secure en despliegue, Vite proxy local y frontend Nginx `/api/v1` + SPA fallback.
 - Verificar `GET /guias/:slug` y recarga navegador `/guias/smishing` desde URL pública real, `POST consultas`, QR de FE-11, Swagger en entorno adecuado, logs sin secretos, configuración production sin claves de desarrollo.

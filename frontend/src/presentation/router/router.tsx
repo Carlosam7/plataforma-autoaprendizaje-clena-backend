@@ -2,6 +2,7 @@ import { createBrowserRouter } from 'react-router';
 import { RootLayout } from '@/presentation/layout/RootLayout';
 import { GestionPersonalPage } from '@/presentation/pages/admin/GestionPersonalPage';
 import { AyudaPage } from '@/presentation/pages/AyudaPage';
+import { CodigosQrPage } from '@/presentation/pages/CodigosQrPage';
 import { CrearCuentaPage } from '@/presentation/pages/CrearCuentaPage';
 import { GuiaDetallePage } from '@/presentation/pages/GuiaDetallePage';
 import { GuiaPracticaPage } from '@/presentation/pages/GuiaPracticaPage';
@@ -52,6 +53,11 @@ export const router = createBrowserRouter([
       {
         path: 'mi-cuenta',
         element: <MiCuentaPage />,
+      },
+      {
+        // FE-11: página para imprimir los QR (no está en el menú; datos públicos).
+        path: 'codigos-qr',
+        element: <CodigosQrPage />,
       },
       {
         path: 'iniciar-sesion',

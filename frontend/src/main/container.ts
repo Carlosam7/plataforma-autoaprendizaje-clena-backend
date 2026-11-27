@@ -16,6 +16,7 @@ import { CalcularResultadoPractica } from '@/application/guias/CalcularResultado
 import { ListarCategorias } from '@/application/guias/ListarCategorias';
 import { ListarGuias } from '@/application/guias/ListarGuias';
 import { ObtenerDetalleGuia } from '@/application/guias/ObtenerDetalleGuia';
+import { ListarEnlacesPublicos } from '@/application/qr/ListarEnlacesPublicos';
 import { RegistrarAperturaGuia } from '@/application/guias/RegistrarAperturaGuia';
 import { CambiarPasswordInicial } from '@/application/personal/CambiarPasswordInicial';
 import { CerrarSesionPersonal } from '@/application/personal/CerrarSesionPersonal';
@@ -39,6 +40,8 @@ import { HttpAuthRepository } from '@/infrastructure/auth/HttpAuthRepository';
 import { HttpGuiasRepository } from '@/infrastructure/guias/HttpGuiasRepository';
 import { InMemoryGuiasRepository } from '@/infrastructure/guias/InMemoryGuiasRepository';
 import { HttpPersonalRepository } from '@/infrastructure/personal/HttpPersonalRepository';
+import { HttpEnlacesPublicosRepository } from '@/infrastructure/qr/HttpEnlacesPublicosRepository';
+import { QrcodeSvgGenerador } from '@/infrastructure/qr/QrcodeSvgGenerador';
 import { InMemoryPersonalRepository } from '@/infrastructure/personal/InMemoryPersonalRepository';
 import { HttpPracticaRepository } from '@/infrastructure/practica/HttpPracticaRepository';
 
@@ -134,5 +137,11 @@ export const container = {
     obtenerSesion: new ObtenerSesionPersonal(personalRepository),
     cerrarSesion: new CerrarSesionPersonal(personalRepository),
     personalRepository,
+  },
+  qr: {
+    listarEnlaces: new ListarEnlacesPublicos(
+      new HttpEnlacesPublicosRepository(),
+    ),
+    generador: new QrcodeSvgGenerador(),
   },
 };
