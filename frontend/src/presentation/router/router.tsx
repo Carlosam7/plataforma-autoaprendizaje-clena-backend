@@ -13,6 +13,9 @@ import { IniciarSesionPage } from '@/presentation/pages/IniciarSesionPage';
 import { MiCuentaPage } from '@/presentation/pages/MiCuentaPage';
 import { NotFoundPage } from '@/presentation/pages/NotFoundPage';
 import { AccesoPersonalPage } from '@/presentation/pages/personal/AccesoPersonalPage';
+import { ColaAyudaPage } from '@/presentation/pages/personal/ColaAyudaPage';
+import { EditorGuiaPage } from '@/presentation/pages/personal/EditorGuiaPage';
+import { GuiasGestionPage } from '@/presentation/pages/personal/GuiasGestionPage';
 import { PrimerAccesoPage } from '@/presentation/pages/personal/PrimerAccesoPage';
 import { ProgresoPage } from '@/presentation/pages/ProgresoPage';
 import { VerificarAccesoPage } from '@/presentation/pages/VerificarAccesoPage';
@@ -78,6 +81,24 @@ export const router = createBrowserRouter([
       {
         path: 'personal/primer-acceso',
         element: <PrimerAccesoPage />,
+      },
+      {
+        // FE-06: cola de ayuda del monitor (HU-30).
+        path: 'personal/cola',
+        element: <ColaAyudaPage />,
+      },
+      {
+        // FE-05: gestión de guías del personal (HU-13, HU-15).
+        path: 'personal/guias',
+        element: <GuiasGestionPage />,
+      },
+      {
+        path: 'personal/guias/nueva',
+        element: <EditorGuiaPage />,
+      },
+      {
+        path: 'personal/guias/:slug',
+        element: <EditorGuiaPage />,
       },
       {
         path: 'admin/personal',

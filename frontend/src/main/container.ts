@@ -50,6 +50,19 @@ import { QrcodeSvgGenerador } from '@/infrastructure/qr/QrcodeSvgGenerador';
 import { InMemoryPersonalRepository } from '@/infrastructure/personal/InMemoryPersonalRepository';
 import { HttpPracticaRepository } from '@/infrastructure/practica/HttpPracticaRepository';
 
+import { ResolverSolicitud } from '@/application/cola/ResolverSolicitud';
+import { SeguimientoCola } from '@/application/cola/SeguimientoCola';
+import { TomarSolicitud } from '@/application/cola/TomarSolicitud';
+import { VerColaAyuda } from '@/application/cola/VerColaAyuda';
+import {
+  GuardarGuia,
+  ListarGuiasGestion,
+  ObtenerGuiaGestion,
+  OcultarGuia,
+  PublicarGuia,
+} from '@/application/gestion/casos';
+import { HttpColaAyudaRepository } from '@/infrastructure/cola/HttpColaAyudaRepository';
+import { HttpGestionGuiasRepository } from '@/infrastructure/gestion/HttpGestionGuiasRepository';
 // Único lugar donde se eligen implementaciones.
 const preferencesRepository = new LocalStoragePreferencesRepository();
 const preferencesApplier = new DomPreferencesApplier();
@@ -70,6 +83,10 @@ const ayudaRepository = new HttpAyudaRepository();
 const practicaRepository = new HttpPracticaRepository({
   evaluacionInvitadoHabilitada: true,
 });
+
+// C-06/C-07: cola y gestión de guías del personal, con su sesión (sin datos simulados).
+const colaRepository = new HttpColaAyudaRepository();
+const gestionGuiasRepository = new HttpGestionGuiasRepository();
 
 export const container = {
   accessibility: {
@@ -150,6 +167,18 @@ export const container = {
     obtenerSesion: new ObtenerSesionPersonal(personalRepository),
     cerrarSesion: new CerrarSesionPersonal(personalRepository),
     personalRepository,
+  },
+  cola: {
+    seguimiento: new SeguimientoCola(new VerColaAyuda(colaRepository)),
+    tomar: new TomarSolicitud(colaRepository),
+    resolver: new ResolverSolicitud(colaRepository),
+  },
+  gestionGuias: {
+    listar: new ListarGuiasGestion(gestionGuiasRepository),
+    obtener: new ObtenerGuiaGestion(gestionGuiasRepository),
+    guardar: new GuardarGuia(gestionGuiasRepository),
+    publicar: new PublicarGuia(gestionGuiasRepository),
+    ocultar: new OcultarGuia(gestionGuiasRepository),
   },
   qr: {
     listarEnlaces: new ListarEnlacesPublicos(
