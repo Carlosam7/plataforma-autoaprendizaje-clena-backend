@@ -13,7 +13,6 @@ import { PracticaModule } from './modules/practica.module.js';
 import { ProgresoModule } from './modules/progreso.module.js';
 import { SistemaModule } from './modules/sistema.module.js';
 import { ExcepcionesFilter } from './presentation/filters/excepciones.filter.js';
-import { HealthController } from './presentation/health/health.controller.js';
 
 @Module({
   imports: [
@@ -34,7 +33,6 @@ import { HealthController } from './presentation/health/health.controller.js';
     ProgresoModule,
     AyudaModule,
   ],
-  controllers: [HealthController],
   // APP_FILTER (y no useGlobalFilters en main.ts) para que también aplique en los tests e2e.
   providers: [{ provide: APP_FILTER, useClass: ExcepcionesFilter }],
 })
