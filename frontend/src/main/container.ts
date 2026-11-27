@@ -19,6 +19,8 @@ import { CancelarSolicitudAyuda } from '@/application/ayuda/CancelarSolicitudAyu
 import { ConsultarSolicitudAyuda } from '@/application/ayuda/ConsultarSolicitudAyuda';
 import { SeguimientoSolicitudAyuda } from '@/application/ayuda/SeguimientoSolicitudAyuda';
 import { SolicitarAyuda } from '@/application/ayuda/SolicitarAyuda';
+import { ListarMiProgreso } from '@/application/progreso/ListarMiProgreso';
+import { RegistrarLecturaPaso } from '@/application/progreso/RegistrarLecturaPaso';
 import { CalcularResultadoPractica } from '@/application/guias/CalcularResultadoPractica';
 import { ListarCategorias } from '@/application/guias/ListarCategorias';
 import { ListarGuias } from '@/application/guias/ListarGuias';
@@ -44,6 +46,7 @@ import { determinarModoPractica } from '@/application/practica/sesionPractica';
 import { DomPreferencesApplier } from '@/infrastructure/accessibility/DomPreferencesApplier';
 import { LocalStoragePreferencesRepository } from '@/infrastructure/accessibility/LocalStoragePreferencesRepository';
 import { HttpSolicitudesColaRepository } from '@/infrastructure/ayuda/HttpSolicitudesColaRepository';
+import { HttpProgresoRepository } from '@/infrastructure/progreso/HttpProgresoRepository';
 import { HttpAuthRepository } from '@/infrastructure/auth/HttpAuthRepository';
 import { HttpAyudaRepository } from '@/infrastructure/ayuda/HttpAyudaRepository';
 import { HttpGuiasRepository } from '@/infrastructure/guias/HttpGuiasRepository';
@@ -74,6 +77,8 @@ const ayudaRepository = new HttpAyudaRepository();
 const practicaRepository = new HttpPracticaRepository({
   evaluacionInvitadoHabilitada: true,
 });
+// C-10: progreso persistente del usuario público.
+const progresoRepository = new HttpProgresoRepository();
 // FE-06: cola del personal (C-06).
 const solicitudesAyudaRepository = new HttpSolicitudesColaRepository();
 
@@ -130,6 +135,13 @@ export const container = {
     evaluarInvitado: new EvaluarRespuestaInvitado(practicaRepository),
     determinarModo: () => determinarModoPractica(authRepository),
     practicaRepository,
+  },
+  progreso: {
+    listar: new ListarMiProgreso(progresoRepository, authRepository),
+    registrarLectura: new RegistrarLecturaPaso(
+      progresoRepository,
+      authRepository,
+    ),
   },
   ayuda: {
     solicitar: new SolicitarAyuda(ayudaRepository),
