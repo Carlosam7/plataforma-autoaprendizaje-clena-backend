@@ -17,14 +17,20 @@ export interface SolicitarInicioSesionPersonalComando {
 }
 
 export interface InicioSesionPersonalSolicitado {
+  /** Se envía de vuelta al verificar el código (C-09). */
+  solicitudId: string;
+  /** Correo enmascarado, p. ej. `a****@clena.example`. */
   destino: string;
   expiraEn: Date;
+  /** Desde cuándo se puede pedir otro código. */
+  puedeReenviarEn: Date;
+  /** Segundos que faltan para poder pedir otro código, calculados de `puedeReenviarEn`. */
   reenviarEnSegundos: number;
   mensaje: string;
 }
 
 export interface VerificarInicioSesionPersonalComando {
-  destino: string;
+  solicitudId: string;
   codigo: string;
 }
 
@@ -36,6 +42,8 @@ export interface SesionPersonal {
     debeCambiarPassword: boolean;
   };
   accessToken: string;
+  /** Para renovar el token antes de que venza (dura 15 minutos). */
+  accessTokenExpiraEn?: Date | string;
 }
 
 export interface CodigoPasswordEnviado {
@@ -44,9 +52,10 @@ export interface CodigoPasswordEnviado {
   mensaje: string;
 }
 
+/** Mismos nombres que el DTO del backend (C-09): `{codigo, passwordNueva}`. */
 export interface CambiarPasswordInicialComando {
   codigo: string;
-  nuevoPassword: string;
+  passwordNueva: string;
 }
 
 export interface CrearPersonalComando {
