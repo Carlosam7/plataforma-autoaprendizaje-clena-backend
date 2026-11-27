@@ -41,7 +41,7 @@ Cada PR debe incluir: ID tarea, HU y criterios exactos vinculados, contrato C-XX
 | R1 — ayuda | FE-04 | BE-02 | C-05 y C-06; FE formulario+estado, BE ownership/concurrencia | Solicitar→ver→cancelar y dedupe |
 | R2 — guías del personal | FE-05 | BE-06, BE-07 | C-07 ya existe; FE editor, BE confirma seeds y permisos | Crear→editar→publicar→ocultar |
 | R2 — cola monitores | FE-06 | BE-02, BE-06 | C-06 existe; FE polling, BE transiciones | Dos monitores, una toma |
-| R2 — cuentas | FE-09, FE-10 | BE-05 | C-08, C-09 existentes | Registro/OTP, personal, eliminación |
+| R2 — cuentas | FE-09, FE-10 | BE-05 | C-08, C-09 existentes y verificados (rama `feat/be-05-fe-09-10-auth`) | Registro/OTP, personal, eliminación |
 | R2 — progreso | FE-07 | BE-03 | C-10 propuesto; FE UI y mocks en tests; BE API y BD | Persistencia por usuario |
 | R2 — estadísticas | FE-08 | BE-04 | C-11 propuesto; FE gráficos con fixture; BE agregaciones | Panel real por fechas |
 | R3 — QR y deploy | FE-11, FE-14 | BE-09 | C-01 y ruta pública; FE QR, infra prueba reload | URL pública desde teléfono |
@@ -185,28 +185,42 @@ Todos requieren Bearer rol PERSONAL o ADMINISTRADOR: `GET /gestion/guias`, `POST
 
 **Dependencia BE-07:** resembrar dos veces tras editar el borrador **no debe pisar las ediciones**; antes de usar el editor con datos reales verificar el seed.
 
-### C-08 — Cuenta pública, OTP y sesión [EXISTENTE]
+### C-08 — Cuenta pública, OTP y sesión [EXISTENTE; verificado en BE-05, FE-09]
 
 - `GET /aviso-privacidad/vigente` público: `{version,contenido,vigenteDesde}`.
-- `POST /auth/registro` público → 202; body:
+- `POST /auth/registro` público → `202`; body:
 
 ```json
 {"nombre":"Persona de prueba","numeroIdentificacion":"00000001","fechaNacimiento":"1955-08-21","correo":"prueba@example.test","aceptaAvisoPrivacidad":true,"canalVerificacion":"CORREO"}
 ```
 
-  `telefono` alternativo, al menos teléfono o correo; DOB requerida en DTO actual aunque D-02 pide justificación. Salida `{registroId,canal,destino,mensaje,expiraEn,puedeReenviarEn}`; nombre <=100, identificación <=30, fecha `YYYY-MM-DD`, email <=254, teléfono <=20, consentimiento true. `409` identificador/email/teléfono duplicado; `429` tasa límite.
-- `POST /auth/registro/verificar` público → 201; body `{ "registroId":"UUID", "codigo":"123456" }`, seis dígitos. `POST /auth/registro/reenviar-codigo` → 202, `{registroId}`.
-- `POST /auth/login` público → 202, `{numeroIdentificacion,contacto}`; salida `{solicitudId,canal,destino,mensaje,expiraEn,puedeReenviarEn}`. `POST /auth/login/verificar` público → 200, `{solicitudId,codigo}`. Login incorrecto 401 genérico sin revelar cuál dato.
-- Verificación exitosa (login o registro) → `{usuario:{nombre,rol},accessToken,accessTokenExpiraEn,refreshTokenExpiraEn}` **más cookie `refresh_token` httpOnly**; el cuerpo no contiene refresh token. `POST /auth/refresh` con cookie y `credentials:'include'` → 200 `{accessToken,accessTokenExpiraEn,refreshTokenExpiraEn}` y nueva cookie; refresh token rota. `POST /auth/logout` con cookie → 204 y la elimina.
-- `POST /auth/cuenta/eliminacion` Bearer USUARIO_PUBLICO → 202, `{canal?:'CORREO'|'TELEFONO'}`; `{solicitudId,canal,destino,mensaje,expiraEn,puedeReenviarEn}`. `POST /auth/cuenta/eliminacion/confirmar` Bearer → 204, `{solicitudId,codigo}`. Borrar datos y progreso, conservar métricas anonimizadas; limpiar estado FE y cookie. Sólo con **cuenta de prueba** y autorización.
-- **Riesgo FE verificado en código:** `HttpAuthRepository` guarda access token en localStorage. Se requiere revisión de seguridad en equipos compartidos; no asumir que almacenar refresh ahí es aceptable. El refresh queda exclusivamente en cookie. Si se cambia estrategia de almacenamiento, hacerlo en un issue separado compatible con todos los módulos.
+  `telefono` alternativo, al menos teléfono o correo; DOB requerida en DTO actual aunque D-02 pide justificación. Salida `{registroId,canal,destino,mensaje,expiraEn,puedeReenviarEn}`; nombre <=100, identificación <=30, fecha `YYYY-MM-DD`, email <=254, teléfono <=20, consentimiento true. `409` identificador/email/teléfono duplicado (`IDENTIFICACION_YA_REGISTRADA`, `CORREO_EN_USO`, `TELEFONO_EN_USO`); `429` tasa límite.
+- `POST /auth/registro/verificar` público → `201`; body `{ "registroId":"UUID", "codigo":"123456" }`, seis dígitos. `POST /auth/registro/reenviar-codigo` → `202`, `{registroId}`; antes del minuto `429 REENVIO_MUY_PRONTO`.
+- `POST /auth/login` público → `202`, `{numeroIdentificacion,contacto}`; salida `{solicitudId,canal,destino,mensaje,expiraEn,puedeReenviarEn}`. `POST /auth/login/verificar` público → `200`, `{solicitudId,codigo}`. Login incorrecto `401 CREDENCIALES_INVALIDAS` genérico sin revelar cuál dato.
+- Verificación exitosa (login o registro) → `{usuario:{nombre,rol},accessToken,accessTokenExpiraEn,refreshTokenExpiraEn}` **más cookie `refresh_token` httpOnly**; el cuerpo no contiene refresh token. `POST /auth/refresh` con cookie y `credentials:'include'` → `200` `{accessToken,accessTokenExpiraEn,refreshTokenExpiraEn}` y nueva cookie; refresh token rota. **Reusar un refresh ya usado cierra todas las sesiones** de esa cuenta. `POST /auth/logout` con cookie → `204` y la elimina.
+- `POST /auth/cuenta/eliminacion` Bearer USUARIO_PUBLICO → `202`, `{canal?:'CORREO'|'TELEFONO'}` (sin canal: el contacto de la cuenta); `{solicitudId,canal,destino,mensaje,expiraEn,puedeReenviarEn}`. `POST /auth/cuenta/eliminacion/confirmar` Bearer → `204`, `{solicitudId,codigo}`; borra la cookie. Borra datos y progreso, conserva métricas anonimizadas. Sólo con **cuenta de prueba** y autorización.
 
-### C-09 — Personal y acceso privilegiado [EXISTENTE]
+**Códigos OTP (todos los flujos de C-08 y C-09), verificado en e2e `codigos-vencidos.e2e-spec.ts`:** 6 dígitos. Incorrecto → `400 CODIGO_INCORRECTO` con los intentos restantes en el mensaje; sin intentos → `429 INTENTOS_AGOTADOS`; **vencido → `410 CODIGO_EXPIRADO`** («El código ya venció. Pide uno nuevo.»), sin crear la cuenta, abrir sesión, cambiar la contraseña ni borrar nada. En producción el backend no arranca si `NOTIFICACIONES_CORREO` o `NOTIFICACIONES_SMS` es `consola` (los códigos nunca se escriben en los logs).
 
-- `POST /auth/personal/login` público → 202, `{correo,password}`; OTP enviado a correo, salida con `{solicitudId,canal,destino,mensaje,expiraEn,puedeReenviarEn}`. `POST /auth/personal/login/verificar` → 200, `{solicitudId,codigo}`; `{usuario:{nombre,rol,debeCambiarPassword},accessToken,...}` + cookie httpOnly. `auth/refresh` y `auth/logout` compartidos con usuario público.
-- `POST /personal/yo/password/codigo` Bearer PERSONAL/ADMINISTRADOR → 202, sin body, salida `{destino,expiraEn,mensaje}`. `POST /personal/yo/password` → 204, DTO **verificado en `CambiarPasswordInicialDto` de `dev`** `{codigo:"123456",passwordNueva:"NuevaClave2026"}`. **No** envía `solicitudId` ni `nuevaPassword`; FE debe respetar `passwordNueva`, código de seis dígitos y contraseña de hasta 72 caracteres. Revalidar rama de PR.
-- `GET /personal?pagina=1&limite=20`, `GET /personal/:uuid`, `POST /personal`, `PATCH /personal/:uuid`, `POST /personal/:uuid/desactivar`, `POST /personal/:uuid/reactivar`: **solo ADMINISTRADOR**. POST JSON `{nombre,correo,passwordTemporal,rol:'PERSONAL'|'ADMINISTRADOR'}`, edición parcial `{nombre?,correo?,rol?}`. Respuesta `{id,nombre,correo,rol,activo,debeCambiarPassword,ultimoAccesoEn,creadoEn}`, listado paginado. `409` correo en uso; 403 personal normal. La contraseña temporal 8–72 con letra y número según DTO.
-- **Riesgo FE verificado en código:** `HttpPersonalRepository` hace fallback a `InMemoryPersonalRepository` ante excepciones no `PersonalError`, incluso en acciones de autenticación/administración. **Nunca permitir credenciales ficticias exitosas ante un 500/offline**. Retirar fallback en entorno integrado.
+**Cookie `refresh_token`:** `HttpOnly`, `SameSite=Strict`, `Path=/api/v1/auth`, `Secure` solo con `NODE_ENV=production`, vence en `refreshTokenExpiraEn` (12 h por defecto). Por `SameSite=Strict` el FE debe servirse en el mismo sitio que la API (proxy de Vite o Nginx). El access token dura 15 min (`JWT_ACCESS_EXPIRES_IN_SEGUNDOS=900`).
+
+**Política del FE para la sesión (implementada en FE-09/FE-10, `frontend/src/infrastructure/http/api.ts`):**
+- Antes de una petición con token, si `accessTokenExpiraEn` vence en menos de 30 s, se renueva con `POST /auth/refresh`.
+- Ante un `401` en una ruta con token se renueva **una sola vez**: las lecturas (`GET`) se reintentan; las escrituras **no** se repiten y muestran «Tu sesión se renovó. Vuelve a intentarlo.» (`SESION_RENOVADA`).
+- Si el refresh responde `401`, se olvida la sesión y se pide iniciar sesión de nuevo (`SESION_INVALIDA`).
+- Sin red o con el backend caído se muestra «No se pudo conectar con el servidor…»; nunca se simula una respuesta.
+- Los errores se leen del formato uniforme de C-00: se muestra `mensaje`, se decide por `codigo` y el campo del formulario sale de `detalles.campo` o de la primera clave de `detalles.campos`.
+
+**Pantallas (FE-09):** `/registro`, `/registro/verificar`, `/iniciar-sesion` y **`/mi-cuenta`** (nueva): cerrar sesión y eliminar la cuenta. Eliminar exige marcar «Entiendo que mi cuenta y mis datos se borrarán para siempre», pedir el código y escribirlo; tras el `204` la sesión queda cerrada en el navegador. Con sesión pública, el encabezado muestra «Mi cuenta» en lugar de «Iniciar sesión».
+
+**Riesgo aceptado y documentado — access token en `localStorage`:** `HttpAuthRepository` (clave `kama_auth_session`) y `HttpPersonalRepository` (`kama_personal_session`) guardan el usuario, el access token y sus vencimientos en `localStorage`. En un computador compartido de la sala, otra persona que abra el navegador antes de que se cierre la sesión podría usarla mientras el refresh siga vigente. Mitigaciones actuales: el refresh token **nunca** está en `localStorage` (cookie httpOnly), el access token dura 15 min, «Cerrar sesión» revoca el refresh y borra la cookie, y `/mi-cuenta` recuerda cerrar sesión al terminar. **Decisión BE-05:** no se cambia la estrategia (p. ej. a memoria o `sessionStorage`) sin un issue aparte con prueba de compatibilidad en todos los módulos.
+
+### C-09 — Personal y acceso privilegiado [EXISTENTE; verificado en BE-05, FE-10]
+
+- `POST /auth/personal/login` público → `202`, `{correo,password}`; OTP enviado a correo, salida `{solicitudId,canal,destino,mensaje,expiraEn,puedeReenviarEn}`. **`solicitudId` es el id de la cuenta del personal** y es lo que se envía al verificar (no el `destino` enmascarado). `POST /auth/personal/login/verificar` → `200`, `{solicitudId,codigo}`; `{usuario:{nombre,rol,debeCambiarPassword},accessToken,accessTokenExpiraEn,refreshTokenExpiraEn}` + cookie httpOnly. Correo o contraseña incorrectos, o cuenta desactivada: `401 CREDENCIALES_INCORRECTAS` (mismo mensaje). `auth/refresh` y `auth/logout` compartidos con usuario público (verificado en e2e para el personal).
+- `POST /personal/yo/password/codigo` Bearer PERSONAL/ADMINISTRADOR → `202`, sin body, salida `{destino,expiraEn,mensaje}`. `POST /personal/yo/password` → `204`, DTO **`{codigo:"123456",passwordNueva:"NuevaClave2026"}`** (no `solicitudId` ni `nuevoPassword`); contraseña 8–72 caracteres con letra y número. Vencido → `410 CODIGO_EXPIRADO`.
+- `GET /personal?pagina=1&limite=20`, `GET /personal/:uuid`, `POST /personal`, `PATCH /personal/:uuid`, `POST /personal/:uuid/desactivar`, `POST /personal/:uuid/reactivar`: **solo ADMINISTRADOR** (`403 SIN_PERMISO` al personal). POST JSON `{nombre,correo,passwordTemporal,rol:'PERSONAL'|'ADMINISTRADOR'}`, edición parcial `{nombre?,correo?,rol?}`. Respuesta `{id,nombre,correo,rol,activo,debeCambiarPassword,ultimoAccesoEn,creadoEn}`, listado paginado. `409 CORREO_EN_USO`. La contraseña temporal 8–72 con letra y número según DTO. Un administrador no puede desactivarse ni quitarse el rol (`403 AUTO_MODIFICACION_NO_PERMITIDA`). **Desactivar revoca de inmediato sus sesiones y tokens**; el rol se lee de la BD en cada petición.
+- **Corregido en FE-10:** `HttpPersonalRepository` ya **no** usa `InMemoryPersonalRepository` como respaldo: sin red lanza `SinConexionPersonalError` y cualquier error del backend llega a la pantalla con su `mensaje` (`InMemoryPersonalRepository` queda solo para tests). La verificación del login envía `{solicitudId,codigo}` y el cambio inicial `{codigo,passwordNueva}`; antes enviaba `{destino,codigo}` y `{codigo,nuevoPassword}`, que el backend rechazaba con `400`. Aplica la misma política de sesión de C-08: renueva antes de vencer, ante `401` solo reintenta los `GET`, y con la sesión vencida `GestionPersonalPage` vuelve a `/personal/acceso`.
 
 ### C-10 — Mi progreso persistente [PROPUESTO, implementarlo solo tras confirmar ausencia]
 
@@ -312,6 +326,8 @@ Para cada C-XX, el equipo backend registra: ejemplo request real, respuesta exit
 
 ### FE-09 — Registro, login, refresh, logout y eliminación (HU-01/02/05) · P0 · pareja BE-05 · C-08
 
+**Estado:** `PASS_FE` en la rama `feat/be-05-fe-09-10-auth`; falta `PASS_INTEGRATED` en navegador con cuenta ficticia. Hecho: renovación de sesión con la cookie (antes `renovarSesion()` no se usaba y todo daba 401 a los 15 min), errores por `codigo`/`detalles` de C-00, pantalla `/mi-cuenta` con cerrar sesión (no existía) y eliminación de cuenta con confirmación y OTP (HU-05), y «Mi cuenta» en el encabezado. El access token sigue en `localStorage`: riesgo documentado en C-08, sin cambio.
+
 - Verificar flujo completo E2E con cuentas ficticias autorizadas: aviso vigente → registro y consentimiento → OTP → sesión pública → refresh (cookie httpOnly) → logout → login OTP → solicitud eliminación → confirmación → no reingreso.
 - Corregir campos exactamente `numeroIdentificacion,fechaNacimiento,correo/telefono,aceptaAvisoPrivacidad`, reenvío, `solicitudId`/`registroId` con nombres correctos; mantener 400/409/410/429 mensajes sencillos.
 - Eliminar cuenta: añadir UI si falta, explicar consecuencias, pedir OTP, no borrar con solo clic, limpiar sesión/estado después de 204; no ejecutar sobre cuentas reales.
@@ -319,6 +335,8 @@ Para cada C-XX, el equipo backend registra: ejemplo request real, respuesta exit
 - **DoD:** pruebas 401/403/409/410/429, red, expiración y caso feliz; evidencias FE→BE con usuario ficticio.
 
 ### FE-10 — Acceso y gestión del personal (HU-04/06) · P0 · pareja BE-05 · C-09
+
+**Estado:** `PASS_FE` en la rama `feat/be-05-fe-09-10-auth`; falta `PASS_INTEGRATED` en navegador. Corregido: sin respaldo en memoria ante errores (antes el login «funcionaba» con datos falsos si el backend estaba caído), verificación con `{solicitudId,codigo}` y cambio inicial con `{codigo,passwordNueva}` (antes el backend los rechazaba con 400), renovación de sesión y vuelta a `/personal/acceso` si la sesión vence.
 
 - Comprobar que `AccesoPersonalPage`, `PrimerAccesoPage`, `GestionPersonalPage` no muestran fallback mock ante error. Mantener login correo+password → OTP → JWT/cookie, cambio obligatorio de contraseña y permisos de ADMIN.
 - Repositorio de personal consume rutas exactas C-09, 202/200/204, paginación y `debeCambiarPassword`. Usar el DTO exacto `{codigo,passwordNueva}` confirmado en `dev` y revalidarlo con la rama de PR; completar UI faltante.
