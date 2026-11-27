@@ -39,8 +39,8 @@ Cada PR debe incluir: ID tarea, HU y criterios exactos vinculados, contrato C-XX
 | R1 — catálogo y estabilidad | FE-03, FE-12 | BE-08 | C-01, C-02; FE elimina fallback y BE valida catálogo | Catálogo real y error explícito |
 | R1 — práctica | FE-01, FE-02 | BE-01 | C-03 existente + C-04 propuesto; FE fixture+UI; BE eval sin persistencia | Invitado y registrado, resultados reales |
 | R1 — ayuda | FE-04 | BE-02 | C-05 y C-06; FE formulario+estado, BE ownership/concurrencia | Solicitar→ver→cancelar y dedupe |
-| R2 — guías del personal | FE-05 | BE-06, BE-07 | C-07 ya existe; FE editor, BE confirma seeds y permisos | Crear→editar→publicar→ocultar |
-| R2 — cola monitores | FE-06 | BE-02, BE-06 | C-06 existe; FE polling, BE transiciones | Dos monitores, una toma |
+| R2 — guías del personal | FE-05 | BE-06, BE-07 | C-07 verificado; editor en `/personal/guias` (rama `feat/be-06-fe-05-06-guias-cola`) | Crear→editar→publicar→ocultar |
+| R2 — cola monitores | FE-06 | BE-02, BE-06 | C-06 verificado; cola en `/personal/cola` con sondeo de 15 s (rama `feat/be-06-fe-05-06-guias-cola`) | Dos monitores, una toma |
 | R2 — cuentas | FE-09, FE-10 | BE-05 | C-08, C-09 existentes y verificados (rama `feat/be-05-fe-09-10-auth`) | Registro/OTP, personal, eliminación |
 | R2 — progreso | FE-07 | BE-03 | C-10 existente (verificado en BE-03); FE UI contra la API real | Persistencia por usuario |
 | R2 — estadísticas | FE-08 | BE-04 | C-11 propuesto; FE gráficos con fixture; BE agregaciones | Panel real por fechas |
@@ -169,7 +169,7 @@ Con última pregunta, `resultado` es `{ "respuestasCorrectas":2,"totalPreguntas"
 - `GET /solicitudes-ayuda/:id` → `200` mismo estado sin `yaExistia`; `DELETE /solicitudes-ayuda/:id` → `204` solo si PENDIENTE; conserva fila `CANCELADA`, `409` si no puede cancelarse; `404` si no existe. **Seguridad todavía no resuelta:** el controller `dev` anota GET/DELETE públicos, pero F00 observó 401 al consultar sin cookie. No se debe afirmar un contrato de identidad/cookie que no está probado. `BE-02` debe verificar rama local y fijar una prueba `POST→GET→DELETE` desde el mismo navegador; establecer mecanismo de titularidad para impedir consultar/cancelar ajenos (por ejemplo cookie de sesión/capacidad opaca httpOnly), y entregar a FE si debe usar `credentials: include`. **No diseñar el frontend alrededor de una cookie imaginaria.**
 - UI FE: formulario con ubicación/contexto, deshabilitar envío doble, mostrar `posicion`, estado y botón cancelar solo PENDIENTE, consultar cada 15s mientras espera, detener polling al salir. No mostrar datos sensibles del personal ni exponer IDs de otras solicitudes.
 
-### C-06 — Cola y acciones del personal [EXISTENTE]
+### C-06 — Cola y acciones del personal [EXISTENTE; verificado en BE-06, FE-06]
 
 `GET /solicitudes-ayuda?estado=PENDIENTE&pagina=1&limite=20&ordenarPor=creadaEn&direccion=asc` con Bearer PERSONAL/ADMINISTRADOR → `200` paginado `{datos:[SolicitudEnCola],total,pagina,limite}`. Registro:
 
@@ -181,7 +181,13 @@ Con última pregunta, `resultado` es `{ "respuestasCorrectas":2,"totalPreguntas"
 
 `POST /solicitudes-ayuda/:id/resolver` Bearer PERSONAL/ADMINISTRADOR, body `{"comentario":"Se explicó cómo verificar el mensaje."}` con texto opcional/null y máximo 500 → `200`, estado `RESUELTA`; `403` si no es quien la tomó; `409` si nadie la tomó o ya cerrada. FE polling **cada 15s**, lista ascendente por fecha y tiempo de espera calculado por `Date.now - creadaEn`; al desmontar cancelar intervalo/solicitudes. Para ver propios en atención usar GET con filtro `estado=EN_ATENCION` (ya soportado); nunca perderlos al pasar de pendiente a en atención.
 
-### C-07 — Gestión de guías por personal [EXISTENTE]
+**Verificado en BE-06 y usado por FE-06** (e2e `atender-solicitudes.e2e-spec.ts`):
+- `GET /solicitudes-ayuda` exige Bearer `PERSONAL`/`ADMINISTRADOR` (`401` sin sesión, `403` usuario público). Filtros `estado` y `tema` (enums de C-05), `ordenarPor=creadaEn`, `direccion` `asc`/`desc`, `pagina` ≥ 1 y `limite` 1–100; cualquier otro valor → `400 DATOS_INVALIDOS`. Cada registro trae solo `{id,equipo,tema,estado,guia,paso,creadaEn,atendidaPor,tomadaEn,resueltaEn,comentarioResolucion}`: nunca datos de la persona.
+- Errores con `codigo`: tomar → `409` `SOLICITUD_YA_TOMADA`, `SOLICITUD_MODIFICADA` (otro monitor la tomó en el mismo instante) o `SOLICITUD_CERRADA` (la persona canceló); resolver → `409` `SOLICITUD_SIN_TOMAR` o `SOLICITUD_CERRADA`, `403` `SOLICITUD_DE_OTRO_MONITOR`; `404` `SOLICITUD_NO_ENCONTRADA`.
+
+**Pantalla `/personal/cola` (FE-06):** pide `estado=PENDIENTE` y `estado=EN_ATENCION` (límite 50, de la más antigua a la más reciente) al abrir y **cada 15 s** (`SeguimientoCola`), y deja de pedir al salir. Muestra «Estás atendiendo» (las tomadas por el nombre de la sesión), «Esperando ayuda» numeradas con el tiempo de espera, y «Atendiendo otros monitores». «Atender» toma la solicitud; ante cualquier `409` avisa «Otro monitor ya está atendiendo…» y recarga. «Marcar como resuelta» pide el comentario opcional (máximo 500) y solo aparece en las propias; el backend igual responde `403` a otro monitor. Tomar y resolver son escrituras: ante un `401` se renueva la sesión pero **no se repiten** (C-08). Tras iniciar sesión, un monitor (`PERSONAL`) entra aquí; antes iba al catálogo público.
+
+### C-07 — Gestión de guías por personal [EXISTENTE; verificado en BE-06, FE-05]
 
 Todos requieren Bearer rol PERSONAL o ADMINISTRADOR: `GET /gestion/guias`, `POST /gestion/guias`, `GET /gestion/guias/:slug`, `PUT /gestion/guias/:slug`, `POST /gestion/guias/:slug/publicar`, `POST /gestion/guias/:slug/ocultar`. GET listado paginado; POST crea en BORRADOR y genera slug; PUT **reemplaza** campos de guía y, si viene `pasos`, reemplaza la lista de pasos exactamente y en orden (omitir `pasos` no los modifica). DTO de escritura:
 
@@ -194,6 +200,10 @@ Todos requieren Bearer rol PERSONAL o ADMINISTRADOR: `GET /gestion/guias`, `POST
 **Salida existente:** `GuiaGestionDetalle` con `slug,categoria,titulo,objetivo,nivel,duracionEstimadaMin,estado,totalPasos,publicadaEn,creadaPor,actualizadaPor,creadoEn,actualizadoEn,descripcion,palabrasClave,pasos:[{id,orden,titulo,bloques}]`. `POST` 201, `PUT`/publicar/ocultar 200; publicar sin pasos 409; una PUBLICADA no puede quedar sin pasos 409; ocultar conserva datos y progreso. No editar guías reales en pruebas; usar un borrador ficticio y limpiarlo con autorización, ya que controlador no declara DELETE de guía.
 
 **Dependencia BE-07:** resembrar dos veces tras editar el borrador **no debe pisar las ediciones**; antes de usar el editor con datos reales verificar el seed.
+
+**Verificado en BE-06 y usado por FE-05** (e2e `gestion-guias.e2e-spec.ts`): el personal sin rol de administrador también gestiona guías; el listado acepta `estado`, `categoria`, `ordenarPor` `titulo`/`actualizadoEn`, `direccion`, `pagina` y `limite` 1–100 (otro valor → `400 DATOS_INVALIDOS`). **Ida y vuelta del editor:** el `PUT` con lo mismo que devolvió el `GET /gestion/guias/:slug` (incluidos los bloques `imagen` con su `url`, que se ignora) no cambia nada. Errores con `codigo`: `409 GUIA_SIN_PASOS` (publicar sin pasos o dejar una publicada sin pasos), `409 GUIA_NO_PUBLICADA` (ocultar un borrador), `404 GUIA_NO_ENCONTRADA`, `400 DATOS_INVALIDOS` con `detalles.campos`.
+
+**Pantallas (FE-05):** `/personal/guias` lista las guías en cualquier estado (filtros por estado y categoría, de la editada más recientemente). `/personal/guias/nueva` y `/personal/guias/:slug` son el editor: datos de la guía, pasos con título opcional y bloques de texto, aviso (consejo/alerta) o imagen ya existente (solo se ve y se edita su texto alternativo; **subir imágenes es HU-14, fuera de alcance**), botones para agregar, quitar y reordenar pasos y bloques (sin arrastrar, usable con teclado). Antes de enviar valida con los mismos límites de esta sección y muestra todos los errores junto a su campo y en un resumen anunciado; al guardar envía todos los pasos en orden con el `id` de los que ya existían. «Publicar» (si la guía no tiene pasos avisa sin llamar al servidor) y «Ocultar del catálogo» usan lo último guardado. Ambas pantallas exigen sesión del personal y comparten el menú «Cola de ayuda · Guías · Personal (solo administración) · Códigos QR · Cerrar sesión».
 
 ### C-08 — Cuenta pública, OTP y sesión [EXISTENTE; verificado en BE-05, FE-09]
 
@@ -373,6 +383,8 @@ Para cada C-XX, el equipo backend registra: ejemplo request real, respuesta exit
 - **Entrega FE:** postman/HTTP ejemplos anónimos sanitizados, status 202/200/204, error 400/401/403/409/410/429, cookie flags, id ficticios.
 
 ### BE-06 — Estabilidad de gestión guías y cola (HU-13/15/30) · P0 · pareja FE-05/06 · C-06/C-07
+
+**Estado:** `PASS_BE` en la rama `feat/be-06-fe-05-06-guias-cola` (junto con FE-05 y FE-06). Sin cambios de código: las rutas ya cumplían. La cobertura existente probaba permisos, BORRADOR, ≥1 paso para publicar, ocultar sin borrar, `PUT pasos` con UUID y omitidos, toma concurrente y solo el asignado resuelve. **Agregado:** e2e del `GET` de la cola (401/403, forma del registro sin datos personales, `EN_ATENCION`, filtro por tema, orden `desc`, paginación y 400 con valores fuera de rango) y de gestión (`PERSONAL` también gestiona, ida y vuelta `GET`→`PUT` sin cambios, 400 en el listado).
 
 - **No crear nuevos controllers si ya existen.** `gestion/guias` GET/POST/PUT/publicar/ocultar y `solicitudes-ayuda` list/tomar/resolver constan en dev.
 - Revisar autorización PERSONAL/ADMINISTRADOR; validación DTO y serialización: crear BORRADOR, publicación exige >=1 paso, ocultar no elimina, `PUT pasos` conserva UUID de los que existían, orden nuevo estable, `PUT` omitidos pasos no elimina; 409 por guía publicada sin pasos.
