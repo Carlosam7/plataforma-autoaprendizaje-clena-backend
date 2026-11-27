@@ -7,6 +7,7 @@ import { LoggingModule } from './infrastructure/logging/logging.module.js';
 import { AuthModule } from './modules/auth.module.js';
 import { AyudaModule } from './modules/ayuda.module.js';
 import { CategoriaModule } from './modules/categoria.module.js';
+import { EstadisticaModule } from './modules/estadistica.module.js';
 import { GuiaModule } from './modules/guia.module.js';
 import { PersonalModule } from './modules/personal.module.js';
 import { PracticaModule } from './modules/practica.module.js';
@@ -33,6 +34,7 @@ import { HealthController } from './presentation/health/health.controller.js';
     PracticaModule,
     ProgresoModule,
     AyudaModule,
+    EstadisticaModule,
   ],
   controllers: [HealthController],
   // APP_FILTER (y no useGlobalFilters en main.ts) para que también aplique en los tests e2e.
