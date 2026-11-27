@@ -474,6 +474,9 @@ model SolicitudAyuda {
   tomadaEn             DateTime?       @map("tomada_en") @db.Timestamptz
   resueltaEn           DateTime?       @map("resuelta_en") @db.Timestamptz
   canceladaEn          DateTime?       @map("cancelada_en") @db.Timestamptz
+  /// Huella SHA-256 de la llave del navegador que la pidió (cookie httpOnly llave_ayuda, C-05).
+  /// Solo ese navegador la consulta o cancela. Nunca se guarda la llave misma.
+  titularHash          String?         @map("titular_hash") @db.VarChar(64)
 
   guia        Guia?           @relation(fields: [guiaId], references: [id], onDelete: SetNull)
   paso        Paso?           @relation(fields: [pasoId], references: [id], onDelete: SetNull)

@@ -49,6 +49,11 @@ export interface SolicitudAyudaProps {
   /** Nota breve opcional de quien la resolvió. */
   comentarioResolucion: string | null;
   canceladaEn: Date | null;
+  /**
+   * Huella de la llave del navegador que la pidió (C-05). Solo quien tiene esa llave la
+   * consulta o la cancela; null en las solicitudes anteriores a BE-02, que no tienen titular.
+   */
+  titularHash: string | null;
 }
 
 /**
@@ -68,6 +73,7 @@ export class SolicitudAyuda {
     guiaId: string | null;
     pasoId: string | null;
     usuarioId: string | null;
+    titularHash: string;
     ahora: Date;
   }): SolicitudAyuda {
     // Espacios de más fuera: «  equipo   12 » y «equipo 12» son el mismo equipo.
@@ -96,6 +102,7 @@ export class SolicitudAyuda {
       resueltaEn: null,
       comentarioResolucion: null,
       canceladaEn: null,
+      titularHash: datos.titularHash,
     });
   }
 
@@ -141,6 +148,17 @@ export class SolicitudAyuda {
   }
   get canceladaEn(): Date | null {
     return this.props.canceladaEn;
+  }
+
+  get titularHash(): string | null {
+    return this.props.titularHash;
+  }
+
+  /** C-05: la pidió el navegador con esa llave. Sin titular, no es de ningún visitante. */
+  esDelTitular(huellaLlave: string | null): boolean {
+    return (
+      this.props.titularHash !== null && this.props.titularHash === huellaLlave
+    );
   }
 
   get estaActiva(): boolean {

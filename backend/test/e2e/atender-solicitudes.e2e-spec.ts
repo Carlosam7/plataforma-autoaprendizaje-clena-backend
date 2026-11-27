@@ -1,5 +1,6 @@
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
+import TestAgent from 'supertest/lib/agent.js';
 import { App } from 'supertest/types.js';
 import { PrismaService } from '../../src/infrastructure/database/prisma.service.js';
 import {
@@ -16,6 +17,8 @@ describe('HU-30 · Atender la cola de solicitudes (e2e)', () => {
   let prisma: PrismaService;
   let ana: { id: string; token: string };
   let luis: { id: string; token: string };
+  /** El navegador del visitante que pide ayuda (guarda la cookie llave_ayuda). */
+  let visitante: TestAgent;
 
   beforeAll(async () => {
     ({ app, prisma } = await crearApp());
@@ -23,6 +26,7 @@ describe('HU-30 · Atender la cola de solicitudes (e2e)', () => {
 
   beforeEach(async () => {
     await limpiarBaseDatos(prisma);
+    visitante = request.agent(app.getHttpServer());
     ana = await sesionPersonal(app, { rol: 'PERSONAL' });
     luis = await sesionPersonal(app, { rol: 'ADMINISTRADOR' });
   });
@@ -37,7 +41,7 @@ describe('HU-30 · Atender la cola de solicitudes (e2e)', () => {
   });
   /** Un visitante pide ayuda desde ese equipo; devuelve el id de la solicitud. */
   const pedir = async (equipo: string): Promise<string> => {
-    const { body } = await http()
+    const { body } = await visitante
       .post(RUTA)
       .send({ equipo, tema: 'CORREO' })
       .expect(201);
@@ -94,8 +98,10 @@ describe('HU-30 · Atender la cola de solicitudes (e2e)', () => {
       expect(guardada.tomadaEn).not.toBeNull();
 
       // Quien la pidió ve que ya la atienden.
-      const { body: visitante } = await http().get(`${RUTA}/${id}`).expect(200);
-      expect(visitante).toMatchObject({
+      const { body: loQueVe } = await visitante
+        .get(`${RUTA}/${id}`)
+        .expect(200);
+      expect(loQueVe).toMatchObject({
         estado: 'EN_ATENCION',
         posicion: null,
       });
@@ -125,7 +131,7 @@ describe('HU-30 · Atender la cola de solicitudes (e2e)', () => {
 
     it('responde 409 si la persona ya la canceló y 404 si no existe', async () => {
       const id = await pedir('12');
-      await http().delete(`${RUTA}/${id}`).expect(204);
+      await visitante.delete(`${RUTA}/${id}`).expect(204);
       const { body } = await tomar(id).expect(409);
       expect(body.codigo).toBe('SOLICITUD_CERRADA');
       await tomar('00000000-0000-4000-8000-000000000000').expect(404);
@@ -189,13 +195,13 @@ describe('HU-30 · Atender la cola de solicitudes (e2e)', () => {
       expect(body.codigo).toBe('SOLICITUD_CERRADA');
 
       // Y quien la pidió ya no la puede cancelar.
-      await http().delete(`${RUTA}/${id}`).expect(409);
+      await visitante.delete(`${RUTA}/${id}`).expect(409);
     });
 
     it('la persona puede cancelar aunque ya la estén atendiendo', async () => {
       const id = await pedir('12');
       await tomar(id).expect(200);
-      await http().delete(`${RUTA}/${id}`).expect(204);
+      await visitante.delete(`${RUTA}/${id}`).expect(204);
       const { body } = await resolver(id).expect(409);
       expect(body.codigo).toBe('SOLICITUD_CERRADA');
     });

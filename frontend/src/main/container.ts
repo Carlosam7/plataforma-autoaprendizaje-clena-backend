@@ -12,6 +12,10 @@ import { SolicitarInicioSesion } from '@/application/auth/SolicitarInicioSesion'
 import { SolicitarRegistro } from '@/application/auth/SolicitarRegistro';
 import { VerificarCodigoRegistro } from '@/application/auth/VerificarCodigoRegistro';
 import { VerificarInicioSesion } from '@/application/auth/VerificarInicioSesion';
+import { CancelarSolicitudAyuda } from '@/application/ayuda/CancelarSolicitudAyuda';
+import { ConsultarSolicitudAyuda } from '@/application/ayuda/ConsultarSolicitudAyuda';
+import { SeguimientoSolicitudAyuda } from '@/application/ayuda/SeguimientoSolicitudAyuda';
+import { SolicitarAyuda } from '@/application/ayuda/SolicitarAyuda';
 import { CalcularResultadoPractica } from '@/application/guias/CalcularResultadoPractica';
 import { ListarCategorias } from '@/application/guias/ListarCategorias';
 import { ListarGuias } from '@/application/guias/ListarGuias';
@@ -37,6 +41,7 @@ import { determinarModoPractica } from '@/application/practica/sesionPractica';
 import { DomPreferencesApplier } from '@/infrastructure/accessibility/DomPreferencesApplier';
 import { LocalStoragePreferencesRepository } from '@/infrastructure/accessibility/LocalStoragePreferencesRepository';
 import { HttpAuthRepository } from '@/infrastructure/auth/HttpAuthRepository';
+import { HttpAyudaRepository } from '@/infrastructure/ayuda/HttpAyudaRepository';
 import { HttpGuiasRepository } from '@/infrastructure/guias/HttpGuiasRepository';
 import { InMemoryGuiasRepository } from '@/infrastructure/guias/InMemoryGuiasRepository';
 import { HttpPersonalRepository } from '@/infrastructure/personal/HttpPersonalRepository';
@@ -59,6 +64,8 @@ const guiasRepository = modoDemo
 const personalRepository = modoDemo
   ? new InMemoryPersonalRepository()
   : new HttpPersonalRepository();
+// C-05: titularidad por cookie httpOnly llave_ayuda (BE-02).
+const ayudaRepository = new HttpAyudaRepository();
 // C-04 (invitados sin persistencia) entregado por BE-01.
 const practicaRepository = new HttpPracticaRepository({
   evaluacionInvitadoHabilitada: true,
@@ -117,6 +124,12 @@ export const container = {
     evaluarInvitado: new EvaluarRespuestaInvitado(practicaRepository),
     determinarModo: () => determinarModoPractica(authRepository),
     practicaRepository,
+  },
+  ayuda: {
+    solicitar: new SolicitarAyuda(ayudaRepository),
+    consultar: new ConsultarSolicitudAyuda(ayudaRepository),
+    cancelar: new CancelarSolicitudAyuda(ayudaRepository),
+    seguimiento: new SeguimientoSolicitudAyuda(ayudaRepository),
   },
   personal: {
     solicitarInicioSesion: new SolicitarInicioSesionPersonal(

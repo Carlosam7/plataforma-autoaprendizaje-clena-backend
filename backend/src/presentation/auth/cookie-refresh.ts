@@ -1,6 +1,7 @@
 import type { CookieOptions, Request, Response } from 'express';
 import { SesionEmitida } from '../../application/auth/emisor-sesion.port.js';
 import { PREFIJO_API } from '../../app.setup.js';
+import { leerCookie } from '../shared/cookies.js';
 
 export const COOKIE_REFRESH = 'refresh_token';
 
@@ -53,11 +54,7 @@ export function borrarCookieRefresh(res: Response): void {
   res.clearCookie(COOKIE_REFRESH, opcionesCookieRefresh());
 }
 
-/** Sin cookie-parser: solo se necesita esta cookie. Su valor (uuid.base64url) no requiere decodificar. */
+/** Su valor (uuid.base64url) no requiere decodificar. */
 export function leerCookieRefresh(req: Request): string | null {
-  for (const par of req.headers.cookie?.split(';') ?? []) {
-    const [nombre, ...valor] = par.trim().split('=');
-    if (nombre === COOKIE_REFRESH) return valor.join('=');
-  }
-  return null;
+  return leerCookie(req, COOKIE_REFRESH);
 }

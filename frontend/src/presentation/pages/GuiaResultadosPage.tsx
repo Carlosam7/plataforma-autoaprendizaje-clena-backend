@@ -5,6 +5,7 @@ import type {
   ResultadoPractica,
 } from '../../domain/guias/types';
 import { container } from '../../main/container';
+import { rutaAyuda } from '@/presentation/ayuda/rutaAyuda';
 
 export interface ResultadosLocationState {
   resultado?: CalificacionPractica | null;
@@ -297,7 +298,7 @@ export function GuiaResultadosPage() {
           Kamá · Aprende a tu ritmo. Estamos para acompañarte.
         </p>
         <Link
-          to="/ayuda"
+          to={rutaAyuda(slug)}
           className="inline-flex items-center gap-2 px-5 py-3 font-semibold text-[#0d6258] bg-white border border-[#0d6258] rounded-full hover:bg-[#e7f2ee] no-underline"
         >
           <span className="font-bold text-[1.2rem]" aria-hidden="true">

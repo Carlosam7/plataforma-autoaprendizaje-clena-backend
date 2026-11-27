@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router';
 import { CatalogoError } from '../../domain/guias/errors';
 import type { DetalleGuia } from '../../domain/guias/types';
 import { container } from '../../main/container';
+import { rutaAyuda } from '@/presentation/ayuda/rutaAyuda';
 
 export function GuiaDetallePage() {
   const { slug } = useParams<{ slug: string }>();
@@ -432,7 +433,7 @@ export function GuiaDetallePage() {
           Kamá · Aprende a tu ritmo. Estamos para acompañarte.
         </p>
         <Link
-          to="/ayuda"
+          to={rutaAyuda(guia.slug, pasoActual?.numero)}
           className="inline-flex items-center gap-2 px-5 py-3 font-semibold text-[#0d6258] bg-white border border-[#0d6258] rounded-full hover:bg-[#e7f2ee] no-underline focus:outline-none focus:ring-4 focus:ring-[#0d6258]/30"
         >
           <span className="font-bold text-[1.2rem]" aria-hidden="true">
