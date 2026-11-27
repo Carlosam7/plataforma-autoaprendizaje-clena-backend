@@ -81,11 +81,17 @@ export interface RespuestaIntento {
   esCorrecta: boolean;
 }
 
-export interface ResultadoPractica {
-  guiaSlug: string;
+export interface CalificacionPractica {
+  respuestasCorrectas: number;
   totalPreguntas: number;
-  aciertos: number;
   porcentaje: number;
+  aprobado: boolean;
+  porcentajeAprobacion: number;
+}
+
+export interface ResultadoPractica extends CalificacionPractica {
+  guiaSlug: string;
+  aciertos: number;
   aprobada: boolean;
   umbralAprobacion: number; // e.g. 70%
 }

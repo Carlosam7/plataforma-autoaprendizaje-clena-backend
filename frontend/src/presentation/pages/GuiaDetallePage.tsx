@@ -110,7 +110,7 @@ export function GuiaDetallePage() {
     );
   }
 
-  const { guia, pasos, preguntas } = detalle;
+  const { guia, pasos, tieneActividad } = detalle;
   const totalPasos = pasos.length;
   const pasoActual = pasos[pasoIndex];
   const esUltimoPaso = pasoIndex === totalPasos - 1;
@@ -138,7 +138,7 @@ export function GuiaDetallePage() {
     if (!esUltimoPaso) {
       setPasoIndex((prev) => prev + 1);
       window.scrollTo({ top: 120, behavior: 'smooth' });
-    } else if (preguntas.length > 0) {
+    } else if (tieneActividad) {
       navigate(`/guias/${slug}/practica`);
     } else {
       navigate('/guias');
@@ -419,7 +419,7 @@ export function GuiaDetallePage() {
           className="inline-flex items-center justify-center min-h-14 px-8 py-4 font-semibold text-[1.111rem] text-white bg-[#0d6258] rounded-xl hover:bg-[#09473f] cursor-pointer transition-colors focus:outline-none focus:ring-4 focus:ring-[#0d6258]/30"
         >
           {esUltimoPaso
-            ? preguntas.length > 0
+            ? tieneActividad
               ? 'Ir a la práctica interactiva →'
               : 'Terminar guía →'
             : 'Siguiente →'}

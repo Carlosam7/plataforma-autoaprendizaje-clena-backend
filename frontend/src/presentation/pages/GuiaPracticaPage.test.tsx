@@ -3,7 +3,10 @@ import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { CatalogoError } from '../../domain/guias/errors';
+import {
+  ActividadNoEncontradaError,
+  ConexionPracticaError,
+} from '@/domain/practica/errors';
 import { container } from '../../main/container';
 import { GuiaPracticaPage } from './GuiaPracticaPage';
 
@@ -23,9 +26,9 @@ describe('GuiaPracticaPage', () => {
 
   it('error de conexión muestra alerta con reintento, no "sin práctica"', async () => {
     const obtener = vi
-      .spyOn(container.guias.obtenerDetalle, 'ejecutar')
-      .mockRejectedValueOnce(new CatalogoError('Sin conexión.', 'CONEXION'))
-      .mockResolvedValue(null);
+      .spyOn(container.practica.obtenerActividad, 'ejecutar')
+      .mockRejectedValueOnce(new ConexionPracticaError(false, 'Sin conexión.'))
+      .mockRejectedValueOnce(new ActividadNoEncontradaError());
     renderizar();
     expect((await screen.findByRole('alert')).textContent).toContain(
       'Sin conexión.',
@@ -34,18 +37,18 @@ describe('GuiaPracticaPage', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Reintentar' }));
     expect(
-      await screen.findByText(/no tiene práctica disponible/),
+      await screen.findByText(/no tiene práctica disponible aún/),
     ).toBeTruthy();
     expect(obtener).toHaveBeenCalledTimes(2);
   });
 
   it('abrir la práctica no registra apertura de guía', async () => {
-    vi.spyOn(container.guias.obtenerDetalle, 'ejecutar').mockResolvedValue(
-      null,
+    vi.spyOn(container.practica.obtenerActividad, 'ejecutar').mockRejectedValue(
+      new ActividadNoEncontradaError(),
     );
     const apertura = vi.spyOn(container.guias.registrarApertura, 'ejecutar');
     renderizar();
-    await screen.findByText(/no tiene práctica disponible/);
+    await screen.findByText(/no tiene práctica disponible aún/);
     expect(apertura).not.toHaveBeenCalled();
   });
 });

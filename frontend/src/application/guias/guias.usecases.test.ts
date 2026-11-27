@@ -152,6 +152,7 @@ describe('Guias use cases', () => {
       aciertos: 4,
     });
     expect(res1.porcentaje).toBe(80);
+    expect(res1.aprobado).toBe(true);
     expect(res1.aprobada).toBe(true);
 
     // 3 de 5 = 60% -> No aprobada
@@ -161,6 +162,104 @@ describe('Guias use cases', () => {
       aciertos: 3,
     });
     expect(res2.porcentaje).toBe(60);
+    expect(res2.aprobado).toBe(false);
     expect(res2.aprobada).toBe(false);
+  });
+
+  it('CalcularResultadoPractica: cubre 0/N, 69 %, 70 % exacto, 100 % y distintos tamaños sin redondear a favor', () => {
+    const usecase = new CalcularResultadoPractica();
+
+    expect(
+      usecase.ejecutar({
+        guiaSlug: 'smishing',
+        totalPreguntas: 5,
+        respuestasCorrectas: 0,
+      }),
+    ).toMatchObject({
+      respuestasCorrectas: 0,
+      totalPreguntas: 5,
+      porcentaje: 0,
+      aprobado: false,
+      porcentajeAprobacion: 70,
+    });
+
+    // 69 % exacto con umbral 70 % -> no aprobado
+    expect(
+      usecase.ejecutar({
+        guiaSlug: 'smishing',
+        totalPreguntas: 100,
+        respuestasCorrectas: 69,
+        porcentajeAprobacion: 70,
+      }),
+    ).toMatchObject({
+      porcentaje: 69,
+      aprobado: false,
+    });
+
+    // 139/200 = 69.5 % (Math.round daría 70 %) -> NO aprueba porque 139*100 < 70*200
+    expect(
+      usecase.ejecutar({
+        guiaSlug: 'smishing',
+        totalPreguntas: 200,
+        respuestasCorrectas: 139,
+        porcentajeAprobacion: 70,
+      }),
+    ).toMatchObject({
+      porcentaje: 70,
+      aprobado: false,
+    });
+
+    // 70 % exacto -> aprobado
+    expect(
+      usecase.ejecutar({
+        guiaSlug: 'smishing',
+        totalPreguntas: 10,
+        respuestasCorrectas: 7,
+        porcentajeAprobacion: 70,
+      }),
+    ).toMatchObject({
+      respuestasCorrectas: 7,
+      totalPreguntas: 10,
+      porcentaje: 70,
+      aprobado: true,
+    });
+
+    // 100 % en actividades de 1, 3 y 10 preguntas
+    for (const total of [1, 3, 10]) {
+      expect(
+        usecase.ejecutar({
+          guiaSlug: 'smishing',
+          totalPreguntas: total,
+          respuestasCorrectas: total,
+        }),
+      ).toMatchObject({
+        respuestasCorrectas: total,
+        totalPreguntas: total,
+        porcentaje: 100,
+        aprobado: true,
+      });
+    }
+  });
+
+  it('CalcularResultadoPractica.desdeCalificacion: preserva exactamente los datos de C-03', () => {
+    const usecase = new CalcularResultadoPractica();
+    const res = usecase.desdeCalificacion('smishing', {
+      respuestasCorrectas: 2,
+      totalPreguntas: 3,
+      porcentaje: 67,
+      aprobado: false,
+      porcentajeAprobacion: 70,
+    });
+    expect(res).toEqual({
+      guiaSlug: 'smishing',
+      respuestasCorrectas: 2,
+      aciertos: 2,
+      totalPreguntas: 3,
+      porcentaje: 67,
+      aprobado: false,
+      aprobada: false,
+      porcentajeAprobacion: 70,
+      umbralAprobacion: 70,
+    });
   });
 });
