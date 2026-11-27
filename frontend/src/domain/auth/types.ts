@@ -52,3 +52,19 @@ export interface VerificarRegistroParams {
   registroId: string;
   codigo: string;
 }
+
+/** HU-05: código enviado para confirmar la eliminación de la cuenta (C-08). */
+export interface EliminacionSolicitada {
+  solicitudId: string;
+  canal: CanalVerificacion;
+  /** Correo o celular enmascarado. */
+  destino: string;
+  mensaje: string;
+  expiraEn: Date;
+  puedeReenviarEn: Date;
+}
+
+export interface ConfirmarEliminacionParams {
+  solicitudId: string;
+  codigo: string;
+}

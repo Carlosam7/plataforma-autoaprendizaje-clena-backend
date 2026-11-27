@@ -9,6 +9,7 @@ import { GuiaResultadosPage } from '@/presentation/pages/GuiaResultadosPage';
 import { GuiasPage } from '@/presentation/pages/GuiasPage';
 import { HomePage } from '@/presentation/pages/HomePage';
 import { IniciarSesionPage } from '@/presentation/pages/IniciarSesionPage';
+import { MiCuentaPage } from '@/presentation/pages/MiCuentaPage';
 import { NotFoundPage } from '@/presentation/pages/NotFoundPage';
 import { AccesoPersonalPage } from '@/presentation/pages/personal/AccesoPersonalPage';
 import { PrimerAccesoPage } from '@/presentation/pages/personal/PrimerAccesoPage';
@@ -47,6 +48,10 @@ export const router = createBrowserRouter([
       {
         path: 'ayuda',
         element: <AyudaPage />,
+      },
+      {
+        path: 'mi-cuenta',
+        element: <MiCuentaPage />,
       },
       {
         path: 'iniciar-sesion',
