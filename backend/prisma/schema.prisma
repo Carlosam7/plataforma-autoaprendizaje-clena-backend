@@ -535,6 +535,8 @@ model ConsultaGuia {
   usuario UsuarioPublico? @relation(fields: [usuarioId], references: [numeroIdentificacion], onDelete: SetNull)
 
   @@index([guiaId, consultadaEn])
+  // HU-31: las estadísticas filtran solo por fecha, sin guía.
+  @@index([consultadaEn])
   @@index([usuarioId])
   @@map("consulta_guia")
 }
