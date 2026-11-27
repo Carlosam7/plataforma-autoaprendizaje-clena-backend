@@ -8,6 +8,7 @@ import {
   IntentoFinalizadoError,
   IntentoNoEncontradoError,
   PracticaError,
+  PreguntaNoEncontradaError,
   PreguntaYaRespondidaError,
   SesionRequeridaError,
 } from '@/domain/practica/errors';
@@ -22,14 +23,14 @@ import { container } from '@/main/container';
 type EstadoPantalla =
   | { tipo: 'cargando' }
   | { tipo: 'sin_actividad'; mensaje: string }
-  | { tipo: 'invitado_bloqueado'; actividad: Actividad }
   | { tipo: 'sesion_requerida'; mensaje: string }
   | { tipo: 'error_carga'; mensaje: string }
   | {
       tipo: 'activa';
       modo: ModoPractica;
       actividad: Actividad;
-      intentoId: string;
+      /** Solo en modo REGISTRADO; en INVITADO siempre null (sin persistencia). */
+      intentoId: string | null;
     };
 
 interface ErrorEnvio {
@@ -57,6 +58,7 @@ function clasificarErrorEnvio(error: unknown): ErrorEnvio {
   }
   if (
     error instanceof IntentoNoEncontradoError ||
+    error instanceof PreguntaNoEncontradaError ||
     error instanceof PreguntaYaRespondidaError ||
     error instanceof IntentoFinalizadoError
   ) {
@@ -96,13 +98,14 @@ export function GuiaPracticaPage() {
   });
   const [reinicioSeq, setReinicioSeq] = useState(0);
 
-  // Estado del recorrido de preguntas
+  // Estado del recorrido de preguntas (en invitados vive únicamente en memoria React)
   const [preguntaIndex, setPreguntaIndex] = useState(0);
   const [opcionSeleccionada, setOpcionSeleccionada] = useState<string | null>(
     null,
   );
   const [enviando, setEnviando] = useState(false);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
+  const [aciertosInvitado, setAciertosInvitado] = useState(0);
   const [resultadoFinal, setResultadoFinal] = useState<Resultado | null>(null);
   const [errorEnvio, setErrorEnvio] = useState<ErrorEnvio | null>(null);
 
@@ -115,6 +118,7 @@ export function GuiaPracticaPage() {
     setOpcionSeleccionada(null);
     setEnviando(false);
     setFeedback(null);
+    setAciertosInvitado(0);
     setResultadoFinal(null);
     setErrorEnvio(null);
     setPantalla({ tipo: 'cargando' });
@@ -136,9 +140,22 @@ export function GuiaPracticaPage() {
         if (cancelado) return;
 
         if (modo === 'INVITADO') {
-          // C-04 (evaluación de invitados sin persistencia) está pendiente de BE-01.
-          // Nunca iniciar un intento persistente en POST /intentos para invitados.
-          setPantalla({ tipo: 'invitado_bloqueado', actividad });
+          // C-04: invitados practican sin crear intento ni guardar filas en BD.
+          // Todo el avance y aciertos viven solo en memoria de React.
+          enviandoRef.current = false;
+          setPreguntaIndex(0);
+          setOpcionSeleccionada(null);
+          setEnviando(false);
+          setFeedback(null);
+          setAciertosInvitado(0);
+          setResultadoFinal(null);
+          setErrorEnvio(null);
+          setPantalla({
+            tipo: 'activa',
+            modo: 'INVITADO',
+            actividad,
+            intentoId: null,
+          });
           return;
         }
 
@@ -152,6 +169,7 @@ export function GuiaPracticaPage() {
         setOpcionSeleccionada(null);
         setEnviando(false);
         setFeedback(null);
+        setAciertosInvitado(0);
         setResultadoFinal(null);
         setErrorEnvio(null);
         setPantalla({
@@ -248,52 +266,6 @@ export function GuiaPracticaPage() {
     );
   }
 
-  if (pantalla.tipo === 'invitado_bloqueado') {
-    return (
-      <main
-        id="contenido"
-        className="max-w-360 mx-auto px-4 md:px-12 lg:px-24 py-16 flex flex-col items-center gap-6 text-center"
-      >
-        <h1 className="text-[2rem] font-bold text-[#17324d]">
-          {pantalla.actividad.titulo}
-        </h1>
-        <div
-          className="max-w-160 bg-[#fff3d8] border-2 border-[#fde6b3] rounded-2xl p-6 text-left flex flex-col gap-3 text-[#17324d]"
-          role="status"
-        >
-          <p className="font-bold text-[1.222rem] m-0">
-            Práctica sin cuenta en preparación
-          </p>
-          <p className="text-[1.111rem] leading-relaxed m-0">
-            Por ahora, para realizar esta práctica interactiva y ver tu
-            retroalimentación inmediata necesitas iniciar sesión con tu cuenta
-            pública. Muy pronto también podrás practicar sin cuenta.
-          </p>
-        </div>
-        <div className="flex flex-wrap justify-center gap-4">
-          <Link
-            to="/iniciar-sesion"
-            className="inline-flex items-center justify-center min-h-14 px-8 py-4 font-semibold text-white bg-[#0d6258] rounded-xl hover:bg-[#09473f] no-underline focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#0d6258]/40"
-          >
-            Iniciar sesión
-          </Link>
-          <Link
-            to="/registro"
-            className="inline-flex items-center justify-center min-h-14 px-8 py-4 font-semibold text-[#0d6258] bg-white border-2 border-[#0d6258] rounded-xl hover:bg-[#e7f2ee] no-underline focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#0d6258]/40"
-          >
-            Crear cuenta gratuita
-          </Link>
-          <Link
-            to={slug ? `/guias/${slug}` : '/guias'}
-            className="inline-flex items-center justify-center min-h-14 px-6 py-4 font-semibold text-[#17324d] bg-white border border-[#d7e2e7] rounded-xl hover:bg-[#f1f5f5] no-underline focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#0d6258]/40"
-          >
-            Volver a la guía
-          </Link>
-        </div>
-      </main>
-    );
-  }
-
   if (pantalla.tipo === 'sesion_requerida') {
     return (
       <main
@@ -372,20 +344,51 @@ export function GuiaPracticaPage() {
     setErrorEnvio(null);
 
     try {
-      const evaluada = await container.practica.responderAutenticado.ejecutar({
-        intentoId,
-        preguntaId: preguntaActual.id,
-        opcionId: opcionSeleccionada,
-      });
+      if (modo === 'REGISTRADO' && intentoId) {
+        const evaluada = await container.practica.responderAutenticado.ejecutar(
+          {
+            intentoId,
+            preguntaId: preguntaActual.id,
+            opcionId: opcionSeleccionada,
+          },
+        );
 
-      setFeedback({
-        esCorrecta: evaluada.esCorrecta,
-        opcionCorrecta: evaluada.opcionCorrecta,
-        explicacion: evaluada.explicacion,
-      });
+        setFeedback({
+          esCorrecta: evaluada.esCorrecta,
+          opcionCorrecta: evaluada.opcionCorrecta,
+          explicacion: evaluada.explicacion,
+        });
 
-      if (evaluada.resultado) {
-        setResultadoFinal(evaluada.resultado);
+        if (evaluada.resultado) {
+          setResultadoFinal(evaluada.resultado);
+        }
+      } else {
+        const evaluada = await container.practica.evaluarInvitado.ejecutar({
+          slug,
+          preguntaId: preguntaActual.id,
+          opcionId: opcionSeleccionada,
+        });
+
+        setFeedback(evaluada);
+
+        const nuevosAciertos = aciertosInvitado + (evaluada.esCorrecta ? 1 : 0);
+        setAciertosInvitado(nuevosAciertos);
+
+        if (esUltimaPregunta) {
+          const calculo = container.guias.calcularResultado.ejecutar({
+            guiaSlug: slug,
+            totalPreguntas,
+            aciertos: nuevosAciertos,
+            umbralAprobacion: actividad.porcentajeAprobacion,
+          });
+          setResultadoFinal({
+            respuestasCorrectas: calculo.aciertos,
+            totalPreguntas: calculo.totalPreguntas,
+            porcentaje: calculo.porcentaje,
+            aprobado: calculo.aprobada,
+            porcentajeAprobacion: calculo.umbralAprobacion,
+          });
+        }
       }
     } catch (err) {
       setErrorEnvio(clasificarErrorEnvio(err));
@@ -670,12 +673,25 @@ export function GuiaPracticaPage() {
           </div>
         </div>
 
-        <aside className="bg-[#e7f2ee] border border-[#c2ded3] rounded-2xl p-5 flex flex-col gap-1 text-[#17324d]">
+        <aside className="bg-[#e7f2ee] border border-[#c2ded3] rounded-2xl p-5 flex flex-col gap-2 text-[#17324d]">
           <p className="font-bold text-[1rem] m-0">Tu tranquilidad primero</p>
           <p className="text-[0.95rem] text-[#253b38] m-0">
             Esta es una práctica pedagógica segura. No necesitas ingresar ningún
             dato real ni contraseñas.
           </p>
+          {modo === 'INVITADO' && (
+            <p className="text-[0.95rem] text-[#253b38] m-0">
+              Estás practicando sin cuenta: tu progreso es temporal y se
+              reinicia si recargas la página. Si quieres guardar tu avance,{' '}
+              <Link
+                to="/registro"
+                className="font-semibold text-[#0d6258] underline"
+              >
+                puedes crear una cuenta gratuita
+              </Link>
+              .
+            </p>
+          )}
         </aside>
       </section>
 

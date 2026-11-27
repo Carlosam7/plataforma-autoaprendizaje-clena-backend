@@ -41,9 +41,9 @@ const preferencesApplier = new DomPreferencesApplier();
 const authRepository = new HttpAuthRepository();
 const guiasRepository = new HttpGuiasRepository();
 const personalRepository = new HttpPersonalRepository();
-// C-04 (invitados) sigue PROPUESTO: desactivado hasta que BE-01 lo entregue.
+// C-04 (invitados sin persistencia) entregado por BE-01.
 const practicaRepository = new HttpPracticaRepository({
-  evaluacionInvitadoHabilitada: false,
+  evaluacionInvitadoHabilitada: true,
 });
 
 export const container = {

@@ -17,6 +17,14 @@ export class ActividadNoEncontradaError extends PracticaError {
   }
 }
 
+/** 404 PREGUNTA_NO_ENCONTRADA (C-04): la pregunta no pertenece a la actividad de la guía. */
+export class PreguntaNoEncontradaError extends PracticaError {
+  constructor(message = 'Esta pregunta no es de la práctica de esta guía.') {
+    super(message, 404, 'PREGUNTA_NO_ENCONTRADA');
+    this.name = 'PreguntaNoEncontradaError';
+  }
+}
+
 /**
  * 404 INTENTO_NO_ENCONTRADO. El backend también lo devuelve cuando el token
  * falta o expiró en un intento de cuenta (sesión opcional).

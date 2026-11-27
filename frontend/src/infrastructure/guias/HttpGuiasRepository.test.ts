@@ -71,6 +71,8 @@ describe('HttpGuiasRepository', () => {
     expect(detalle?.pasos[0].titulo).toBe('Haz una pausa');
     expect(detalle?.pasos[0].contenido).toBe('Respira y lee con calma.');
     expect(detalle?.pasos[0].recordatorio?.consejo).toBe('No abras el enlace.');
+    // FE-01: el detalle real nunca inyecta preguntas simuladas del mock.
+    expect(detalle?.preguntas).toEqual([]);
   });
 
   it('obtenerDetalleGuia devuelve null si el backend responde 404', async () => {

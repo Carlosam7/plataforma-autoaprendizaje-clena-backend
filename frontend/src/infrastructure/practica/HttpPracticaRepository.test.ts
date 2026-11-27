@@ -8,6 +8,7 @@ import {
   IntentoNoEncontradoError,
   PracticaError,
   PracticaNoDisponibleError,
+  PreguntaNoEncontradaError,
   PreguntaYaRespondidaError,
   RespuestaInesperadaError,
   RespuestaInvalidaError,
@@ -357,7 +358,7 @@ describe('HttpPracticaRepository · C-03', () => {
   });
 });
 
-describe('HttpPracticaRepository · C-04 (PROPUESTO)', () => {
+describe('HttpPracticaRepository · C-04 (EXISTENTE · BE-01)', () => {
   const respuesta = { preguntaId: P1, opcionId: O1 };
   const FEEDBACK_C04 = {
     esCorrecta: true,
@@ -369,19 +370,19 @@ describe('HttpPracticaRepository · C-04 (PROPUESTO)', () => {
     vi.restoreAllMocks();
   });
 
-  it('desactivado por defecto: lanza error explícito sin llamar a la red', async () => {
+  it('cuando se desactiva explícitamente: lanza error sin llamar a la red', async () => {
     const spy = vi.spyOn(globalThis, 'fetch');
-    const repo = new HttpPracticaRepository();
+    const repo = new HttpPracticaRepository({
+      evaluacionInvitadoHabilitada: false,
+    });
     await expect(
       repo.evaluarInvitado('smishing', respuesta),
     ).rejects.toBeInstanceOf(EvaluacionInvitadoNoDisponibleError);
     expect(spy).not.toHaveBeenCalled();
   });
 
-  describe('habilitado (fixture contractual, MOCK_ONLY hasta BE-01)', () => {
-    const repo = new HttpPracticaRepository({
-      evaluacionInvitadoHabilitada: true,
-    });
+  describe('habilitado por defecto', () => {
+    const repo = new HttpPracticaRepository();
 
     it('POST sin Authorization con { preguntaId, opcionId } y mapea el feedback', async () => {
       const spy = mockFetch(respuestaOk(FEEDBACK_C04));
@@ -412,6 +413,19 @@ describe('HttpPracticaRepository · C-04 (PROPUESTO)', () => {
       await expect(
         repo.evaluarInvitado('smishing', respuesta),
       ).rejects.toBeInstanceOf(ActividadNoEncontradaError);
+    });
+
+    it('404 PREGUNTA_NO_ENCONTRADA → PreguntaNoEncontradaError', async () => {
+      mockFetch(
+        respuestaError(
+          404,
+          'PREGUNTA_NO_ENCONTRADA',
+          'Esta pregunta no es de la práctica de esta guía.',
+        ),
+      );
+      await expect(
+        repo.evaluarInvitado('smishing', respuesta),
+      ).rejects.toBeInstanceOf(PreguntaNoEncontradaError);
     });
 
     it('400 opción ajena → RespuestaInvalidaError', async () => {

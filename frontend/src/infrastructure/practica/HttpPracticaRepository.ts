@@ -8,6 +8,7 @@ import {
   IntentoNoEncontradoError,
   PracticaError,
   PracticaNoDisponibleError,
+  PreguntaNoEncontradaError,
   PreguntaYaRespondidaError,
   RespuestaInesperadaError,
   RespuestaInvalidaError,
@@ -148,7 +149,7 @@ export class HttpPracticaRepository implements PracticaRepository {
     this.baseUrl = opciones.baseUrl ?? '/api/v1';
     this.timeoutMs = opciones.timeoutMs ?? TIMEOUT_POR_DEFECTO_MS;
     this.evaluacionInvitadoHabilitada =
-      opciones.evaluacionInvitadoHabilitada ?? false;
+      opciones.evaluacionInvitadoHabilitada ?? true;
   }
 
   async obtenerActividad(slug: string): Promise<Actividad> {
@@ -279,6 +280,8 @@ export class HttpPracticaRepository implements PracticaRepository {
     switch (codigo) {
       case 'ACTIVIDAD_NO_ENCONTRADA':
         throw new ActividadNoEncontradaError(mensaje);
+      case 'PREGUNTA_NO_ENCONTRADA':
+        throw new PreguntaNoEncontradaError(mensaje);
       case 'INTENTO_NO_ENCONTRADO':
         throw new IntentoNoEncontradoError(mensaje);
       case 'PREGUNTA_YA_RESPONDIDA':
