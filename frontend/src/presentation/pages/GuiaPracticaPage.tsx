@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
+import { CatalogoError } from '../../domain/guias/errors';
 import type { DetalleGuia } from '../../domain/guias/types';
 import { container } from '../../main/container';
 
@@ -18,17 +19,40 @@ export function GuiaPracticaPage() {
   const [revisado, setRevisado] = useState(false);
   const [aciertos, setAciertos] = useState(0);
 
+  const [error, setError] = useState<string | null>(null);
+
+  const [intento, setIntento] = useState(0);
+
   useEffect(() => {
     if (!slug) return;
+    let cancelado = false;
     container.guias.obtenerDetalle
       .ejecutar(slug)
       .then((data) => {
-        setDetalle(data);
+        if (!cancelado) setDetalle(data);
+      })
+      .catch((err: unknown) => {
+        if (cancelado) return;
+        setDetalle(null);
+        setError(
+          err instanceof CatalogoError
+            ? err.message
+            : 'No pudimos cargar la práctica.',
+        );
       })
       .finally(() => {
-        setCargando(false);
+        if (!cancelado) setCargando(false);
       });
-  }, [slug]);
+    return () => {
+      cancelado = true;
+    };
+  }, [slug, intento]);
+
+  const cargar = () => {
+    setCargando(true);
+    setError(null);
+    setIntento((n) => n + 1);
+  };
 
   if (cargando) {
     return (
@@ -38,6 +62,32 @@ export function GuiaPracticaPage() {
         role="status"
       >
         Cargando práctica interactiva...
+      </main>
+    );
+  }
+
+  if (error) {
+    return (
+      <main
+        id="contenido"
+        className="max-w-[1440px] mx-auto px-4 md:px-12 lg:px-24 py-16 flex flex-col items-center gap-6 text-center"
+      >
+        <h1 className="text-[2rem] font-bold text-[#17324d]">
+          No pudimos cargar la práctica
+        </h1>
+        <p
+          className="text-[1.111rem] text-[#526575] max-w-[500px]"
+          role="alert"
+        >
+          {error}
+        </p>
+        <button
+          type="button"
+          onClick={cargar}
+          className="inline-flex items-center justify-center min-h-14 px-8 font-semibold text-white bg-[#0d6258] rounded-xl hover:bg-[#09473f] cursor-pointer"
+        >
+          Reintentar
+        </button>
       </main>
     );
   }

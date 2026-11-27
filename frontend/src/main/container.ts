@@ -12,6 +12,7 @@ import { CalcularResultadoPractica } from '@/application/guias/CalcularResultado
 import { ListarCategorias } from '@/application/guias/ListarCategorias';
 import { ListarGuias } from '@/application/guias/ListarGuias';
 import { ObtenerDetalleGuia } from '@/application/guias/ObtenerDetalleGuia';
+import { RegistrarAperturaGuia } from '@/application/guias/RegistrarAperturaGuia';
 import { CambiarPasswordInicial } from '@/application/personal/CambiarPasswordInicial';
 import { CerrarSesionPersonal } from '@/application/personal/CerrarSesionPersonal';
 import { CrearPersonal } from '@/application/personal/CrearPersonal';
@@ -27,14 +28,24 @@ import { DomPreferencesApplier } from '@/infrastructure/accessibility/DomPrefere
 import { LocalStoragePreferencesRepository } from '@/infrastructure/accessibility/LocalStoragePreferencesRepository';
 import { HttpAuthRepository } from '@/infrastructure/auth/HttpAuthRepository';
 import { HttpGuiasRepository } from '@/infrastructure/guias/HttpGuiasRepository';
+import { InMemoryGuiasRepository } from '@/infrastructure/guias/InMemoryGuiasRepository';
 import { HttpPersonalRepository } from '@/infrastructure/personal/HttpPersonalRepository';
+import { InMemoryPersonalRepository } from '@/infrastructure/personal/InMemoryPersonalRepository';
 
 // Único lugar donde se eligen implementaciones.
 const preferencesRepository = new LocalStoragePreferencesRepository();
 const preferencesApplier = new DomPreferencesApplier();
 const authRepository = new HttpAuthRepository();
-const guiasRepository = new HttpGuiasRepository();
-const personalRepository = new HttpPersonalRepository();
+
+// Datos simulados SOLO con selección explícita (VITE_USAR_DATOS_DEMO=true).
+// Nunca se usan como respaldo automático ante un fallo de la API real.
+export const modoDemo = import.meta.env.VITE_USAR_DATOS_DEMO === 'true';
+const guiasRepository = modoDemo
+  ? new InMemoryGuiasRepository()
+  : new HttpGuiasRepository();
+const personalRepository = modoDemo
+  ? new InMemoryPersonalRepository()
+  : new HttpPersonalRepository();
 
 export const container = {
   accessibility: {
@@ -68,6 +79,7 @@ export const container = {
     listarCategorias: new ListarCategorias(guiasRepository),
     listar: new ListarGuias(guiasRepository),
     obtenerDetalle: new ObtenerDetalleGuia(guiasRepository),
+    registrarApertura: new RegistrarAperturaGuia(guiasRepository),
     calcularResultado: new CalcularResultadoPractica(),
     guiasRepository,
   },

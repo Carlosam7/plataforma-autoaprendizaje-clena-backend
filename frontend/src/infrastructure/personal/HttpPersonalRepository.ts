@@ -6,6 +6,7 @@ import {
   CorreoEnUsoError,
   CredencialesIncorrectasError,
   PersonalError,
+  ServicioNoDisponiblePersonalError,
 } from '@/domain/personal/errors';
 import type {
   CambiarPasswordInicialComando,
@@ -20,8 +21,8 @@ import type {
   SolicitarInicioSesionPersonalComando,
   VerificarInicioSesionPersonalComando,
 } from '@/domain/personal/types';
-import { InMemoryPersonalRepository } from './InMemoryPersonalRepository';
 
+const TIMEOUT_MS = 10_000;
 const STORAGE_KEY_PERSONAL_SESION = 'kama_personal_session';
 
 interface PersonalBackend {
@@ -56,247 +57,194 @@ function mapearPersonal(p: PersonalBackend): Personal {
 }
 
 export class HttpPersonalRepository implements PersonalRepository {
-  private readonly fallback: InMemoryPersonalRepository;
+  constructor(private readonly baseUrl = '/api/v1') {}
 
-  constructor(
-    private readonly baseUrl = '/api/v1',
-    fallback?: InMemoryPersonalRepository,
-  ) {
-    this.fallback = fallback ?? new InMemoryPersonalRepository();
+  /** fetch que traduce red/timeout/HTTP no-OK a errores de dominio. Sin fallback. */
+  private async enviar(ruta: string, init: RequestInit): Promise<Response> {
+    let res: Response;
+    try {
+      res = await fetch(`${this.baseUrl}${ruta}`, {
+        ...init,
+        signal: AbortSignal.timeout(TIMEOUT_MS),
+      });
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'TimeoutError') {
+        throw new ServicioNoDisponiblePersonalError(
+          'El servidor tardó demasiado en responder. Inténtalo de nuevo.',
+        );
+      }
+      throw new ServicioNoDisponiblePersonalError();
+    }
+    if (!res.ok) await this.manejarErrorHttp(res);
+    return res;
+  }
+
+  private async leerJson<T>(res: Response): Promise<T> {
+    try {
+      return (await res.json()) as T;
+    } catch {
+      throw new ServicioNoDisponiblePersonalError(
+        'El servidor envió una respuesta inesperada.',
+        res.status,
+      );
+    }
+  }
+
+  private cabeceras(token?: string, conCuerpo = false): HeadersInit {
+    return {
+      ...(conCuerpo ? { 'Content-Type': 'application/json' } : {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      Accept: 'application/json',
+    };
   }
 
   async solicitarInicioSesion(
     comando: SolicitarInicioSesionPersonalComando,
   ): Promise<InicioSesionPersonalSolicitado> {
-    try {
-      const res = await fetch(`${this.baseUrl}/auth/personal/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify(comando),
-      });
+    const res = await this.enviar('/auth/personal/login', {
+      method: 'POST',
+      headers: this.cabeceras(undefined, true),
+      credentials: 'include',
+      body: JSON.stringify(comando),
+    });
 
-      if (!res.ok) {
-        await this.manejarErrorHttp(res);
-      }
+    const data = await this.leerJson<{
+      destino: string;
+      expiraEn: string;
+      reenviarEnSegundos?: number;
+      mensaje: string;
+    }>(res);
 
-      const data = (await res.json()) as {
-        destino: string;
-        expiraEn: string;
-        reenviarEnSegundos?: number;
-        puedeReenviarEn?: string;
-        mensaje: string;
-      };
-
-      return {
-        destino: data.destino,
-        expiraEn: new Date(data.expiraEn),
-        reenviarEnSegundos: data.reenviarEnSegundos ?? 60,
-        mensaje: data.mensaje,
-      };
-    } catch (err) {
-      if (err instanceof PersonalError) throw err;
-      return this.fallback.solicitarInicioSesion(comando);
-    }
+    return {
+      destino: data.destino,
+      expiraEn: new Date(data.expiraEn),
+      reenviarEnSegundos: data.reenviarEnSegundos ?? 60,
+      mensaje: data.mensaje,
+    };
   }
 
   async verificarInicioSesion(
     comando: VerificarInicioSesionPersonalComando,
   ): Promise<SesionPersonal> {
-    try {
-      const res = await fetch(`${this.baseUrl}/auth/personal/login/verificar`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify(comando),
-      });
+    const res = await this.enviar('/auth/personal/login/verificar', {
+      method: 'POST',
+      headers: this.cabeceras(undefined, true),
+      credentials: 'include',
+      body: JSON.stringify(comando),
+    });
 
-      if (!res.ok) {
-        await this.manejarErrorHttp(res);
-      }
-
-      const data = (await res.json()) as {
-        usuario: {
-          id?: string;
-          nombre: string;
-          rol: 'PERSONAL' | 'ADMINISTRADOR';
-          debeCambiarPassword: boolean;
-        };
-        accessToken: string;
+    const data = await this.leerJson<{
+      usuario: {
+        id?: string;
+        nombre: string;
+        rol: 'PERSONAL' | 'ADMINISTRADOR';
+        debeCambiarPassword: boolean;
       };
+      accessToken: string;
+    }>(res);
 
-      const sesion: SesionPersonal = {
-        usuario: {
-          id: data.usuario.id ?? 'personal-yo',
-          nombre: data.usuario.nombre,
-          rol: data.usuario.rol,
-          debeCambiarPassword: data.usuario.debeCambiarPassword,
-        },
-        accessToken: data.accessToken,
-      };
+    const sesion: SesionPersonal = {
+      usuario: {
+        id: data.usuario.id ?? 'personal-yo',
+        nombre: data.usuario.nombre,
+        rol: data.usuario.rol,
+        debeCambiarPassword: data.usuario.debeCambiarPassword,
+      },
+      accessToken: data.accessToken,
+    };
 
-      await this.guardarSesionPersonal(sesion);
-      return sesion;
-    } catch (err) {
-      if (err instanceof PersonalError) throw err;
-      return this.fallback.verificarInicioSesion(comando);
-    }
+    await this.guardarSesionPersonal(sesion);
+    return sesion;
   }
 
   async solicitarCodigoPasswordInicial(
     token: string,
   ): Promise<CodigoPasswordEnviado> {
-    try {
-      const res = await fetch(`${this.baseUrl}/personal/yo/password/codigo`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: 'application/json',
-        },
-        credentials: 'include',
-      });
+    const res = await this.enviar('/personal/yo/password/codigo', {
+      method: 'POST',
+      headers: this.cabeceras(token),
+      credentials: 'include',
+    });
 
-      if (!res.ok) {
-        await this.manejarErrorHttp(res);
-      }
+    const data = await this.leerJson<{
+      destino: string;
+      expiraEn: string;
+      mensaje: string;
+    }>(res);
 
-      const data = (await res.json()) as {
-        destino: string;
-        expiraEn: string;
-        mensaje: string;
-      };
-
-      return {
-        destino: data.destino,
-        expiraEn: new Date(data.expiraEn),
-        mensaje: data.mensaje,
-      };
-    } catch (err) {
-      if (err instanceof PersonalError) throw err;
-      return this.fallback.solicitarCodigoPasswordInicial(token);
-    }
+    return {
+      destino: data.destino,
+      expiraEn: new Date(data.expiraEn),
+      mensaje: data.mensaje,
+    };
   }
 
   async cambiarPasswordInicial(
     token: string,
     comando: CambiarPasswordInicialComando,
   ): Promise<void> {
-    try {
-      const res = await fetch(`${this.baseUrl}/personal/yo/password`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-          Accept: 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify(comando),
-      });
-
-      if (!res.ok) {
-        await this.manejarErrorHttp(res);
-      }
-    } catch (err) {
-      if (err instanceof PersonalError) throw err;
-      return this.fallback.cambiarPasswordInicial(token, comando);
-    }
+    await this.enviar('/personal/yo/password', {
+      method: 'POST',
+      headers: this.cabeceras(token, true),
+      credentials: 'include',
+      body: JSON.stringify(comando),
+    });
   }
 
   async listarPersonal(
     token: string,
     criterio?: ListarPersonalCriterio,
   ): Promise<PersonalPaginado> {
-    try {
-      const params = new URLSearchParams();
-      if (criterio?.q) params.set('q', criterio.q);
-      if (criterio?.rol) params.set('rol', criterio.rol);
-      if (criterio?.activo !== undefined)
-        params.set('activo', String(criterio.activo));
-      if (criterio?.ordenarPor) params.set('ordenarPor', criterio.ordenarPor);
-      if (criterio?.direccion) params.set('direccion', criterio.direccion);
-      if (criterio?.pagina) params.set('pagina', String(criterio.pagina));
-      if (criterio?.limite) params.set('limite', String(criterio.limite));
+    const params = new URLSearchParams();
+    if (criterio?.q) params.set('q', criterio.q);
+    if (criterio?.rol) params.set('rol', criterio.rol);
+    if (criterio?.activo !== undefined)
+      params.set('activo', String(criterio.activo));
+    if (criterio?.ordenarPor) params.set('ordenarPor', criterio.ordenarPor);
+    if (criterio?.direccion) params.set('direccion', criterio.direccion);
+    if (criterio?.pagina) params.set('pagina', String(criterio.pagina));
+    if (criterio?.limite) params.set('limite', String(criterio.limite));
 
-      const qs = params.toString() ? `?${params.toString()}` : '';
-      const res = await fetch(`${this.baseUrl}/personal${qs}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: 'application/json',
-        },
-        credentials: 'include',
-      });
+    const qs = params.toString() ? `?${params.toString()}` : '';
+    const res = await this.enviar(`/personal${qs}`, {
+      headers: this.cabeceras(token),
+      credentials: 'include',
+    });
 
-      if (!res.ok) {
-        await this.manejarErrorHttp(res);
-      }
-
-      const data = (await res.json()) as PersonalPaginadoBackend;
-      return {
-        datos: data.datos.map(mapearPersonal),
-        total: data.total,
-        pagina: data.pagina,
-        limite: data.limite,
-      };
-    } catch (err) {
-      if (err instanceof PersonalError) throw err;
-      return this.fallback.listarPersonal(token, criterio);
+    const data = await this.leerJson<PersonalPaginadoBackend>(res);
+    if (!Array.isArray(data?.datos)) {
+      throw new ServicioNoDisponiblePersonalError(
+        'El servidor envió una respuesta inesperada.',
+        res.status,
+      );
     }
+    return {
+      datos: data.datos.map(mapearPersonal),
+      total: data.total,
+      pagina: data.pagina,
+      limite: data.limite,
+    };
   }
 
   async crearPersonal(
     token: string,
     comando: CrearPersonalComando,
   ): Promise<Personal> {
-    try {
-      const res = await fetch(`${this.baseUrl}/personal`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-          Accept: 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify(comando),
-      });
-
-      if (!res.ok) {
-        await this.manejarErrorHttp(res);
-      }
-
-      const data = (await res.json()) as PersonalBackend;
-      return mapearPersonal(data);
-    } catch (err) {
-      if (err instanceof PersonalError) throw err;
-      return this.fallback.crearPersonal(token, comando);
-    }
+    const res = await this.enviar('/personal', {
+      method: 'POST',
+      headers: this.cabeceras(token, true),
+      credentials: 'include',
+      body: JSON.stringify(comando),
+    });
+    return mapearPersonal(await this.leerJson<PersonalBackend>(res));
   }
 
   async obtenerPersonal(token: string, id: string): Promise<Personal> {
-    try {
-      const res = await fetch(`${this.baseUrl}/personal/${id}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: 'application/json',
-        },
-        credentials: 'include',
-      });
-
-      if (!res.ok) {
-        await this.manejarErrorHttp(res);
-      }
-
-      const data = (await res.json()) as PersonalBackend;
-      return mapearPersonal(data);
-    } catch (err) {
-      if (err instanceof PersonalError) throw err;
-      return this.fallback.obtenerPersonal(token, id);
-    }
+    const res = await this.enviar(`/personal/${encodeURIComponent(id)}`, {
+      headers: this.cabeceras(token),
+      credentials: 'include',
+    });
+    return mapearPersonal(await this.leerJson<PersonalBackend>(res));
   }
 
   async editarPersonal(
@@ -304,74 +252,37 @@ export class HttpPersonalRepository implements PersonalRepository {
     id: string,
     comando: EditarPersonalComando,
   ): Promise<Personal> {
-    try {
-      const res = await fetch(`${this.baseUrl}/personal/${id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-          Accept: 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify(comando),
-      });
-
-      if (!res.ok) {
-        await this.manejarErrorHttp(res);
-      }
-
-      const data = (await res.json()) as PersonalBackend;
-      return mapearPersonal(data);
-    } catch (err) {
-      if (err instanceof PersonalError) throw err;
-      return this.fallback.editarPersonal(token, id, comando);
-    }
+    const res = await this.enviar(`/personal/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: this.cabeceras(token, true),
+      credentials: 'include',
+      body: JSON.stringify(comando),
+    });
+    return mapearPersonal(await this.leerJson<PersonalBackend>(res));
   }
 
   async desactivarPersonal(token: string, id: string): Promise<Personal> {
-    try {
-      const res = await fetch(`${this.baseUrl}/personal/${id}/desactivar`, {
+    const res = await this.enviar(
+      `/personal/${encodeURIComponent(id)}/desactivar`,
+      {
         method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: 'application/json',
-        },
+        headers: this.cabeceras(token),
         credentials: 'include',
-      });
-
-      if (!res.ok) {
-        await this.manejarErrorHttp(res);
-      }
-
-      const data = (await res.json()) as PersonalBackend;
-      return mapearPersonal(data);
-    } catch (err) {
-      if (err instanceof PersonalError) throw err;
-      return this.fallback.desactivarPersonal(token, id);
-    }
+      },
+    );
+    return mapearPersonal(await this.leerJson<PersonalBackend>(res));
   }
 
   async reactivarPersonal(token: string, id: string): Promise<Personal> {
-    try {
-      const res = await fetch(`${this.baseUrl}/personal/${id}/reactivar`, {
+    const res = await this.enviar(
+      `/personal/${encodeURIComponent(id)}/reactivar`,
+      {
         method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: 'application/json',
-        },
+        headers: this.cabeceras(token),
         credentials: 'include',
-      });
-
-      if (!res.ok) {
-        await this.manejarErrorHttp(res);
-      }
-
-      const data = (await res.json()) as PersonalBackend;
-      return mapearPersonal(data);
-    } catch (err) {
-      if (err instanceof PersonalError) throw err;
-      return this.fallback.reactivarPersonal(token, id);
-    }
+      },
+    );
+    return mapearPersonal(await this.leerJson<PersonalBackend>(res));
   }
 
   async obtenerSesionPersonal(): Promise<SesionPersonal | null> {
@@ -397,9 +308,10 @@ export class HttpPersonalRepository implements PersonalRepository {
       await fetch(`${this.baseUrl}/auth/logout`, {
         method: 'POST',
         credentials: 'include',
+        signal: AbortSignal.timeout(TIMEOUT_MS),
       });
     } catch {
-      // Fallback
+      // El cierre local de sesión no depende de la red
     } finally {
       try {
         localStorage.removeItem(STORAGE_KEY_PERSONAL_SESION);
@@ -441,6 +353,12 @@ export class HttpPersonalRepository implements PersonalRepository {
         throw new CodigoPersonalInvalidoError(mensaje);
       }
       throw new PersonalError(mensaje, 400);
+    }
+    if (res.status >= 500) {
+      throw new ServicioNoDisponiblePersonalError(
+        'El servidor no pudo atender la solicitud. Inténtalo de nuevo en unos minutos.',
+        res.status,
+      );
     }
     throw new PersonalError(mensaje, res.status);
   }

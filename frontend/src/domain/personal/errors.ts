@@ -55,3 +55,13 @@ export class PasswordDebilError extends PersonalError {
     this.name = 'PasswordDebilError';
   }
 }
+
+export class ServicioNoDisponiblePersonalError extends PersonalError {
+  constructor(
+    message = 'No pudimos comunicarnos con el servidor. Revisa tu conexión e inténtalo de nuevo.',
+    statusCode?: number,
+  ) {
+    super(message, statusCode);
+    this.name = 'ServicioNoDisponiblePersonalError';
+  }
+}
