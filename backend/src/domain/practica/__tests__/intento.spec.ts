@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { Actividad, PreguntaActividad } from '../actividad.js';
+import {
+  Actividad,
+  calificarRespuesta,
+  PreguntaActividad,
+} from '../actividad.js';
 import {
   IntentoFinalizadoError,
   PreguntaYaRespondidaError,
@@ -34,7 +38,7 @@ function iniciar(totalPreguntas = 4, porcentajeAprobacion = 70): Intento {
   return Intento.iniciar({
     id: 'i1',
     actividad,
-    usuarioId: null,
+    usuarioId: '41234567',
     ahora: AHORA,
   });
 }
@@ -142,26 +146,35 @@ describe('Intento', () => {
     });
   });
 
-  it('un intento sin cuenta lo sigue cualquiera; uno con cuenta, solo su dueño', () => {
-    const anonimo = iniciar();
-    expect(anonimo.perteneceA(null)).toBe(true);
-    expect(anonimo.perteneceA('41234567')).toBe(true);
+  it('solo su dueño lo puede seguir respondiendo', () => {
+    const intento = iniciar();
+    expect(intento.perteneceA('41234567')).toBe(true);
+    expect(intento.perteneceA('99999999')).toBe(false);
+  });
+});
 
-    const conCuenta = Intento.reconstituir({
-      id: 'i2',
-      actividad: {
-        id: 'a1',
-        titulo: 'P',
-        porcentajeAprobacion: 70,
-        preguntas: [],
-      },
-      usuarioId: '41234567',
-      respuestas: [],
-      iniciadoEn: AHORA,
-      finalizadoEn: null,
+describe('calificarRespuesta', () => {
+  const actividad: Actividad = {
+    id: 'a1',
+    titulo: 'Practica',
+    porcentajeAprobacion: 70,
+    preguntas: [pregunta(1), pregunta(2)],
+  };
+
+  it('da la misma retroalimentación que el intento, sin guardar la respuesta', () => {
+    expect(calificarRespuesta(actividad, 'p2', 'p2-no')).toEqual({
+      esCorrecta: false,
+      opcionCorrecta: { id: 'p2-si', texto: 'Sí' },
+      explicacion: 'Explicación 2',
     });
-    expect(conCuenta.perteneceA('41234567')).toBe(true);
-    expect(conCuenta.perteneceA('99999999')).toBe(false);
-    expect(conCuenta.perteneceA(null)).toBe(false);
+  });
+
+  it.each([
+    ['una pregunta de otra actividad', 'p9', 'p9-si'],
+    ['una opción de otra pregunta', 'p1', 'p2-si'],
+  ])('rechaza %s', (_, preguntaId, opcionId) => {
+    expect(() => calificarRespuesta(actividad, preguntaId, opcionId)).toThrow(
+      RespuestaInvalidaError,
+    );
   });
 });
