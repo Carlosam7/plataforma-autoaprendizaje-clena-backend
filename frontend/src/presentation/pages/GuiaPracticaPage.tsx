@@ -19,6 +19,7 @@ import type {
   Resultado,
 } from '@/domain/practica/types';
 import { container } from '@/main/container';
+import { rutaAyuda } from '@/presentation/ayuda/rutaAyuda';
 
 type EstadoPantalla =
   | { tipo: 'cargando' }
@@ -701,7 +702,7 @@ export function GuiaPracticaPage() {
           Kamá · Aprende a tu ritmo. Estamos para acompañarte.
         </p>
         <Link
-          to="/ayuda"
+          to={rutaAyuda(slug)}
           className="inline-flex items-center gap-2 min-h-12 px-5 py-3 font-semibold text-[#0d6258] bg-white border border-[#0d6258] rounded-full hover:bg-[#e7f2ee] no-underline focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#0d6258]/40"
         >
           <span className="font-bold text-[1.2rem]" aria-hidden="true">
