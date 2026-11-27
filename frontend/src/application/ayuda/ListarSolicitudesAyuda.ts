@@ -1,11 +1,11 @@
 import type {
   ListarSolicitudesCriterio,
   SolicitudesPaginadas,
-} from '@/domain/ayuda/types';
-import type { SolicitudesAyudaRepository } from './ports';
+} from '@/domain/ayuda/solicitudCola';
+import type { SolicitudesColaRepository } from './colaPorts';
 
 export class ListarSolicitudesAyuda {
-  constructor(private readonly repository: SolicitudesAyudaRepository) {}
+  constructor(private readonly repository: SolicitudesColaRepository) {}
 
   ejecutar(
     token: string,

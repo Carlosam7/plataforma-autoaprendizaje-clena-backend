@@ -10,6 +10,20 @@ export class SolicitudNoEncontradaError extends ErrorDeNegocio {
   }
 }
 
+/**
+ * C-05: el equipo ya tiene una solicitud activa que pidió otro navegador. No se entrega:
+ * quien escribió ese equipo puede ser otra persona que se equivocó de número.
+ */
+export class EquipoConSolicitudActivaError extends ErrorDeNegocio {
+  constructor() {
+    super(
+      'EQUIPO_CON_SOLICITUD_ACTIVA',
+      'conflicto',
+      'Ya hay una solicitud de ayuda para ese equipo y un monitor irá pronto. Si estás en otro equipo, revisa el número.',
+    );
+  }
+}
+
 /** HU-30: dos monitores no atienden la misma solicitud. */
 export class SolicitudYaTomadaError extends ErrorDeNegocio {
   constructor() {

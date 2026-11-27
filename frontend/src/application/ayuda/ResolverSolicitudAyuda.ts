@@ -1,12 +1,12 @@
 import {
   LARGO_MAXIMO_COMENTARIO,
   type SolicitudEnCola,
-} from '@/domain/ayuda/types';
-import { SolicitudAyudaError } from '@/domain/ayuda/errors';
-import type { SolicitudesAyudaRepository } from './ports';
+} from '@/domain/ayuda/solicitudCola';
+import { ColaSolicitudError } from '@/domain/ayuda/erroresCola';
+import type { SolicitudesColaRepository } from './colaPorts';
 
 export class ResolverSolicitudAyuda {
-  constructor(private readonly repository: SolicitudesAyudaRepository) {}
+  constructor(private readonly repository: SolicitudesColaRepository) {}
 
   ejecutar(
     token: string,
@@ -15,7 +15,7 @@ export class ResolverSolicitudAyuda {
   ): Promise<SolicitudEnCola> {
     const limpio = comentario?.trim() ? comentario.trim() : null;
     if (limpio && limpio.length > LARGO_MAXIMO_COMENTARIO) {
-      throw new SolicitudAyudaError(
+      throw new ColaSolicitudError(
         `El comentario puede tener máximo ${LARGO_MAXIMO_COMENTARIO} letras.`,
         'VALIDACION',
       );

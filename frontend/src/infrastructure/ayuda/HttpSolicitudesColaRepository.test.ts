@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { HttpSolicitudesAyudaRepository } from './HttpSolicitudesAyudaRepository';
+import { HttpSolicitudesColaRepository } from './HttpSolicitudesColaRepository';
 
 const solicitud = (sobre: Record<string, unknown> = {}) => ({
   id: '55555555-5555-4555-8555-555555555555',
@@ -33,10 +33,10 @@ const respuesta = (status: number, cuerpo?: unknown) =>
     },
   }) as Response;
 
-describe('HttpSolicitudesAyudaRepository (contrato C-06)', () => {
-  let repo: HttpSolicitudesAyudaRepository;
+describe('HttpSolicitudesColaRepository (contrato C-06)', () => {
+  let repo: HttpSolicitudesColaRepository;
   beforeEach(() => {
-    repo = new HttpSolicitudesAyudaRepository('/api/v1');
+    repo = new HttpSolicitudesColaRepository('/api/v1');
     vi.restoreAllMocks();
   });
 
@@ -110,7 +110,7 @@ describe('HttpSolicitudesAyudaRepository (contrato C-06)', () => {
         respuesta(status, { statusCode: status, codigo: 'X', mensaje: 'm' }),
       );
       await expect(repo.listar('t', {})).rejects.toMatchObject({
-        name: 'SolicitudAyudaError',
+        name: 'ColaSolicitudError',
         tipo,
         statusCode: status,
       });

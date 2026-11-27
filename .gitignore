@@ -3,6 +3,3 @@
 graphify-out/
 *.tsbuildinfo
 .pnpm-store
-/.claude
-# Hooks de graphify: usan la ruta absoluta del ejecutable en cada máquina.
-backend/.claude/settings.json

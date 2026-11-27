@@ -1,15 +1,15 @@
-import type { SolicitudesAyudaRepository } from '@/application/ayuda/ports';
+import type { SolicitudesColaRepository } from '@/application/ayuda/colaPorts';
 import {
-  SolicitudAyudaError,
-  type TipoErrorSolicitud,
-} from '@/domain/ayuda/errors';
+  ColaSolicitudError,
+  type TipoErrorCola,
+} from '@/domain/ayuda/erroresCola';
 import {
   ESTADOS_SOLICITUD,
   TEMAS_AYUDA,
   type ListarSolicitudesCriterio,
   type SolicitudEnCola,
   type SolicitudesPaginadas,
-} from '@/domain/ayuda/types';
+} from '@/domain/ayuda/solicitudCola';
 
 const TIMEOUT_MS = 10_000;
 
@@ -71,7 +71,7 @@ function mapearSolicitud(v: unknown): SolicitudEnCola | null {
   };
 }
 
-export class HttpSolicitudesAyudaRepository implements SolicitudesAyudaRepository {
+export class HttpSolicitudesColaRepository implements SolicitudesColaRepository {
   constructor(private readonly baseUrl = '/api/v1') {}
 
   async listar(
@@ -162,7 +162,7 @@ export class HttpSolicitudesAyudaRepository implements SolicitudesAyudaRepositor
       });
     } catch (err) {
       if (err instanceof DOMException && err.name === 'TimeoutError') {
-        throw new SolicitudAyudaError(
+        throw new ColaSolicitudError(
           'El servidor tardó demasiado en responder.',
           'TIMEOUT',
           undefined,
@@ -170,7 +170,7 @@ export class HttpSolicitudesAyudaRepository implements SolicitudesAyudaRepositor
           escritura,
         );
       }
-      throw new SolicitudAyudaError(
+      throw new ColaSolicitudError(
         'No pudimos conectarnos con el servidor.',
         'CONEXION',
         undefined,
@@ -182,7 +182,7 @@ export class HttpSolicitudesAyudaRepository implements SolicitudesAyudaRepositor
     return res;
   }
 
-  private async errorHttp(res: Response): Promise<SolicitudAyudaError> {
+  private async errorHttp(res: Response): Promise<ColaSolicitudError> {
     let mensaje: string | undefined;
     let codigo: string | undefined;
     try {
@@ -196,7 +196,7 @@ export class HttpSolicitudesAyudaRepository implements SolicitudesAyudaRepositor
     } catch {
       // cuerpo no JSON: se usa un mensaje genérico
     }
-    const tipos: Record<number, [TipoErrorSolicitud, string]> = {
+    const tipos: Record<number, [TipoErrorCola, string]> = {
       400: ['VALIDACION', 'Los datos enviados no son válidos.'],
       401: ['SESION', 'Tu sesión terminó. Vuelve a ingresar.'],
       403: ['PERMISO', 'No tienes permiso para esta acción.'],
@@ -208,7 +208,7 @@ export class HttpSolicitudesAyudaRepository implements SolicitudesAyudaRepositor
       (res.status >= 500
         ? (['SERVIDOR', 'El servidor no pudo atender la solicitud.'] as const)
         : (['SERVIDOR', 'Ocurrió un error inesperado.'] as const));
-    return new SolicitudAyudaError(
+    return new ColaSolicitudError(
       res.status >= 500 ? generico : (mensaje ?? generico),
       tipo,
       codigo,
@@ -231,7 +231,7 @@ export class HttpSolicitudesAyudaRepository implements SolicitudesAyudaRepositor
   }
 
   private respuestaInvalida(status: number, escritura: boolean) {
-    return new SolicitudAyudaError(
+    return new ColaSolicitudError(
       'El servidor envió una respuesta inesperada.',
       'RESPUESTA_INVALIDA',
       undefined,

@@ -99,7 +99,7 @@ export function PrimerAccesoPage() {
         sesion.accessToken,
         {
           codigo: codigo.trim(),
-          nuevoPassword: password,
+          passwordNueva: password,
         },
       );
 

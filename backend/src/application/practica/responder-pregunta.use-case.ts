@@ -1,10 +1,8 @@
-import { Rol } from '../../domain/auth/tipos.js';
 import { IntentoNoEncontradoError } from '../../domain/practica/errores.js';
-import {
-  Calificacion,
-  RespuestaCalificada,
-} from '../../domain/practica/intento.js';
+import { RespuestaCalificada } from '../../domain/practica/actividad.js';
+import { Calificacion } from '../../domain/practica/intento.js';
 import { IntentoRepository } from '../../domain/practica/intento.repository.js';
+import { SincronizarProgresoUseCase } from '../progreso/sincronizar-progreso.use-case.js';
 import { Reloj } from '../shared/reloj.port.js';
 
 export interface ResponderPreguntaComando {
@@ -25,14 +23,15 @@ export class ResponderPreguntaUseCase {
   constructor(
     private readonly intentos: IntentoRepository,
     private readonly reloj: Reloj,
+    private readonly progreso: SincronizarProgresoUseCase,
   ) {}
 
   async ejecutar(
     { intentoId, preguntaId, opcionId }: ResponderPreguntaComando,
-    usuario: { id: string; rol: Rol } | null,
+    usuarioId: string,
   ): Promise<RespuestaResultado> {
-    const resultado = await this.intentos.modificar(intentoId, (intento) => {
-      if (!intento.perteneceA(usuario?.id ?? null)) {
+    const salida = await this.intentos.modificar(intentoId, (intento) => {
+      if (!intento.perteneceA(usuarioId)) {
         throw new IntentoNoEncontradoError();
       }
       const respuesta = intento.responder(
@@ -40,14 +39,23 @@ export class ResponderPreguntaUseCase {
         opcionId,
         this.reloj.ahora(),
       );
+      const resultado = intento.finalizadoEn ? intento.calificar() : null;
       return {
-        ...respuesta,
-        respondidas: intento.respuestas.length,
-        totalPreguntas: intento.totalPreguntas,
-        resultado: intento.finalizadoEn ? intento.calificar() : null,
+        respuesta: {
+          ...respuesta,
+          respondidas: intento.respuestas.length,
+          totalPreguntas: intento.totalPreguntas,
+          resultado,
+        },
+        // HU-23: aprobar la actividad puede completar la guía.
+        aprobadaPor: resultado?.aprobado ? intento.usuarioId : null,
+        actividadId: intento.actividadId,
       };
     });
-    if (!resultado) throw new IntentoNoEncontradoError();
-    return resultado;
+    if (!salida) throw new IntentoNoEncontradoError();
+    if (salida.aprobadaPor) {
+      await this.progreso.deActividad(salida.aprobadaPor, salida.actividadId);
+    }
+    return salida.respuesta;
   }
 }

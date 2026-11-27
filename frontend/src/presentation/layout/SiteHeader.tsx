@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, NavLink, useLocation } from 'react-router';
 import { container } from '@/main/container';
 import { AccessibilityBar } from '@/presentation/accessibility/AccessibilityBar';
+import { useSesionPublica } from '@/presentation/auth/useSesionPublica';
 
 export function SiteHeader() {
   const location = useLocation();
@@ -17,6 +18,9 @@ export function SiteHeader() {
       activo = false;
     };
   }, [location.pathname]);
+
+  // Con sesión pública se muestra «Mi cuenta» (cerrar sesión y eliminar la cuenta, HU-02/05).
+  const sesion = useSesionPublica();
 
   const linkBase =
     'hidden md:inline-flex items-center min-h-11 font-medium text-nav-link no-underline hover:underline hover:underline-offset-[0.2em]';
@@ -83,9 +87,9 @@ export function SiteHeader() {
         )}
         <Link
           className="hidden md:inline-flex items-center justify-center min-h-14 px-6 py-4 font-semibold text-btn-secondary-fg bg-btn-secondary-bg border-2 border-btn-secondary-border rounded-xl hover:border-btn-secondary-hover-border hover:bg-btn-secondary-hover-bg no-underline cursor-pointer"
-          to="/iniciar-sesion"
+          to={sesion ? '/mi-cuenta' : '/iniciar-sesion'}
         >
-          Iniciar sesión
+          {sesion ? 'Mi cuenta' : 'Iniciar sesión'}
         </Link>
         <Link
           className="inline-flex md:hidden ml-auto font-semibold text-nav-logo no-underline"

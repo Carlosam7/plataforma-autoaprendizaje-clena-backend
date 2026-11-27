@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
-import { SolicitudAyudaError } from '@/domain/ayuda/errors';
+import { ColaSolicitudError } from '@/domain/ayuda/erroresCola';
 import type {
   EstadoSolicitud,
   SolicitudesPaginadas,
   TemaAyuda,
-} from '@/domain/ayuda/types';
+} from '@/domain/ayuda/solicitudCola';
 import { container } from '@/main/container';
 
 export const INTERVALO_POLLING_MS = 15_000;
@@ -92,7 +92,7 @@ export function useColaSolicitudes({
       } catch (err) {
         if (!activo) return;
         const expirada =
-          err instanceof SolicitudAyudaError && err.tipo === 'SESION';
+          err instanceof ColaSolicitudError && err.tipo === 'SESION';
         if (expirada) clearInterval(temporizador);
         setResultado((previo) => ({
           // Un fallo de polling conserva lo ya mostrado; uno inicial no inventa datos.
@@ -102,7 +102,7 @@ export function useColaSolicitudes({
             previo?.clave === clave ? previo.totalOtraPestana : null,
           actualizadoEn: previo?.actualizadoEn ?? 0,
           error:
-            err instanceof SolicitudAyudaError
+            err instanceof ColaSolicitudError
               ? err.message
               : 'No pudimos cargar las solicitudes.',
           sesionExpirada: expirada,

@@ -5,6 +5,7 @@ import type {
 } from '../../../application/practica/obtener-actividad.use-case.js';
 import type { IntentoIniciado } from '../../../application/practica/iniciar-intento.use-case.js';
 import type { RespuestaResultado } from '../../../application/practica/responder-pregunta.use-case.js';
+import type { RespuestaCalificada } from '../../../domain/practica/actividad.js';
 import type { Calificacion } from '../../../domain/practica/intento.js';
 
 // Solo documentan en Swagger la salida de los casos de uso.
@@ -78,7 +79,8 @@ class CalificacionDto implements Calificacion {
   porcentajeAprobacion!: number;
 }
 
-export class RespuestaResultadoDto implements RespuestaResultado {
+/** Retroalimentación de una respuesta: es igual con cuenta y sin cuenta. */
+export class RespuestaEvaluadaDto implements RespuestaCalificada {
   @ApiProperty({
     description: 'El frontend lo muestra con texto e ícono, no solo con color.',
   })
@@ -94,7 +96,12 @@ export class RespuestaResultadoDto implements RespuestaResultado {
     example: 'Los bancos no te piden entrar a enlaces por mensaje de texto.',
   })
   explicacion!: string;
+}
 
+export class RespuestaResultadoDto
+  extends RespuestaEvaluadaDto
+  implements RespuestaResultado
+{
   @ApiProperty({ example: 4 })
   respondidas!: number;
 

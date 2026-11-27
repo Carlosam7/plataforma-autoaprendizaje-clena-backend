@@ -10,12 +10,12 @@ import {
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { SolicitudAyudaError } from '@/domain/ayuda/errors';
+import { ColaSolicitudError } from '@/domain/ayuda/erroresCola';
 import type {
   ListarSolicitudesCriterio,
   SolicitudEnCola,
   SolicitudesPaginadas,
-} from '@/domain/ayuda/types';
+} from '@/domain/ayuda/solicitudCola';
 import type { SesionPersonal } from '@/domain/personal/types';
 import { container } from '@/main/container';
 import { ColaSolicitudesPage } from './ColaSolicitudesPage';
@@ -176,10 +176,10 @@ describe('ColaSolicitudesPage', () => {
       const listar = vi
         .spyOn(container.ayuda.listarSolicitudes, 'ejecutar')
         .mockRejectedValueOnce(
-          new SolicitudAyudaError('No pudimos conectarnos.', 'CONEXION'),
+          new ColaSolicitudError('No pudimos conectarnos.', 'CONEXION'),
         )
         .mockRejectedValueOnce(
-          new SolicitudAyudaError('No pudimos conectarnos.', 'CONEXION'),
+          new ColaSolicitudError('No pudimos conectarnos.', 'CONEXION'),
         )
         .mockResolvedValue(pagina([solicitud()]));
       montar();
@@ -197,7 +197,7 @@ describe('ColaSolicitudesPage', () => {
       const listar = vi
         .spyOn(container.ayuda.listarSolicitudes, 'ejecutar')
         .mockRejectedValue(
-          new SolicitudAyudaError('x', 'SESION', undefined, 401),
+          new ColaSolicitudError('x', 'SESION', undefined, 401),
         );
       montar();
       expect(await screen.findByText('Tu sesión terminó')).toBeTruthy();
@@ -333,7 +333,7 @@ describe('ColaSolicitudesPage', () => {
       const tomar = vi
         .spyOn(container.ayuda.tomarSolicitud, 'ejecutar')
         .mockRejectedValue(
-          new SolicitudAyudaError(
+          new ColaSolicitudError(
             'Otro monitor ya está atendiendo esta solicitud.',
             'CONFLICTO',
             'SOLICITUD_YA_TOMADA',
@@ -365,7 +365,7 @@ describe('ColaSolicitudesPage', () => {
       const tomar = vi
         .spyOn(container.ayuda.tomarSolicitud, 'ejecutar')
         .mockRejectedValue(
-          new SolicitudAyudaError(
+          new ColaSolicitudError(
             'timeout',
             'TIMEOUT',
             undefined,
@@ -442,7 +442,7 @@ describe('ColaSolicitudesPage', () => {
     it('403 de otro monitor: lo informa, cierra y recarga sin falsear estados', async () => {
       const dialogo = await abrirDialogo();
       vi.spyOn(container.ayuda.resolverSolicitud, 'ejecutar').mockRejectedValue(
-        new SolicitudAyudaError(
+        new ColaSolicitudError(
           'La está atendiendo otro monitor.',
           'PERMISO',
           'SOLICITUD_DE_OTRO_MONITOR',
@@ -462,7 +462,7 @@ describe('ColaSolicitudesPage', () => {
     it('409 SOLICITUD_CERRADA: no hay éxito y se informa', async () => {
       const dialogo = await abrirDialogo();
       vi.spyOn(container.ayuda.resolverSolicitud, 'ejecutar').mockRejectedValue(
-        new SolicitudAyudaError(
+        new ColaSolicitudError(
           'Ya se cerró.',
           'CONFLICTO',
           'SOLICITUD_CERRADA',
@@ -482,13 +482,7 @@ describe('ColaSolicitudesPage', () => {
       const resolver = vi
         .spyOn(container.ayuda.resolverSolicitud, 'ejecutar')
         .mockRejectedValue(
-          new SolicitudAyudaError(
-            'red',
-            'CONEXION',
-            undefined,
-            undefined,
-            true,
-          ),
+          new ColaSolicitudError('red', 'CONEXION', undefined, undefined, true),
         );
       await userEvent.click(
         within(dialogo).getByRole('button', { name: 'Marcar como resuelta' }),
@@ -607,7 +601,7 @@ describe('ColaSolicitudesPage', () => {
       expect(screen.getByText('ABC')).toBeTruthy();
 
       listar.mockRejectedValue(
-        new SolicitudAyudaError('Sin conexión.', 'CONEXION'),
+        new ColaSolicitudError('Sin conexión.', 'CONEXION'),
       );
       await avanzar(15_000);
       expect(screen.getByText('ABC')).toBeTruthy();
@@ -635,7 +629,7 @@ describe('ColaSolicitudesPage', () => {
         .mockResolvedValueOnce(pagina([solicitud()]))
         .mockResolvedValueOnce(pagina([]))
         .mockRejectedValue(
-          new SolicitudAyudaError('x', 'SESION', undefined, 401),
+          new ColaSolicitudError('x', 'SESION', undefined, 401),
         );
       montar();
       await vaciar();

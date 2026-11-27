@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
-import { SolicitudAyudaError } from '@/domain/ayuda/errors';
+import { ColaSolicitudError } from '@/domain/ayuda/erroresCola';
 import {
   ETIQUETA_TEMA,
   LARGO_MAXIMO_COMENTARIO,
   TEMAS_AYUDA,
   type SolicitudEnCola,
   type TemaAyuda,
-} from '@/domain/ayuda/types';
+} from '@/domain/ayuda/solicitudCola';
 import type { SesionPersonal } from '@/domain/personal/types';
 import { container } from '@/main/container';
 import { LIMITE_POR_PAGINA, useColaSolicitudes } from './useColaSolicitudes';
@@ -106,7 +106,7 @@ export function ColaSolicitudesPage() {
   const recargar = () => setRecarga((n) => n + 1);
 
   const manejarErrorAccion = (err: unknown, accion: string) => {
-    if (!(err instanceof SolicitudAyudaError)) {
+    if (!(err instanceof ColaSolicitudError)) {
       setAviso({ texto: `No pudimos ${accion}.`, tipo: 'error' });
       return;
     }
@@ -494,7 +494,7 @@ function ResolverDialogo({
         'info',
       );
     } catch (err) {
-      if (err instanceof SolicitudAyudaError) {
+      if (err instanceof ColaSolicitudError) {
         if (err.resultadoIncierto) {
           setError(
             'No pudimos confirmar si se resolvió. Revisamos el estado actual; no se repitió el envío.',

@@ -4,7 +4,9 @@ import { ActividadRepository } from '../../../domain/practica/actividad.reposito
 import {
   ActividadNoEncontradaError,
   IntentoNoEncontradoError,
+  PreguntaNoEncontradaError,
   PreguntaYaRespondidaError,
+  RespuestaInvalidaError,
 } from '../../../domain/practica/errores.js';
 import { Intento } from '../../../domain/practica/intento.js';
 import { IntentoRepository } from '../../../domain/practica/intento.repository.js';
@@ -12,6 +14,8 @@ import {
   GeneradorIdSecuencial,
   RelojFijo,
 } from '../../auth/__tests__/fakes.js';
+import { SincronizarProgresoUseCase } from '../../progreso/sincronizar-progreso.use-case.js';
+import { EvaluarRespuestaUseCase } from '../evaluar-respuesta.use-case.js';
 import { IniciarIntentoUseCase } from '../iniciar-intento.use-case.js';
 import { ObtenerActividadUseCase } from '../obtener-actividad.use-case.js';
 import { ResponderPreguntaUseCase } from '../responder-pregunta.use-case.js';
@@ -62,13 +66,15 @@ const ACTIVIDAD: Actividad = {
   ],
 };
 
-const USUARIO = { id: '41234567', rol: 'USUARIO_PUBLICO' as const };
+const USUARIO = '41234567';
 
 describe('HU-21 · Resolver una pregunta con retroalimentación inmediata', () => {
   let actividades: ActividadRepositoryEnMemoria;
   let intentos: IntentoRepositoryEnMemoria;
   let iniciar: IniciarIntentoUseCase;
   let responder: ResponderPreguntaUseCase;
+  /** [usuario, actividad] de cada aprobación que se avisó al progreso (HU-23). */
+  let aprobadas: [string, string][];
 
   beforeEach(() => {
     actividades = new ActividadRepositoryEnMemoria();
@@ -81,7 +87,13 @@ describe('HU-21 · Resolver una pregunta con retroalimentación inmediata', () =
       new GeneradorIdSecuencial(),
       reloj,
     );
-    responder = new ResponderPreguntaUseCase(intentos, reloj);
+    aprobadas = [];
+    responder = new ResponderPreguntaUseCase(intentos, reloj, {
+      deActividad: (usuarioId: string, actividadId: string) => {
+        aprobadas.push([usuarioId, actividadId]);
+        return Promise.resolve();
+      },
+    } as SincronizarProgresoUseCase);
   });
 
   describe('ObtenerActividadUseCase', () => {
@@ -112,40 +124,102 @@ describe('HU-21 · Resolver una pregunta con retroalimentación inmediata', () =
     });
   });
 
-  describe('IniciarIntentoUseCase', () => {
-    it('sin sesión el intento es anónimo', async () => {
-      const { id, totalPreguntas } = await iniciar.ejecutar('smishing', null);
-      expect(totalPreguntas).toBe(2);
-      expect(intentos.intentos.get(id)?.usuarioId).toBeNull();
+  describe('EvaluarRespuestaUseCase (C-04, práctica sin cuenta)', () => {
+    let evaluar: EvaluarRespuestaUseCase;
+    beforeEach(() => {
+      evaluar = new EvaluarRespuestaUseCase(actividades);
     });
 
-    it('con sesión de usuario público el intento es suyo', async () => {
-      const { id } = await iniciar.ejecutar('smishing', USUARIO);
-      expect(intentos.intentos.get(id)?.usuarioId).toBe('41234567');
-    });
-
-    it('con sesión del personal el intento es anónimo', async () => {
-      const { id } = await iniciar.ejecutar('smishing', {
-        id: 'uuid-personal',
-        rol: 'PERSONAL',
+    it('dice si acertó, la opción correcta y la explicación, sin guardar nada', async () => {
+      await expect(
+        evaluar.ejecutar({
+          slugGuia: 'smishing',
+          preguntaId: 'p1',
+          opcionId: 'p1-a',
+        }),
+      ).resolves.toEqual({
+        esCorrecta: false,
+        opcionCorrecta: { id: 'p1-b', texto: 'No' },
+        explicacion: 'Los bancos no envían enlaces por SMS.',
       });
-      expect(intentos.intentos.get(id)?.usuarioId).toBeNull();
+      await expect(
+        evaluar.ejecutar({
+          slugGuia: 'smishing',
+          preguntaId: 'p1',
+          opcionId: 'p1-b',
+        }),
+      ).resolves.toMatchObject({ esCorrecta: true });
+      expect(intentos.intentos.size).toBe(0);
+    });
+
+    it('se puede responder la misma pregunta varias veces: no lleva la cuenta', async () => {
+      const comando = {
+        slugGuia: 'smishing',
+        preguntaId: 'p2',
+        opcionId: 'p2-a',
+      };
+      await evaluar.ejecutar(comando);
+      await expect(evaluar.ejecutar(comando)).resolves.toMatchObject({
+        esCorrecta: true,
+      });
     });
 
     it('falla si la guía no tiene actividad', async () => {
-      await expect(iniciar.ejecutar('vishing', null)).rejects.toThrow(
+      await expect(
+        evaluar.ejecutar({
+          slugGuia: 'vishing',
+          preguntaId: 'p1',
+          opcionId: 'p1-a',
+        }),
+      ).rejects.toThrow(ActividadNoEncontradaError);
+    });
+
+    it('falla si la pregunta no es de la actividad de esa guía', async () => {
+      await expect(
+        evaluar.ejecutar({
+          slugGuia: 'smishing',
+          preguntaId: 'p9',
+          opcionId: 'p1-a',
+        }),
+      ).rejects.toThrow(PreguntaNoEncontradaError);
+    });
+
+    it('falla si la opción no es de esa pregunta', async () => {
+      await expect(
+        evaluar.ejecutar({
+          slugGuia: 'smishing',
+          preguntaId: 'p1',
+          opcionId: 'p2-a',
+        }),
+      ).rejects.toThrow(RespuestaInvalidaError);
+    });
+  });
+
+  describe('IniciarIntentoUseCase', () => {
+    it('el intento queda en la cuenta del usuario público', async () => {
+      const { id, totalPreguntas } = await iniciar.ejecutar(
+        'smishing',
+        USUARIO,
+      );
+      expect(totalPreguntas).toBe(2);
+      expect(intentos.intentos.get(id)?.usuarioId).toBe('41234567');
+    });
+
+    it('falla si la guía no tiene actividad', async () => {
+      await expect(iniciar.ejecutar('vishing', USUARIO)).rejects.toThrow(
         ActividadNoEncontradaError,
       );
+      expect(intentos.intentos.size).toBe(0);
     });
   });
 
   describe('ResponderPreguntaUseCase', () => {
     it('cada respuesta trae si acertó, la correcta y la explicación; la última, el resultado', async () => {
-      const { id } = await iniciar.ejecutar('smishing', null);
+      const { id } = await iniciar.ejecutar('smishing', USUARIO);
 
       const primera = await responder.ejecutar(
         { intentoId: id, preguntaId: 'p1', opcionId: 'p1-a' },
-        null,
+        USUARIO,
       );
       expect(primera).toEqual({
         esCorrecta: false,
@@ -158,7 +232,7 @@ describe('HU-21 · Resolver una pregunta con retroalimentación inmediata', () =
 
       const ultima = await responder.ejecutar(
         { intentoId: id, preguntaId: 'p2', opcionId: 'p2-a' },
-        null,
+        USUARIO,
       );
       expect(ultima).toMatchObject({
         esCorrecta: true,
@@ -174,16 +248,16 @@ describe('HU-21 · Resolver una pregunta con retroalimentación inmediata', () =
     });
 
     it('repetir la actividad es empezar otro intento', async () => {
-      const primero = await iniciar.ejecutar('smishing', null);
-      const segundo = await iniciar.ejecutar('smishing', null);
+      const primero = await iniciar.ejecutar('smishing', USUARIO);
+      const segundo = await iniciar.ejecutar('smishing', USUARIO);
       expect(segundo.id).not.toBe(primero.id);
     });
 
     it('no deja responder dos veces la misma pregunta', async () => {
-      const { id } = await iniciar.ejecutar('smishing', null);
+      const { id } = await iniciar.ejecutar('smishing', USUARIO);
       const comando = { intentoId: id, preguntaId: 'p1', opcionId: 'p1-b' };
-      await responder.ejecutar(comando, null);
-      await expect(responder.ejecutar(comando, null)).rejects.toThrow(
+      await responder.ejecutar(comando, USUARIO);
+      await expect(responder.ejecutar(comando, USUARIO)).rejects.toThrow(
         PreguntaYaRespondidaError,
       );
     });
@@ -191,22 +265,47 @@ describe('HU-21 · Resolver una pregunta con retroalimentación inmediata', () =
     it('el intento de una cuenta no lo responde otra persona', async () => {
       const { id } = await iniciar.ejecutar('smishing', USUARIO);
       const comando = { intentoId: id, preguntaId: 'p1', opcionId: 'p1-b' };
-      await expect(responder.ejecutar(comando, null)).rejects.toThrow(
+      await expect(responder.ejecutar(comando, '99999999')).rejects.toThrow(
         IntentoNoEncontradoError,
       );
-      await expect(
-        responder.ejecutar(comando, { id: '99999999', rol: 'USUARIO_PUBLICO' }),
-      ).rejects.toThrow(IntentoNoEncontradoError);
       await expect(responder.ejecutar(comando, USUARIO)).resolves.toMatchObject(
         { esCorrecta: true },
       );
+    });
+
+    it('HU-23: avisa al progreso solo cuando el usuario aprueba la actividad', async () => {
+      const responderTodo = async (aciertos: [boolean, boolean]) => {
+        const { id } = await iniciar.ejecutar('smishing', USUARIO);
+        await responder.ejecutar(
+          {
+            intentoId: id,
+            preguntaId: 'p1',
+            opcionId: aciertos[0] ? 'p1-b' : 'p1-a',
+          },
+          USUARIO,
+        );
+        await responder.ejecutar(
+          {
+            intentoId: id,
+            preguntaId: 'p2',
+            opcionId: aciertos[1] ? 'p2-a' : 'p2-b',
+          },
+          USUARIO,
+        );
+      };
+
+      await responderTodo([true, false]); // 50 %: no aprueba
+      expect(aprobadas).toEqual([]);
+
+      await responderTodo([true, true]);
+      expect(aprobadas).toEqual([['41234567', 'a1']]);
     });
 
     it('falla si el intento no existe', async () => {
       await expect(
         responder.ejecutar(
           { intentoId: 'no-existe', preguntaId: 'p1', opcionId: 'p1-b' },
-          null,
+          USUARIO,
         ),
       ).rejects.toThrow(IntentoNoEncontradoError);
     });

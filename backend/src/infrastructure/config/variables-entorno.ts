@@ -27,6 +27,14 @@ export interface VariablesEntorno {
   TWILIO_NUMERO_ORIGEN: string;
   TEXTBEE_API_KEY: string;
   TEXTBEE_DEVICE_ID: string;
+  /** BE-09: Swagger en /docs. Por defecto sí, salvo en producción. */
+  SWAGGER_HABILITADO: boolean;
+  /**
+   * BE-09: atributo Secure de la cookie del refresh token. Por defecto solo en producción.
+   * Con Secure el navegador solo la envía por HTTPS: en un despliegue por http (la sala sin
+   * certificado) debe ir en false, o el refresh deja de funcionar.
+   */
+  COOKIE_SEGURA: boolean;
 }
 
 export function validarVariablesEntorno(
@@ -61,6 +69,15 @@ export function validarVariablesEntorno(
     if (!opciones.includes(valor))
       errores.push(`${nombre} debe ser uno de: ${opciones.join(', ')}`);
     return valor;
+  };
+
+  const booleano = (nombre: string, porDefecto: boolean): boolean => {
+    const crudo = env[nombre];
+    if (crudo === undefined || crudo === '') return porDefecto;
+    if (crudo === 'true' || crudo === true) return true;
+    if (crudo === 'false' || crudo === false) return false;
+    errores.push(`${nombre} debe ser true o false`);
+    return porDefecto;
   };
 
   const nodeEnv = opcion(
@@ -138,6 +155,11 @@ export function validarVariablesEntorno(
     ),
     TEXTBEE_API_KEY: texto('TEXTBEE_API_KEY', usaTextbee ? undefined : ''),
     TEXTBEE_DEVICE_ID: texto('TEXTBEE_DEVICE_ID', usaTextbee ? undefined : ''),
+    SWAGGER_HABILITADO: booleano(
+      'SWAGGER_HABILITADO',
+      nodeEnv !== 'production',
+    ),
+    COOKIE_SEGURA: booleano('COOKIE_SEGURA', nodeEnv === 'production'),
   };
 
   if (variables.NODE_ENV === 'production') {
