@@ -1,4 +1,5 @@
 import { Link, Outlet, useLocation } from 'react-router';
+import { modoDemo } from '../../main/container';
 import { SiteHeader } from './SiteHeader';
 
 export function RootLayout() {
@@ -15,6 +16,15 @@ export function RootLayout() {
       >
         Saltar al contenido
       </a>
+      {modoDemo && (
+        <p
+          role="status"
+          className="m-0 px-4 py-2 text-center font-semibold bg-[#fff4cc] text-[#17324d] border-b-2 border-[#e0b400]"
+        >
+          Modo demostración: los datos que ves son simulados y no vienen del
+          servidor.
+        </p>
+      )}
       <SiteHeader />
       <div className="flex-1 flex flex-col">
         <Outlet />

@@ -1,5 +1,6 @@
 // Datos semilla para desarrollo y la demo. Todo es ficticio: nunca datos reales del CLENA.
-// Se puede ejecutar varias veces sin duplicar nada (upsert por clave natural).
+// Se puede ejecutar varias veces sin duplicar nada (upsert por clave natural), y no pisa
+// las guías que el personal ya editó desde la gestión de guías.
 //   pnpm prisma:seed
 import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
@@ -1355,6 +1356,7 @@ async function main(): Promise<void> {
     const autorId = await sembrarAutorContenidos(prisma);
     let imagenes = 0;
     let preguntas = 0;
+    let guiasConservadas = 0;
     for (const {
       slug,
       categoria = 'seguridad-digital',
@@ -1369,28 +1371,42 @@ async function main(): Promise<void> {
           `La guía ${slug} tiene una categoría desconocida: ${categoria}`,
         );
       }
-      const guia = await prisma.guia.upsert({
+      // El contenedor siembra en cada arranque: lo que el personal cambió desde la gestión
+      // de guías (HU-13, HU-15) no se pisa. Editar, publicar u ocultar deja en
+      // actualizada_por_id a quien lo hizo; mientras siga siendo el autor de la semilla, la
+      // guía no se ha tocado y se puede poner al día con el contenido de este archivo.
+      const existente = await prisma.guia.findUnique({
         where: { slug },
-        create: {
-          slug,
-          ...datos,
-          categoriaId,
-          nivel,
-          estado: 'PUBLICADA',
-          publicadaEn: new Date('2026-11-01T00:00:00.000Z'),
-          creadaPorId: autorId,
-          actualizadaPorId: autorId,
-        },
-        update: { ...datos, categoriaId, nivel },
+        select: { id: true, actualizadaPorId: true },
       });
-      imagenes += await sembrarPasos(prisma, guia.id, pasos, autorId);
+      let guiaId: string;
+      if (existente && existente.actualizadaPorId !== autorId) {
+        guiaId = existente.id;
+        guiasConservadas += 1;
+      } else {
+        const guia = existente
+          ? await prisma.guia.update({
+              where: { id: existente.id },
+              data: { ...datos, categoriaId, nivel },
+            })
+          : await prisma.guia.create({
+              data: {
+                slug,
+                ...datos,
+                categoriaId,
+                nivel,
+                estado: 'PUBLICADA',
+                publicadaEn: new Date('2026-11-01T00:00:00.000Z'),
+                creadaPorId: autorId,
+                actualizadaPorId: autorId,
+              },
+            });
+        guiaId = guia.id;
+        imagenes += await sembrarPasos(prisma, guiaId, pasos, autorId);
+      }
+      // La actividad no se edita desde la API, así que se siembra en todas las guías.
       if (actividad) {
-        preguntas += await sembrarActividad(
-          prisma,
-          guia.id,
-          actividad,
-          autorId,
-        );
+        preguntas += await sembrarActividad(prisma, guiaId, actividad, autorId);
       }
     }
 
@@ -1399,7 +1415,7 @@ async function main(): Promise<void> {
     const admin = await sembrarAdministradorInicial(prisma);
 
     console.log(
-      `Semillas cargadas: aviso de privacidad ${AVISO_PRIVACIDAD.version}, ${CATEGORIAS.length} categorías, ${GUIAS.length} guías (${imagenes} imágenes, ${preguntas} preguntas de práctica), 1 solicitud de ayuda y ${admin}.`,
+      `Semillas cargadas: aviso de privacidad ${AVISO_PRIVACIDAD.version}, ${CATEGORIAS.length} categorías, ${GUIAS.length} guías (${guiasConservadas} sin tocar porque las editó el personal, ${imagenes} imágenes, ${preguntas} preguntas de práctica), 1 solicitud de ayuda y ${admin}.`,
     );
   } finally {
     await prisma.$disconnect();

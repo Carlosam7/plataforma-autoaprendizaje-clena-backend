@@ -1,8 +1,11 @@
-import { Actividad, OpcionActividad } from './actividad.js';
+import {
+  Actividad,
+  calificarRespuesta,
+  RespuestaCalificada,
+} from './actividad.js';
 import {
   IntentoFinalizadoError,
   PreguntaYaRespondidaError,
-  RespuestaInvalidaError,
 } from './errores.js';
 
 export interface RespuestaDada {
@@ -21,25 +24,18 @@ export interface Calificacion {
   porcentajeAprobacion: number;
 }
 
-export interface RespuestaCalificada {
-  esCorrecta: boolean;
-  /** Para «Casi. La respuesta correcta es…». */
-  opcionCorrecta: Pick<OpcionActividad, 'id' | 'texto'>;
-  explicacion: string;
-}
-
 export interface IntentoProps {
   id: string;
   actividad: Actividad;
-  /** Cédula del usuario público; null si practica sin cuenta. */
-  usuarioId: string | null;
+  /** Cédula del usuario público. Sin cuenta no hay intento: esa práctica no se guarda (C-04). */
+  usuarioId: string;
   respuestas: RespuestaDada[];
   iniciadoEn: Date;
   finalizadoEn: Date | null;
 }
 
 /**
- * Una vez que alguien hace la actividad (HU-21). Se responde una pregunta a la vez y,
+ * Una vez que un usuario público hace la actividad (HU-21). Se responde una pregunta a la vez y,
  * con la última, el intento termina y queda calificado. Para repetir se empieza otro.
  */
 export class Intento {
@@ -48,7 +44,7 @@ export class Intento {
   static iniciar(datos: {
     id: string;
     actividad: Actividad;
-    usuarioId: string | null;
+    usuarioId: string;
     ahora: Date;
   }): Intento {
     return new Intento({
@@ -71,7 +67,7 @@ export class Intento {
   get actividadId(): string {
     return this.props.actividad.id;
   }
-  get usuarioId(): string | null {
+  get usuarioId(): string {
     return this.props.usuarioId;
   }
   get respuestas(): readonly RespuestaDada[] {
@@ -87,9 +83,9 @@ export class Intento {
     return this.props.actividad.preguntas.length;
   }
 
-  /** Un intento sin cuenta lo puede seguir quien tenga su id; uno con cuenta, solo su dueño. */
-  perteneceA(usuarioId: string | null): boolean {
-    return this.props.usuarioId === null || this.props.usuarioId === usuarioId;
+  /** Solo su dueño lo puede seguir respondiendo. */
+  perteneceA(usuarioId: string): boolean {
+    return this.props.usuarioId === usuarioId;
   }
 
   responder(
@@ -98,33 +94,25 @@ export class Intento {
     ahora: Date,
   ): RespuestaCalificada {
     if (this.props.finalizadoEn) throw new IntentoFinalizadoError();
-    const pregunta = this.props.actividad.preguntas.find(
-      (p) => p.id === preguntaId,
+    const calificada = calificarRespuesta(
+      this.props.actividad,
+      preguntaId,
+      opcionId,
     );
-    const elegida = pregunta?.opciones.find((o) => o.id === opcionId);
-    if (!pregunta || !elegida) throw new RespuestaInvalidaError();
     if (this.props.respuestas.some((r) => r.preguntaId === preguntaId)) {
       throw new PreguntaYaRespondidaError();
-    }
-    const correcta = pregunta.opciones.find((o) => o.esCorrecta);
-    if (!correcta) {
-      throw new Error(`La pregunta ${pregunta.id} no tiene opción correcta`);
     }
 
     this.props.respuestas.push({
       preguntaId,
       opcionId,
-      esCorrecta: elegida.esCorrecta,
+      esCorrecta: calificada.esCorrecta,
       respondidaEn: ahora,
     });
     if (this.props.respuestas.length === this.totalPreguntas) {
       this.props.finalizadoEn = ahora;
     }
-    return {
-      esCorrecta: elegida.esCorrecta,
-      opcionCorrecta: { id: correcta.id, texto: correcta.texto },
-      explicacion: pregunta.explicacion,
-    };
+    return calificada;
   }
 
   /** Aciertos hasta ahora y si alcanzan el porcentaje de aprobación de la actividad. */
