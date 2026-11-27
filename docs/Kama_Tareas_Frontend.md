@@ -42,7 +42,7 @@ Cada PR debe incluir: ID tarea, HU y criterios exactos vinculados, contrato C-XX
 | R2 — guías del personal | FE-05 | BE-06, BE-07 | C-07 ya existe; FE editor, BE confirma seeds y permisos | Crear→editar→publicar→ocultar |
 | R2 — cola monitores | FE-06 | BE-02, BE-06 | C-06 existe; FE polling, BE transiciones | Dos monitores, una toma |
 | R2 — cuentas | FE-09, FE-10 | BE-05 | C-08, C-09 existentes | Registro/OTP, personal, eliminación |
-| R2 — progreso | FE-07 | BE-03 | C-10 propuesto; FE UI y mocks en tests; BE API y BD | Persistencia por usuario |
+| R2 — progreso | FE-07 | BE-03 | C-10 existente (verificado en BE-03); FE UI contra la API real | Persistencia por usuario |
 | R2 — estadísticas | FE-08 | BE-04 | C-11 propuesto; FE gráficos con fixture; BE agregaciones | Panel real por fechas |
 | R3 — QR y deploy | FE-11, FE-14 | BE-09 | C-01 y ruta pública; FE QR, infra prueba reload | URL pública desde teléfono |
 | R3 — calidad Must | FE-13 | BE-09/CI | HU-36–39 (sin nuevo endpoint obligatorio) | Evidencia de accesibilidad y CI |
@@ -208,19 +208,53 @@ Todos requieren Bearer rol PERSONAL o ADMINISTRADOR: `GET /gestion/guias`, `POST
 - `GET /personal?pagina=1&limite=20`, `GET /personal/:uuid`, `POST /personal`, `PATCH /personal/:uuid`, `POST /personal/:uuid/desactivar`, `POST /personal/:uuid/reactivar`: **solo ADMINISTRADOR**. POST JSON `{nombre,correo,passwordTemporal,rol:'PERSONAL'|'ADMINISTRADOR'}`, edición parcial `{nombre?,correo?,rol?}`. Respuesta `{id,nombre,correo,rol,activo,debeCambiarPassword,ultimoAccesoEn,creadoEn}`, listado paginado. `409` correo en uso; 403 personal normal. La contraseña temporal 8–72 con letra y número según DTO.
 - **Riesgo FE verificado en código:** `HttpPersonalRepository` hace fallback a `InMemoryPersonalRepository` ante excepciones no `PersonalError`, incluso en acciones de autenticación/administración. **Nunca permitir credenciales ficticias exitosas ante un 500/offline**. Retirar fallback en entorno integrado.
 
-### C-10 — Mi progreso persistente [PROPUESTO, implementarlo solo tras confirmar ausencia]
+### C-10 — Mi progreso persistente [EXISTENTE desde HU-23 (PR #91); verificado y documentado en BE-03]
 
-**Desacople clave:** GET `/guias/:slug` existente devuelve pasos con `orden` pero **sin `id` UUID**; la tabla `paso_leido` requiere ID persistente. Se propone extender **sin romper** el DTO público `pasos[]` con `id:UUID` estable. FE usa ese ID, no el ordinal, para marcar paso.
+**Decisión BE-03:** se conserva el contrato que ya existe en `dev` (Regla C). El paso se identifica por su **número de orden** (el `orden` de `pasos[]` en `GET /guias/:slug`, C-01), no por UUID. La propuesta anterior (`/mi-progreso`, `PUT .../pasos/:pasoId`, `porcentajeLectura`, `ultimoPasoId`) **no existe** y no se implementará.
 
-- `PUT /mi-progreso/guias/:slug/pasos/:pasoId` Bearer `USUARIO_PUBLICO`; cuerpo **vacío**; operación idempotente. Valida que el paso pertenece a la guía. Respuesta `200` con `ProgresoGuiaDTO` actualizado. Repetir no duplica `paso_leido` (PK usuario/paso).
-- `GET /mi-progreso` Bearer `USUARIO_PUBLICO` → `200` `{datos:[ProgresoGuiaDTO]}`; opcionalmente solo guías publicadas; para guías ocultas con progreso conservar referencia no exponer contenido (definir presentación). `GET /mi-progreso/guias/:slug` → `200` un DTO y, si no hay avance, ceros.
+| Método y ruta | Permiso | Respuesta |
+|---|---|---|
+| `GET /progreso?categoria=&ordenarPor=titulo&direccion=asc&pagina=1&limite=20` | Bearer `USUARIO_PUBLICO` | `200` paginado `{datos:[ProgresoGuia],total,pagina,limite}` |
+| `POST /guias/:slug/pasos/:orden/lectura` | Bearer `USUARIO_PUBLICO` | `200` `ProgresoGuia` de esa guía, ya actualizado. Cuerpo vacío. |
+
+Ambas: `401` sin sesión o token inválido, `403` personal/administrador. El usuario sale siempre del token, nunca del body ni de la ruta.
+
+`ProgresoGuia` (ejemplo real de las pruebas):
 
 ```json
-{"guia":{"slug":"smishing","titulo":"Smishing"},"pasosLeidos":2,"totalPasos":5,"porcentajeLectura":40,"actividadAprobada":false,"completada":false,"ultimoPasoId":"66666666-6666-4666-8666-666666666666","actualizadoEn":"2026-11-26T19:10:00.000Z"}
+{"slug":"smishing","categoria":"seguridad-digital","titulo":"Smishing","nivel":"BASICO","totalPasos":3,"pasosLeidos":1,"porcentaje":25,"estado":"EN_CURSO","completada":false,"tieneActividad":true,"actividadAprobada":false,"ultimoPaso":2,"completadaEn":null}
 ```
 
-- **Reglas propuestas:** porcentaje `Math.round(100*min(pasosLeidos,totalPasos)/totalPasos)` con `totalPasos=0 => 0`; `completada` requiere que el usuario haya llegado al último paso y haya aprobado alguna actividad de la guía cuando exista; si no hay actividad, basta lectura hasta el final. BE calcula desde `paso_leido`, `progreso_guia` e `intento`, nunca acepta `usuarioId`, `porcentaje` o `completada` del cliente. El FE marca cada paso **al confirmarse que se visualizó**, no al abrir solamente el listado; enviar como máximo un PUT por paso y sesión/UI. `401` no sesión; `403` rol personal; `404` guía/paso ajeno; reordenar conserva IDs y lectura.
-- **D-03 pendiente PO:** editar pasos después de publicación; no redefinir retroactivamente progreso sin acuerdo. Mostrar progreso cero para invitado sin invocar esta API y sin almacenar progreso en disco.
+| Campo | Significado |
+|---|---|
+| `categoria` | slug de la categoría |
+| `totalPasos`, `pasosLeidos` | pasos actuales de la guía y cuántos de ellos leyó el usuario |
+| `porcentaje` | entero 0–100, **redondeado hacia abajo**. La actividad (si tiene preguntas) pesa como un paso más: `floor(100 * (pasosLeidos + actividadAprobada) / (totalPasos + tieneActividad))`. Solo llega a 100 si `completada`. Ej.: 1 de 3 pasos + actividad sin aprobar = 25. |
+| `estado` | `SIN_EMPEZAR` (mostrar «Empezar»), `EN_CURSO`, `COMPLETADA` (mostrar la marca) |
+| `completada` | leyó **todos** los pasos actuales y, si la guía tiene actividad, la aprobó en algún intento suyo. Se calcula en cada respuesta. |
+| `tieneActividad`, `actividadAprobada` | `actividadAprobada` solo cuenta intentos del propio usuario (C-03) |
+| `ultimoPaso` | **número** del último paso que abrió, para «Continuar donde quedé» (HU-24); `null` si no ha empezado o ese paso ya no existe |
+| `completadaEn` | ISO 8601 de la **primera vez** que la completó; `null` si nunca |
+
+**`GET /progreso`:**
+- Trae **todas las guías publicadas**, también las no empezadas (en 0 % y `SIN_EMPEZAR`). Las ocultas y los borradores no salen.
+- `categoria` (opcional, slug, máximo 40): filtra; una categoría sin guías da lista vacía. `ordenarPor` solo admite `titulo` (por defecto); `direccion` `asc` (por defecto) o `desc`. Paginación de C-00 (`limite` 1–100).
+- `400 DATOS_INVALIDOS` si `ordenarPor`, `direccion`, `pagina` o `limite` no son válidos.
+
+**`POST /guias/:slug/pasos/:orden/lectura`:**
+- `orden` entero ≥ 1. Idempotente: repetirlo no cuenta doble (guarda la fecha de la primera lectura) y actualiza `ultimoPaso`.
+- Si con esa lectura la guía queda completada, guarda `completadaEn`. Aprobar la actividad (C-03) también puede completarla.
+- Errores: `404 PASO_NO_ENCONTRADO` si la guía no existe, no está publicada (borrador u oculta) o no tiene ese número de paso; `400 DATOS_INVALIDOS` si `orden` no es un entero ≥ 1 o el slug no tiene formato válido. En ningún error se guarda nada.
+
+**Cambios de la guía hechos por el personal (C-07), verificados en e2e:**
+- **Reordenar pasos:** la lectura se guarda por el UUID del paso, así que lo leído se conserva y `ultimoPaso` devuelve el número **nuevo**. Como la ruta usa el número, si el personal reordena mientras alguien lee, «paso 3» pasa a ser otro paso. Por eso el FE debe usar el `orden` del último `GET /guias/:slug` que cargó y, ante un `404`, recargar el detalle.
+- **Quitar un paso leído:** su lectura se borra y deja de contar; si era el `ultimoPaso`, este pasa a `null`.
+- **Ocultar la guía:** sale de `GET /progreso` y la lectura responde `404`, pero los datos se conservan: al volver a publicarla, el progreso sigue igual.
+- **D-03 (pendiente PO), comportamiento actual:** si a una guía completada le agregan un paso, vuelve a `EN_CURSO` y `completada:false`, pero `completadaEn` conserva la fecha original. El PO debe decidir si esto es lo correcto.
+
+**Invitados y cuenta:** sin sesión no se llama a ninguna de estas rutas ni se guarda progreso en `localStorage`/`sessionStorage`: el FE muestra el progreso en 0 (Regla D). Eliminar la cuenta (C-08) borra `progreso_guia` y `paso_leido` en cascada. El progreso es del usuario, no de la sesión: sigue igual al cerrar e iniciar sesión.
+
+**Uso en el FE:** marcar el paso cuando el usuario lo visualiza (no al abrir el listado), una sola vez por paso y por visita, y solo con sesión de `USUARIO_PUBLICO`. Usar la respuesta del `POST` para actualizar la barra sin volver a pedir `GET /progreso`.
 
 ### C-11 — Estadísticas agregadas [PROPUESTO, implementarlo solo tras verificar si ya existe]
 
@@ -295,11 +329,13 @@ Para cada C-XX, el equipo backend registra: ejemplo request real, respuesta exit
 - Tests dos monitores compitiendo, 409 de segundo, 403 del ajeno, lista ordenada, polling con fake timers 15s, latencia/red/401, atenciones propias conservadas.
 - **DoD:** dos sesiones de personal reales muestran propiedad de la solicitud; ninguna doble asignación.
 
-### FE-07 — Mi progreso real (HU-23) · P0 · pareja BE-03 · C-10 PROPUESTO
+### FE-07 — Mi progreso real (HU-23) · P0 · pareja BE-03 · C-10
+
+**Estado BE:** C-10 existe y está verificado (BE-03, rama `test/be-03-progreso`). Se usa el contrato real por **número de orden**; no hay `PUT`, `pasoId` ni `/mi-progreso`.
 
 - Crear tipos `ProgresoGuiaDTO` exactamente C-10 y repositorio HTTP independiente; FE **puede hacer toda la UI y contract tests desde ahora con fixtures**. No exponer barra estática como si fuese dato real.
-- `GuiaDetallePage`: al leer cada paso, si hay USUARIO_PUBLICO autenticado, llamar PUT con `pasoId` UUID estable; BE agrega `id` a paso en GET público. Al salir/volver mantener idempotencia; evitar escribir progreso de invitado.
-- `ProgresoPage`: GET `/mi-progreso`, render barra y porcentaje numérico y `Completada` o `Empezar`; estado sin progreso y error red diferenciados; usuarios no logueados ven invitación opcional a registrarse.
+- `GuiaDetallePage`: al visualizar cada paso, si hay USUARIO_PUBLICO autenticado, llamar `POST /guias/:slug/pasos/:orden/lectura` con el `orden` del último `GET /guias/:slug` cargado; ante `404 PASO_NO_ENCONTRADO`, recargar el detalle (el personal pudo reordenar). Es idempotente; usar su respuesta para la barra. Nunca llamar sin sesión.
+- `ProgresoPage`: `GET /progreso` (paginado, filtro `categoria`), render barra y `porcentaje` numérico y `Completada` (`estado=COMPLETADA`) o `Empezar` (`SIN_EMPEZAR`), y «Continuar en el paso N» con `ultimoPaso`; estado sin progreso y error red diferenciados; usuarios no logueados ven invitación opcional a registrarse.
 - No guardar avance del invitado en localStorage/sessionStorage; solo memoria durante navegación; prueba refresh limpia. Cerrar sesión y reingresar muestra avance registrado.
 - **DoD:** con BE-03 en test DB marca un paso, autentica, vuelve, ve mismo porcentaje; otro usuario no ve sus datos. Seguir D-03 si cambia pasos publicados.
 
