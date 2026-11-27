@@ -51,7 +51,7 @@ Cada PR debe incluir: ID tarea, HU y criterios exactos vinculados, contrato C-XX
 
 ## 2. Catálogo de contratos compartidos (texto idéntico en ambos documentos)
 
-**Identificador de catálogo:** `KAMA-API-CLOSE-2026-11-26-v2`. Los contratos EXISTENTE fueron revisados en controladores/DTO en `dev` y deben **revalidarse en la rama donde se hagan los PR**; los PROPUESTO constituyen un diseño de integración para aceptar. Todos los paths son relativos al prefijo `/api/v1`.
+**Identificador de catálogo:** `KAMA-API-CLOSE-2026-11-27-v2.1` (v2.1: C-03 exige cuenta y C-04 pasa a EXISTENTE con BE-01, PR #93). Los contratos EXISTENTE fueron revisados en controladores/DTO en `dev` y deben **revalidarse en la rama donde se hagan los PR**; los PROPUESTO constituyen un diseño de integración para aceptar. Todos los paths son relativos al prefijo `/api/v1`.
 
 ### C-00 — Reglas comunes de transporte, errores, estado y seguridad [EXISTENTE + POLÍTICAS PROPUESTAS]
 
@@ -103,13 +103,13 @@ Contrato actual: GET `/categorias`, GET `/guias?categoria=<slug>`. El frontend *
 
 Ejemplo didáctico de forma JSON: `totalPreguntas` debe igualar longitud de `preguntas` en respuestas reales; el servidor NO envía `esCorrecta`, `opcionCorrecta` ni explicación antes de responder. Actividad de 1–10 preguntas, cada una 2–4 opciones y exactamente una correcta en BD. `404` si la guía no existe/no está publicada/no tiene actividad.
 
-`POST /guias/:slug/actividad/intentos` con `Authorization: Bearer` de **USUARIO_PUBLICO** (en la implementación dev acepta sesión opcional, pero ver C-04) cuerpo vacío → `201`:
+`POST /guias/:slug/actividad/intentos` con `Authorization: Bearer` de **USUARIO_PUBLICO**, obligatorio desde BE-01: `401` sin sesión o con token inválido, `403` con sesión del personal (el personal y los invitados practican con C-04). Cuerpo vacío → `201`:
 
 ```json
 {"id":"44444444-4444-4444-8444-444444444444","totalPreguntas":2}
 ```
 
-`POST /intentos/:id/respuestas` con el mismo usuario → cuerpo:
+`POST /intentos/:id/respuestas` con el Bearer del mismo usuario (`401`/`403` como arriba; intento de otra cuenta o inexistente `404` `INTENTO_NO_ENCONTRADO`) → cuerpo:
 
 ```json
 {"preguntaId":"11111111-1111-4111-8111-111111111111","opcionId":"22222222-2222-4222-8222-222222222222"}
@@ -121,13 +121,13 @@ Ejemplo didáctico de forma JSON: `totalPreguntas` debe igualar longitud de `pre
 {"esCorrecta":true,"opcionCorrecta":{"id":"22222222-2222-4222-8222-222222222222","texto":"No abrirlo"},"explicacion":"Los mensajes sospechosos deben verificarse.","respondidas":1,"totalPreguntas":2,"resultado":null}
 ```
 
-Con última pregunta, `resultado` es `{ "respuestasCorrectas":2,"totalPreguntas":2,"porcentaje":100,"aprobado":true,"porcentajeAprobacion":70 }`. `409` si pregunta repetida o intento finalizado. FE solo avanza tras respuesta confirmada; bloquear doble clic; **no reintentar POST respuestas automáticamente** si se pierde la respuesta de red, porque ya pudo haberse registrado (consultar posibilidad de recuperación/idempotencia con BE si se necesita).
+Con última pregunta, `resultado` es `{ "respuestasCorrectas":2,"totalPreguntas":2,"porcentaje":100,"aprobado":true,"porcentajeAprobacion":70 }`. `409` si pregunta repetida (`PREGUNTA_YA_RESPONDIDA`) o intento finalizado (`INTENTO_FINALIZADO`); `400` `RESPUESTA_INVALIDA` si la opción no es de la pregunta. `intento.usuario_id` es `NOT NULL` (migración `20261126120000_intento_usuario_obligatorio`). FE solo avanza tras respuesta confirmada; bloquear doble clic; **no reintentar POST respuestas automáticamente** si se pierde la respuesta de red, porque ya pudo haberse registrado (consultar posibilidad de recuperación/idempotencia con BE si se necesita).
 
-### C-04 — Evaluación de práctica INVITADO sin persistencia [PROPUESTO: acuerdo crítico FE/BE]
+### C-04 — Evaluación de práctica INVITADO sin persistencia [EXISTENTE desde BE-01, PR #93]
 
-**Discrepancia comprobable en código `dev`:** el controller permite sesión opcional en `POST .../intentos`, y `IniciarIntentoUseCase` llama a `intentos.crear()` aun cuando `usuarioId=null`. No se verificó directamente desde aquí si se guardó en PostgreSQL o un repositorio temporal; F00 obtuvo un UUID anónimo. El modelo v2.0 prohíbe filas para invitados. El backend debe comprobar con SQL el repositorio usado y su efecto antes de corregir.
+**Resuelto en BE-01:** antes el controller aceptaba sesión opcional en `POST .../intentos` e `IniciarIntentoUseCase` guardaba el intento con `usuarioId=null`. Ahora solo el usuario público crea intentos (C-03) y la migración `20261126120000_intento_usuario_obligatorio` borró los intentos anónimos y dejó `intento.usuario_id NOT NULL`. Prueba e2e: tras practicar como invitado (o con sesión del personal) quedan 0 filas en `intento`, `respuesta_intento`, `progreso_guia` y `paso_leido`.
 
-**Propuesta de contrato único (NO EXISTE AÚN):** `POST /guias/:slug/actividad/evaluar-respuesta`, público, **sin guardar** intento/respuesta/progreso/paso. JSON:
+**Contrato implementado:** `POST /guias/:slug/actividad/evaluar-respuesta`, público, **sin guardar** intento/respuesta/progreso/paso. JSON:
 
 ```json
 {"preguntaId":"11111111-1111-4111-8111-111111111111","opcionId":"22222222-2222-4222-8222-222222222222"}
@@ -139,7 +139,7 @@ Con última pregunta, `resultado` es `{ "respuestasCorrectas":2,"totalPreguntas"
 {"esCorrecta":true,"opcionCorrecta":{"id":"22222222-2222-4222-8222-222222222222","texto":"No abrirlo"},"explicacion":"Los mensajes sospechosos deben verificarse."}
 ```
 
-**Semántica propuesta:** validar que slug está publicado, pregunta pertenece a la actividad de esa guía, opción pertenece a pregunta, devolver el mismo feedback que C-03 sin exponer correcto en GET; no escribir tablas educativas ni crear sesión. `400` UUID/formato inválido, `404` guía/actividad/pregunta inexistente, `400` opción no pertenece. Como contrato stateless no detecta repetición ni puede impedir que un cliente técnico consulte varias opciones; **no prometer antitrampas que no existe**. El frontend mantiene `respuestas`, `paso` y calificación local **solo en estado React en memoria**. Calcula resultado con `correctas/total*100` y umbral recibido en C-03; se pierde al recargar. Mostrar invitación no obligatoria a registrarse. FE y BE **deben aprobar la ruta y forma exactas** antes del código. Alternativa viable solo mediante decisión compartida: sesión anónima efímera no persistente en servidor; no se asumirá por defecto.
+**Semántica:** valida que el slug está publicado y tiene actividad, que la pregunta pertenece a esa actividad y que la opción pertenece a la pregunta; devuelve el mismo feedback que C-03 sin exponer la correcta en GET; no escribe tablas educativas ni crea sesión. Errores: `400` `DATOS_INVALIDOS` (UUID/formato inválido), `404` `ACTIVIDAD_NO_ENCONTRADA` (guía inexistente, no publicada o sin actividad), `404` `PREGUNTA_NO_ENCONTRADA` (la pregunta no es de esa guía), `400` `RESPUESTA_INVALIDA` (la opción no es de la pregunta). Ignora `Authorization`: responde igual con o sin token, sea válido o no. Como contrato stateless no detecta repetición ni puede impedir que un cliente técnico consulte varias opciones; **no prometer antitrampas que no existe**. El frontend mantiene `respuestas`, `paso` y calificación local **solo en estado React en memoria**. Calcula resultado con `correctas/total*100` y umbral recibido en C-03; se pierde al recargar. Mostrar invitación no obligatoria a registrarse.
 
 ### C-05 — Ayuda de visitante y estado [EXISTENTE + seguridad POR VALIDAR]
 
@@ -243,6 +243,8 @@ Para cada C-XX, el equipo backend registra: ejemplo request real, respuesta exit
 **Política BE:** modificar solo `backend/`, migraciones/semillas relacionadas y pruebas; cambios Docker/Nginx/CI con aprobación conjunta. Reusar Clean Architecture y evitar imports de NestJS o Prisma en dominio/aplicación. El catálogo C-00…C-11 está copiado íntegro aquí y es la especificación para coordinación; propuestas deben aprobarse. No alterar contenido educativo ni credenciales reales. **Git de escritura siempre a cargo de estudiantes.**
 
 ### BE-01 — Prácticas de invitados y persistencia correcta (HU-03/21/23) · P0 · pareja FE-01/02 · C-03/C-04
+
+**Estado:** `PASS_BE` en PR #93 (`fix/be-01-practica-invitados-sin-persistencia`): C-04 implementado tal cual el catálogo, intentos solo para `USUARIO_PUBLICO` (`401`/`403`), migración `intento.usuario_id NOT NULL` que borra intentos anónimos previos, e2e con 0 filas para invitado. Falta `PASS_INTEGRATED` con FE-01/02.
 
 - Inspeccionar `IniciarIntentoUseCase`, `ResponderPreguntaUseCase`, repositorios Prisma y migraciones reales; comprobar con SELECT en entorno de prueba si `POST intentos` anónimo persiste (fue autorizado y ejecutado en F00). Verificar nulidad `intento.usuario_id` real; modelo v2.0 obliga NOT NULL.
 - Mantener C-03 para `USUARIO_PUBLICO` con UUID, exclusión entre cuentas y 409; **no romper consumidores existentes** sin versión/aviso. Definir si un cliente anónimo invocando `POST /.../intentos` debe recibir `401` o `403` y testearlo; se propone `401` como sesión requerida para crear intento persistente.
