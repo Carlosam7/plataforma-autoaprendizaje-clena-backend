@@ -23,11 +23,17 @@ import { ReactivarPersonal } from '@/application/personal/ReactivarPersonal';
 import { SolicitarCodigoPasswordInicial } from '@/application/personal/SolicitarCodigoPasswordInicial';
 import { SolicitarInicioSesionPersonal } from '@/application/personal/SolicitarInicioSesionPersonal';
 import { VerificarInicioSesionPersonal } from '@/application/personal/VerificarInicioSesionPersonal';
+import { EvaluarRespuestaInvitado } from '@/application/practica/EvaluarRespuestaInvitado';
+import { IniciarIntentoAutenticado } from '@/application/practica/IniciarIntentoAutenticado';
+import { ObtenerActividad } from '@/application/practica/ObtenerActividad';
+import { ResponderPreguntaAutenticado } from '@/application/practica/ResponderPreguntaAutenticado';
+import { determinarModoPractica } from '@/application/practica/sesionPractica';
 import { DomPreferencesApplier } from '@/infrastructure/accessibility/DomPreferencesApplier';
 import { LocalStoragePreferencesRepository } from '@/infrastructure/accessibility/LocalStoragePreferencesRepository';
 import { HttpAuthRepository } from '@/infrastructure/auth/HttpAuthRepository';
 import { HttpGuiasRepository } from '@/infrastructure/guias/HttpGuiasRepository';
 import { HttpPersonalRepository } from '@/infrastructure/personal/HttpPersonalRepository';
+import { HttpPracticaRepository } from '@/infrastructure/practica/HttpPracticaRepository';
 
 // Único lugar donde se eligen implementaciones.
 const preferencesRepository = new LocalStoragePreferencesRepository();
@@ -35,6 +41,10 @@ const preferencesApplier = new DomPreferencesApplier();
 const authRepository = new HttpAuthRepository();
 const guiasRepository = new HttpGuiasRepository();
 const personalRepository = new HttpPersonalRepository();
+// C-04 (invitados sin persistencia) entregado por BE-01.
+const practicaRepository = new HttpPracticaRepository({
+  evaluacionInvitadoHabilitada: true,
+});
 
 export const container = {
   accessibility: {
@@ -70,6 +80,20 @@ export const container = {
     obtenerDetalle: new ObtenerDetalleGuia(guiasRepository),
     calcularResultado: new CalcularResultadoPractica(),
     guiasRepository,
+  },
+  practica: {
+    obtenerActividad: new ObtenerActividad(practicaRepository),
+    iniciarIntentoAutenticado: new IniciarIntentoAutenticado(
+      practicaRepository,
+      authRepository,
+    ),
+    responderAutenticado: new ResponderPreguntaAutenticado(
+      practicaRepository,
+      authRepository,
+    ),
+    evaluarInvitado: new EvaluarRespuestaInvitado(practicaRepository),
+    determinarModo: () => determinarModoPractica(authRepository),
+    practicaRepository,
   },
   personal: {
     solicitarInicioSesion: new SolicitarInicioSesionPersonal(

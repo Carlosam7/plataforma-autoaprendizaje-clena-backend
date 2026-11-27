@@ -248,7 +248,8 @@ export class HttpGuiasRepository implements GuiasRepository {
           totalPasos: data.totalPasos,
           tieneActividad: data.tieneActividad,
           pasos,
-          preguntas: fallbackDetalle?.preguntas || [],
+          // FE-01: las preguntas reales se obtienen exclusivamente vía HttpPracticaRepository (C-03).
+          preguntas: [],
         };
       }
     } catch {

@@ -52,3 +52,14 @@ export class RespuestaInvalidaError extends ErrorDeNegocio {
     );
   }
 }
+
+/** Práctica sin cuenta (C-04): la pregunta no es de la actividad de esa guía. */
+export class PreguntaNoEncontradaError extends ErrorDeNegocio {
+  constructor() {
+    super(
+      'PREGUNTA_NO_ENCONTRADA',
+      'no_encontrado',
+      'Esta pregunta no es de la práctica de esta guía.',
+    );
+  }
+}
