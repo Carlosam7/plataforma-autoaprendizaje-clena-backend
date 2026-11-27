@@ -12,10 +12,15 @@ import { SolicitarInicioSesion } from '@/application/auth/SolicitarInicioSesion'
 import { SolicitarRegistro } from '@/application/auth/SolicitarRegistro';
 import { VerificarCodigoRegistro } from '@/application/auth/VerificarCodigoRegistro';
 import { VerificarInicioSesion } from '@/application/auth/VerificarInicioSesion';
+import { ListarSolicitudesAyuda } from '@/application/ayuda/ListarSolicitudesAyuda';
+import { ResolverSolicitudAyuda } from '@/application/ayuda/ResolverSolicitudAyuda';
+import { TomarSolicitudAyuda } from '@/application/ayuda/TomarSolicitudAyuda';
 import { CancelarSolicitudAyuda } from '@/application/ayuda/CancelarSolicitudAyuda';
 import { ConsultarSolicitudAyuda } from '@/application/ayuda/ConsultarSolicitudAyuda';
 import { SeguimientoSolicitudAyuda } from '@/application/ayuda/SeguimientoSolicitudAyuda';
 import { SolicitarAyuda } from '@/application/ayuda/SolicitarAyuda';
+import { ListarMiProgreso } from '@/application/progreso/ListarMiProgreso';
+import { RegistrarLecturaPaso } from '@/application/progreso/RegistrarLecturaPaso';
 import { CalcularResultadoPractica } from '@/application/guias/CalcularResultadoPractica';
 import { ListarCategorias } from '@/application/guias/ListarCategorias';
 import { ListarGuias } from '@/application/guias/ListarGuias';
@@ -40,6 +45,8 @@ import { ResponderPreguntaAutenticado } from '@/application/practica/ResponderPr
 import { determinarModoPractica } from '@/application/practica/sesionPractica';
 import { DomPreferencesApplier } from '@/infrastructure/accessibility/DomPreferencesApplier';
 import { LocalStoragePreferencesRepository } from '@/infrastructure/accessibility/LocalStoragePreferencesRepository';
+import { HttpSolicitudesColaRepository } from '@/infrastructure/ayuda/HttpSolicitudesColaRepository';
+import { HttpProgresoRepository } from '@/infrastructure/progreso/HttpProgresoRepository';
 import { HttpAuthRepository } from '@/infrastructure/auth/HttpAuthRepository';
 import { HttpAyudaRepository } from '@/infrastructure/ayuda/HttpAyudaRepository';
 import { HttpGuiasRepository } from '@/infrastructure/guias/HttpGuiasRepository';
@@ -50,10 +57,6 @@ import { QrcodeSvgGenerador } from '@/infrastructure/qr/QrcodeSvgGenerador';
 import { InMemoryPersonalRepository } from '@/infrastructure/personal/InMemoryPersonalRepository';
 import { HttpPracticaRepository } from '@/infrastructure/practica/HttpPracticaRepository';
 
-import { ResolverSolicitud } from '@/application/cola/ResolverSolicitud';
-import { SeguimientoCola } from '@/application/cola/SeguimientoCola';
-import { TomarSolicitud } from '@/application/cola/TomarSolicitud';
-import { VerColaAyuda } from '@/application/cola/VerColaAyuda';
 import {
   GuardarGuia,
   ListarGuiasGestion,
@@ -61,7 +64,6 @@ import {
   OcultarGuia,
   PublicarGuia,
 } from '@/application/gestion/casos';
-import { HttpColaAyudaRepository } from '@/infrastructure/cola/HttpColaAyudaRepository';
 import { HttpGestionGuiasRepository } from '@/infrastructure/gestion/HttpGestionGuiasRepository';
 // Único lugar donde se eligen implementaciones.
 const preferencesRepository = new LocalStoragePreferencesRepository();
@@ -83,9 +85,12 @@ const ayudaRepository = new HttpAyudaRepository();
 const practicaRepository = new HttpPracticaRepository({
   evaluacionInvitadoHabilitada: true,
 });
+// C-10: progreso persistente del usuario público.
+const progresoRepository = new HttpProgresoRepository();
+// FE-06: cola del personal (C-06).
+const solicitudesAyudaRepository = new HttpSolicitudesColaRepository();
 
-// C-06/C-07: cola y gestión de guías del personal, con su sesión (sin datos simulados).
-const colaRepository = new HttpColaAyudaRepository();
+// C-07: gestión de guías del personal, con su sesión (sin datos simulados).
 const gestionGuiasRepository = new HttpGestionGuiasRepository();
 
 export const container = {
@@ -142,11 +147,21 @@ export const container = {
     determinarModo: () => determinarModoPractica(authRepository),
     practicaRepository,
   },
+  progreso: {
+    listar: new ListarMiProgreso(progresoRepository, authRepository),
+    registrarLectura: new RegistrarLecturaPaso(
+      progresoRepository,
+      authRepository,
+    ),
+  },
   ayuda: {
     solicitar: new SolicitarAyuda(ayudaRepository),
     consultar: new ConsultarSolicitudAyuda(ayudaRepository),
     cancelar: new CancelarSolicitudAyuda(ayudaRepository),
     seguimiento: new SeguimientoSolicitudAyuda(ayudaRepository),
+    listarSolicitudes: new ListarSolicitudesAyuda(solicitudesAyudaRepository),
+    tomarSolicitud: new TomarSolicitudAyuda(solicitudesAyudaRepository),
+    resolverSolicitud: new ResolverSolicitudAyuda(solicitudesAyudaRepository),
   },
   personal: {
     solicitarInicioSesion: new SolicitarInicioSesionPersonal(
@@ -167,11 +182,6 @@ export const container = {
     obtenerSesion: new ObtenerSesionPersonal(personalRepository),
     cerrarSesion: new CerrarSesionPersonal(personalRepository),
     personalRepository,
-  },
-  cola: {
-    seguimiento: new SeguimientoCola(new VerColaAyuda(colaRepository)),
-    tomar: new TomarSolicitud(colaRepository),
-    resolver: new ResolverSolicitud(colaRepository),
   },
   gestionGuias: {
     listar: new ListarGuiasGestion(gestionGuiasRepository),

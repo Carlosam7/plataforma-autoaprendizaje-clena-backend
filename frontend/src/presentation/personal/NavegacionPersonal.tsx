@@ -21,8 +21,8 @@ export function NavegacionPersonal({ sesion }: { sesion: SesionPersonal }) {
       aria-label="Panel del personal"
       className="flex flex-wrap items-center gap-3 print:hidden"
     >
-      <NavLink to="/personal/cola" className={enlace}>
-        Cola de ayuda
+      <NavLink to="/personal/solicitudes" className={enlace}>
+        Solicitudes de ayuda
       </NavLink>
       <NavLink to="/personal/guias" className={enlace}>
         Guías

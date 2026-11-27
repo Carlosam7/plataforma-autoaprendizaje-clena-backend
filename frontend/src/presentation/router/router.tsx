@@ -13,7 +13,7 @@ import { IniciarSesionPage } from '@/presentation/pages/IniciarSesionPage';
 import { MiCuentaPage } from '@/presentation/pages/MiCuentaPage';
 import { NotFoundPage } from '@/presentation/pages/NotFoundPage';
 import { AccesoPersonalPage } from '@/presentation/pages/personal/AccesoPersonalPage';
-import { ColaAyudaPage } from '@/presentation/pages/personal/ColaAyudaPage';
+import { ColaSolicitudesPage } from '@/presentation/pages/personal/ColaSolicitudesPage';
 import { EditorGuiaPage } from '@/presentation/pages/personal/EditorGuiaPage';
 import { GuiasGestionPage } from '@/presentation/pages/personal/GuiasGestionPage';
 import { PrimerAccesoPage } from '@/presentation/pages/personal/PrimerAccesoPage';
@@ -83,9 +83,8 @@ export const router = createBrowserRouter([
         element: <PrimerAccesoPage />,
       },
       {
-        // FE-06: cola de ayuda del monitor (HU-30).
-        path: 'personal/cola',
-        element: <ColaAyudaPage />,
+        path: 'personal/solicitudes',
+        element: <ColaSolicitudesPage />,
       },
       {
         // FE-05: gestión de guías del personal (HU-13, HU-15).

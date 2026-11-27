@@ -1,13 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { CatalogoError } from '../../domain/guias/errors';
 import type { DetalleGuia } from '../../domain/guias/types';
+import { SesionRequeridaError } from '@/domain/practica/errors';
+import type { ModoPractica } from '@/domain/practica/types';
+import { ProgresoError } from '@/domain/progreso/errors';
+import type { ProgresoGuia } from '@/domain/progreso/types';
 import { container } from '../../main/container';
 import { rutaAyuda } from '@/presentation/ayuda/rutaAyuda';
 
 export function GuiaDetallePage() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const pasoInicial = Number(searchParams.get('paso'));
 
   const [detalle, setDetalle] = useState<DetalleGuia | null>(null);
   const [cargando, setCargando] = useState(true);
@@ -17,6 +23,23 @@ export function GuiaDetallePage() {
 
   const [intento, setIntento] = useState(0);
 
+  // HU-23: solo un usuario público con sesión guarda su avance; nunca se llama sin sesión.
+  const [modo, setModo] = useState<ModoPractica | null>(null);
+  const [avance, setAvance] = useState<ProgresoGuia | null>(null);
+  const [avisoAvance, setAvisoAvance] = useState<string | null>(null);
+  const lecturasEnviadas = useRef(new Set<string>());
+  const claveVigente = useRef('');
+
+  useEffect(() => {
+    let activo = true;
+    void container.practica.determinarModo().then((m) => {
+      if (activo) setModo(m);
+    });
+    return () => {
+      activo = false;
+    };
+  }, []);
+
   useEffect(() => {
     if (!slug) return;
     let cancelado = false;
@@ -25,6 +48,15 @@ export function GuiaDetallePage() {
       .then((data) => {
         if (cancelado) return;
         setDetalle(data);
+        if (data) {
+          const indice = data.pasos.findIndex((p) => p.numero === pasoInicial);
+          // Tras recargar (p. ej. el personal reordenó) se conserva el paso, sin salirse del rango.
+          setPasoIndex((previo) =>
+            indice >= 0
+              ? indice
+              : Math.min(previo, Math.max(0, data.pasos.length - 1)),
+          );
+        }
         // Una apertura por guía, aunque StrictMode o un reintento re-ejecuten el efecto.
         if (data && aperturaRegistrada.current !== slug) {
           aperturaRegistrada.current = slug;
@@ -46,7 +78,39 @@ export function GuiaDetallePage() {
     return () => {
       cancelado = true;
     };
-  }, [slug, intento]);
+  }, [slug, intento, pasoInicial]);
+
+  const pasoNumero = detalle?.pasos[pasoIndex]?.numero;
+  useEffect(() => {
+    if (modo !== 'REGISTRADO' || !slug || pasoNumero == null) return;
+    const clave = `${slug}:${pasoNumero}`;
+    claveVigente.current = clave;
+    // Un solo POST por paso aunque StrictMode o un re-render repitan el efecto.
+    if (lecturasEnviadas.current.has(clave)) return;
+    lecturasEnviadas.current.add(clave);
+    container.progreso.registrarLectura
+      .ejecutar(slug, pasoNumero)
+      .then((progreso) => {
+        if (claveVigente.current !== clave) return;
+        setAvance(progreso);
+        setAvisoAvance(null);
+      })
+      .catch((err: unknown) => {
+        lecturasEnviadas.current.delete(clave);
+        if (claveVigente.current !== clave) return;
+        if (err instanceof ProgresoError && err.tipo === 'PASO_NO_ENCONTRADO') {
+          // El personal pudo reordenar o quitar pasos: se recarga el detalle vigente.
+          setIntento((n) => n + 1);
+          return;
+        }
+        setAvisoAvance(
+          err instanceof SesionRequeridaError ||
+            (err instanceof ProgresoError && err.tipo === 'SESION')
+            ? 'Tu sesión terminó y no pudimos guardar tu avance. Inicia sesión de nuevo para conservarlo.'
+            : 'No pudimos guardar tu avance en este momento. Puedes seguir leyendo.',
+        );
+      });
+  }, [modo, slug, pasoNumero, detalle]);
 
   const cargar = () => {
     setCargando(true);
@@ -205,6 +269,19 @@ export function GuiaDetallePage() {
             </div>
           </div>
         </div>
+
+        {avance && (
+          <p role="status" className="m-0 font-semibold text-[#0d6258]">
+            Tu avance guardado: {avance.porcentaje}% ({avance.pasosLeidos} de{' '}
+            {avance.totalPasos} pasos leídos)
+            {avance.completada ? ' · Guía completada' : ''}
+          </p>
+        )}
+        {avisoAvance && (
+          <p role="alert" className="m-0 font-medium text-[#7f1d1d]">
+            {avisoAvance}
+          </p>
+        )}
       </section>
 
       {/* Región dinámica anunciada para tecnologías asistivas */}

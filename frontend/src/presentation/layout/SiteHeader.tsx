@@ -1,8 +1,24 @@
-import { Link, NavLink } from 'react-router';
+import { useEffect, useState } from 'react';
+import { Link, NavLink, useLocation } from 'react-router';
+import { container } from '@/main/container';
 import { AccessibilityBar } from '@/presentation/accessibility/AccessibilityBar';
 import { useSesionPublica } from '@/presentation/auth/useSesionPublica';
 
 export function SiteHeader() {
+  const location = useLocation();
+  const [esPersonal, setEsPersonal] = useState(false);
+
+  // La sesión del personal puede cambiar al iniciar o cerrar sesión: se relee al navegar.
+  useEffect(() => {
+    let activo = true;
+    void container.personal.obtenerSesion.ejecutar().then((sesion) => {
+      if (activo) setEsPersonal(sesion != null);
+    });
+    return () => {
+      activo = false;
+    };
+  }, [location.pathname]);
+
   // Con sesión pública se muestra «Mi cuenta» (cerrar sesión y eliminar la cuenta, HU-02/05).
   const sesion = useSesionPublica();
 
@@ -59,6 +75,16 @@ export function SiteHeader() {
         >
           Ayuda
         </NavLink>
+        {esPersonal && (
+          <NavLink
+            className={({ isActive }) =>
+              `${linkBase} ${isActive ? 'underline underline-offset-[0.2em]' : ''}`
+            }
+            to="/personal/solicitudes"
+          >
+            Solicitudes
+          </NavLink>
+        )}
         <Link
           className="hidden md:inline-flex items-center justify-center min-h-14 px-6 py-4 font-semibold text-btn-secondary-fg bg-btn-secondary-bg border-2 border-btn-secondary-border rounded-xl hover:border-btn-secondary-hover-border hover:bg-btn-secondary-hover-bg no-underline cursor-pointer"
           to={sesion ? '/mi-cuenta' : '/iniciar-sesion'}

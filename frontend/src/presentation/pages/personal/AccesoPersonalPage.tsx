@@ -73,7 +73,7 @@ export function AccesoPersonalPage() {
       } else if (sesion.usuario.rol === 'ADMINISTRADOR') {
         navigate('/admin/personal');
       } else {
-        navigate('/personal/cola');
+        navigate('/personal/solicitudes');
       }
     } catch (err) {
       if (err instanceof Error) {
