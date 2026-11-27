@@ -65,6 +65,8 @@ function authMock(
     guardarSesion: vi.fn(),
     renovarSesion: renovar ? vi.fn(renovar) : undefined,
     cerrarSesion: vi.fn(),
+    solicitarEliminacionCuenta: vi.fn(),
+    confirmarEliminacionCuenta: vi.fn(),
   };
 }
 

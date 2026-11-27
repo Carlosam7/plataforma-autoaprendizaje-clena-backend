@@ -2,8 +2,12 @@ import { ChangeFontSize } from '@/application/accessibility/ChangeFontSize';
 import { LoadAccessibilityPreferences } from '@/application/accessibility/LoadAccessibilityPreferences';
 import { ResetAccessibilityPreferences } from '@/application/accessibility/ResetAccessibilityPreferences';
 import { ToggleHighContrast } from '@/application/accessibility/ToggleHighContrast';
+import { CerrarSesion } from '@/application/auth/CerrarSesion';
+import { ConfirmarEliminacionCuenta } from '@/application/auth/ConfirmarEliminacionCuenta';
 import { ObtenerAvisoPrivacidad } from '@/application/auth/ObtenerAvisoPrivacidad';
+import { ObtenerSesionPublica } from '@/application/auth/ObtenerSesionPublica';
 import { ReenviarCodigoRegistro } from '@/application/auth/ReenviarCodigoRegistro';
+import { SolicitarEliminacionCuenta } from '@/application/auth/SolicitarEliminacionCuenta';
 import { SolicitarInicioSesion } from '@/application/auth/SolicitarInicioSesion';
 import { SolicitarRegistro } from '@/application/auth/SolicitarRegistro';
 import { VerificarCodigoRegistro } from '@/application/auth/VerificarCodigoRegistro';
@@ -16,6 +20,8 @@ import { CalcularResultadoPractica } from '@/application/guias/CalcularResultado
 import { ListarCategorias } from '@/application/guias/ListarCategorias';
 import { ListarGuias } from '@/application/guias/ListarGuias';
 import { ObtenerDetalleGuia } from '@/application/guias/ObtenerDetalleGuia';
+import { ListarEnlacesPublicos } from '@/application/qr/ListarEnlacesPublicos';
+import { RegistrarAperturaGuia } from '@/application/guias/RegistrarAperturaGuia';
 import { CambiarPasswordInicial } from '@/application/personal/CambiarPasswordInicial';
 import { CerrarSesionPersonal } from '@/application/personal/CerrarSesionPersonal';
 import { CrearPersonal } from '@/application/personal/CrearPersonal';
@@ -37,15 +43,27 @@ import { LocalStoragePreferencesRepository } from '@/infrastructure/accessibilit
 import { HttpAuthRepository } from '@/infrastructure/auth/HttpAuthRepository';
 import { HttpAyudaRepository } from '@/infrastructure/ayuda/HttpAyudaRepository';
 import { HttpGuiasRepository } from '@/infrastructure/guias/HttpGuiasRepository';
+import { InMemoryGuiasRepository } from '@/infrastructure/guias/InMemoryGuiasRepository';
 import { HttpPersonalRepository } from '@/infrastructure/personal/HttpPersonalRepository';
+import { HttpEnlacesPublicosRepository } from '@/infrastructure/qr/HttpEnlacesPublicosRepository';
+import { QrcodeSvgGenerador } from '@/infrastructure/qr/QrcodeSvgGenerador';
+import { InMemoryPersonalRepository } from '@/infrastructure/personal/InMemoryPersonalRepository';
 import { HttpPracticaRepository } from '@/infrastructure/practica/HttpPracticaRepository';
 
 // Único lugar donde se eligen implementaciones.
 const preferencesRepository = new LocalStoragePreferencesRepository();
 const preferencesApplier = new DomPreferencesApplier();
 const authRepository = new HttpAuthRepository();
-const guiasRepository = new HttpGuiasRepository();
-const personalRepository = new HttpPersonalRepository();
+
+// Datos simulados SOLO con selección explícita (VITE_USAR_DATOS_DEMO=true).
+// Nunca se usan como respaldo automático ante un fallo de la API real.
+export const modoDemo = import.meta.env.VITE_USAR_DATOS_DEMO === 'true';
+const guiasRepository = modoDemo
+  ? new InMemoryGuiasRepository()
+  : new HttpGuiasRepository();
+const personalRepository = modoDemo
+  ? new InMemoryPersonalRepository()
+  : new HttpPersonalRepository();
 // C-05: titularidad por cookie httpOnly llave_ayuda (BE-02).
 const ayudaRepository = new HttpAyudaRepository();
 // C-04 (invitados sin persistencia) entregado por BE-01.
@@ -79,12 +97,17 @@ export const container = {
     verificarCodigo: new VerificarCodigoRegistro(authRepository),
     verificarInicioSesion: new VerificarInicioSesion(authRepository),
     reenviarCodigo: new ReenviarCodigoRegistro(authRepository),
+    obtenerSesion: new ObtenerSesionPublica(authRepository),
+    cerrarSesion: new CerrarSesion(authRepository),
+    solicitarEliminacionCuenta: new SolicitarEliminacionCuenta(authRepository),
+    confirmarEliminacionCuenta: new ConfirmarEliminacionCuenta(authRepository),
     authRepository,
   },
   guias: {
     listarCategorias: new ListarCategorias(guiasRepository),
     listar: new ListarGuias(guiasRepository),
     obtenerDetalle: new ObtenerDetalleGuia(guiasRepository),
+    registrarApertura: new RegistrarAperturaGuia(guiasRepository),
     calcularResultado: new CalcularResultadoPractica(),
     guiasRepository,
   },
@@ -127,5 +150,11 @@ export const container = {
     obtenerSesion: new ObtenerSesionPersonal(personalRepository),
     cerrarSesion: new CerrarSesionPersonal(personalRepository),
     personalRepository,
+  },
+  qr: {
+    listarEnlaces: new ListarEnlacesPublicos(
+      new HttpEnlacesPublicosRepository(),
+    ),
+    generador: new QrcodeSvgGenerador(),
   },
 };

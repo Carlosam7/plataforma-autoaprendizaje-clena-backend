@@ -8,17 +8,28 @@ export const COOKIE_REFRESH = 'refresh_token';
 /** Lo que va en el cuerpo de la respuesta: todo menos el refresh token, que va en la cookie. */
 export type SesionSinRefresh = Omit<SesionEmitida, 'refreshToken'>;
 
+/**
+ * Secure: COOKIE_SEGURA si está definida (true/false, la valida variables-entorno); si no,
+ * solo en producción. Con Secure el navegador solo la envía por HTTPS.
+ */
+export function cookieSegura(env: NodeJS.ProcessEnv = process.env): boolean {
+  if (env.COOKIE_SEGURA === 'true') return true;
+  if (env.COOKIE_SEGURA === 'false') return false;
+  return env.NODE_ENV === 'production';
+}
+
 /*
  * httpOnly: JavaScript no puede leerla, así que un XSS no se lleva la sesión.
  * SameSite=Strict: el navegador no la envía desde otros sitios (CSRF); por eso el frontend
  * debe servirse en el mismo sitio que la API (otro puerto del mismo host sirve).
  * path: solo viaja a /auth (refresh y logout), no en cada petición.
- * secure solo en producción: en la sala se entra por http mientras no haya HTTPS.
+ * secure: ver cookieSegura(). En la sala se entra por http mientras no haya HTTPS, así que
+ * un despliegue en producción por http necesita COOKIE_SEGURA=false.
  */
-function opciones(): CookieOptions {
+export function opcionesCookieRefresh(): CookieOptions {
   return {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: cookieSegura(),
     sameSite: 'strict',
     path: `/${PREFIJO_API}/auth`,
   };
@@ -29,7 +40,7 @@ export function ponerCookieRefresh(
   sesion: SesionEmitida,
 ): SesionSinRefresh {
   res.cookie(COOKIE_REFRESH, sesion.refreshToken, {
-    ...opciones(),
+    ...opcionesCookieRefresh(),
     expires: sesion.refreshTokenExpiraEn,
   });
   return {
@@ -40,7 +51,7 @@ export function ponerCookieRefresh(
 }
 
 export function borrarCookieRefresh(res: Response): void {
-  res.clearCookie(COOKIE_REFRESH, opciones());
+  res.clearCookie(COOKIE_REFRESH, opcionesCookieRefresh());
 }
 
 /** Su valor (uuid.base64url) no requiere decodificar. */

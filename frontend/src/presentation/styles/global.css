@@ -89,3 +89,12 @@ body {
     scroll-behavior: auto !important;
   }
 }
+
+/* FE-11: al imprimir (códigos QR) solo sale el contenido, sin la navegación de la app. */
+@media print {
+  header,
+  footer,
+  a[href='#contenido'] {
+    display: none !important;
+  }
+}

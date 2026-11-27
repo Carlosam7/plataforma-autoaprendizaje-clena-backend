@@ -6,7 +6,13 @@ import { SolicitarInicioSesion } from './SolicitarInicioSesion';
 import { SolicitarRegistro } from './SolicitarRegistro';
 import { VerificarCodigoRegistro } from './VerificarCodigoRegistro';
 import { VerificarInicioSesion } from './VerificarInicioSesion';
-import { AuthValidationError } from '@/domain/auth/errors';
+import { ConfirmarEliminacionCuenta } from './ConfirmarEliminacionCuenta';
+import { ObtenerSesionPublica } from './ObtenerSesionPublica';
+import { SolicitarEliminacionCuenta } from './SolicitarEliminacionCuenta';
+import {
+  AuthSessionExpiredError,
+  AuthValidationError,
+} from '@/domain/auth/errors';
 
 function crearMockRepository(): AuthRepository {
   return {
@@ -51,6 +57,15 @@ function crearMockRepository(): AuthRepository {
     guardarSesion: vi.fn().mockResolvedValue(undefined),
     obtenerSesion: vi.fn().mockResolvedValue(null),
     cerrarSesion: vi.fn().mockResolvedValue(undefined),
+    solicitarEliminacionCuenta: vi.fn().mockResolvedValue({
+      solicitudId: 'elim-123',
+      canal: 'CORREO',
+      destino: 'c****@correo.com',
+      mensaje: 'Te enviamos un código a c****@correo.com.',
+      expiraEn: new Date(Date.now() + 600000),
+      puedeReenviarEn: new Date(Date.now() + 60000),
+    }),
+    confirmarEliminacionCuenta: vi.fn().mockResolvedValue(undefined),
   };
 }
 
@@ -298,6 +313,76 @@ describe('Auth Use Cases', () => {
       const resultado = await useCase.ejecutar('reg-123');
       expect(resultado.registroId).toBe('reg-123');
       expect(repo.reenviarCodigo).toHaveBeenCalledWith('reg-123');
+    });
+  });
+
+  describe('HU-05 · eliminar la cuenta', () => {
+    const SESION_PUBLICA = {
+      usuario: { nombre: 'Carmen', rol: 'USUARIO_PUBLICO' },
+      accessToken: 'jwt',
+    };
+
+    it('pide el código solo con sesión de usuario público', async () => {
+      const repo = crearMockRepository();
+      vi.mocked(repo.obtenerSesion).mockResolvedValue(SESION_PUBLICA);
+      const res = await new SolicitarEliminacionCuenta(repo).ejecutar();
+      expect(res.solicitudId).toBe('elim-123');
+      expect(repo.solicitarEliminacionCuenta).toHaveBeenCalledWith(undefined);
+    });
+
+    it.each([
+      ['sin sesión', null],
+      [
+        'con sesión del personal',
+        { usuario: { nombre: 'Ana', rol: 'PERSONAL' }, accessToken: 'jwt' },
+      ],
+    ])('rechaza %s sin llamar al servidor', async (_, sesion) => {
+      const repo = crearMockRepository();
+      vi.mocked(repo.obtenerSesion).mockResolvedValue(sesion);
+      await expect(
+        new SolicitarEliminacionCuenta(repo).ejecutar(),
+      ).rejects.toBeInstanceOf(AuthSessionExpiredError);
+      expect(repo.solicitarEliminacionCuenta).not.toHaveBeenCalled();
+    });
+
+    it('confirma con el código de 6 números, sin espacios', async () => {
+      const repo = crearMockRepository();
+      await new ConfirmarEliminacionCuenta(repo).ejecutar({
+        solicitudId: ' elim-123 ',
+        codigo: '123 456',
+      });
+      expect(repo.confirmarEliminacionCuenta).toHaveBeenCalledWith({
+        solicitudId: 'elim-123',
+        codigo: '123456',
+      });
+    });
+
+    it.each([
+      [{ solicitudId: '', codigo: '123456' }, 'solicitudId'],
+      [{ solicitudId: 'elim-123', codigo: '12345' }, 'codigo'],
+      [{ solicitudId: 'elim-123', codigo: 'abcdef' }, 'codigo'],
+    ])(
+      'no borra nada si los datos no son válidos (%o)',
+      async (params, campo) => {
+        const repo = crearMockRepository();
+        await expect(
+          new ConfirmarEliminacionCuenta(repo).ejecutar(params),
+        ).rejects.toMatchObject({ campo });
+        expect(repo.confirmarEliminacionCuenta).not.toHaveBeenCalled();
+      },
+    );
+
+    it('ObtenerSesionPublica ignora la sesión del personal', async () => {
+      const repo = crearMockRepository();
+      vi.mocked(repo.obtenerSesion).mockResolvedValue({
+        usuario: { nombre: 'Ana', rol: 'ADMINISTRADOR' },
+        accessToken: 'jwt',
+      });
+      expect(await new ObtenerSesionPublica(repo).ejecutar()).toBeNull();
+      vi.mocked(repo.obtenerSesion).mockResolvedValue(SESION_PUBLICA);
+      expect(await new ObtenerSesionPublica(repo).ejecutar()).toBe(
+        SESION_PUBLICA,
+      );
     });
   });
 });
