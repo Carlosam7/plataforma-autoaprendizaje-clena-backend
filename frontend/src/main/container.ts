@@ -8,6 +8,9 @@ import { SolicitarInicioSesion } from '@/application/auth/SolicitarInicioSesion'
 import { SolicitarRegistro } from '@/application/auth/SolicitarRegistro';
 import { VerificarCodigoRegistro } from '@/application/auth/VerificarCodigoRegistro';
 import { VerificarInicioSesion } from '@/application/auth/VerificarInicioSesion';
+import { ListarSolicitudesAyuda } from '@/application/ayuda/ListarSolicitudesAyuda';
+import { ResolverSolicitudAyuda } from '@/application/ayuda/ResolverSolicitudAyuda';
+import { TomarSolicitudAyuda } from '@/application/ayuda/TomarSolicitudAyuda';
 import { CalcularResultadoPractica } from '@/application/guias/CalcularResultadoPractica';
 import { ListarCategorias } from '@/application/guias/ListarCategorias';
 import { ListarGuias } from '@/application/guias/ListarGuias';
@@ -25,6 +28,7 @@ import { SolicitarInicioSesionPersonal } from '@/application/personal/SolicitarI
 import { VerificarInicioSesionPersonal } from '@/application/personal/VerificarInicioSesionPersonal';
 import { DomPreferencesApplier } from '@/infrastructure/accessibility/DomPreferencesApplier';
 import { LocalStoragePreferencesRepository } from '@/infrastructure/accessibility/LocalStoragePreferencesRepository';
+import { HttpSolicitudesAyudaRepository } from '@/infrastructure/ayuda/HttpSolicitudesAyudaRepository';
 import { HttpAuthRepository } from '@/infrastructure/auth/HttpAuthRepository';
 import { HttpGuiasRepository } from '@/infrastructure/guias/HttpGuiasRepository';
 import { HttpPersonalRepository } from '@/infrastructure/personal/HttpPersonalRepository';
@@ -35,6 +39,7 @@ const preferencesApplier = new DomPreferencesApplier();
 const authRepository = new HttpAuthRepository();
 const guiasRepository = new HttpGuiasRepository();
 const personalRepository = new HttpPersonalRepository();
+const solicitudesAyudaRepository = new HttpSolicitudesAyudaRepository();
 
 export const container = {
   accessibility: {
@@ -70,6 +75,11 @@ export const container = {
     obtenerDetalle: new ObtenerDetalleGuia(guiasRepository),
     calcularResultado: new CalcularResultadoPractica(),
     guiasRepository,
+  },
+  ayuda: {
+    listarSolicitudes: new ListarSolicitudesAyuda(solicitudesAyudaRepository),
+    tomarSolicitud: new TomarSolicitudAyuda(solicitudesAyudaRepository),
+    resolverSolicitud: new ResolverSolicitudAyuda(solicitudesAyudaRepository),
   },
   personal: {
     solicitarInicioSesion: new SolicitarInicioSesionPersonal(

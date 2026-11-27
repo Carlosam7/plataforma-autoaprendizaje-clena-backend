@@ -31,7 +31,7 @@ export function PrimerAccesoPage() {
         if (sesion.usuario.rol === 'ADMINISTRADOR') {
           navigate('/admin/personal');
         } else {
-          navigate('/guias');
+          navigate('/personal/solicitudes');
         }
         return;
       }
@@ -111,7 +111,7 @@ export function PrimerAccesoPage() {
         if (sesion.usuario.rol === 'ADMINISTRADOR') {
           navigate('/admin/personal');
         } else {
-          navigate('/guias');
+          navigate('/personal/solicitudes');
         }
       }, 2000);
     } catch (err) {
