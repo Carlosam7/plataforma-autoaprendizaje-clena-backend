@@ -1,8 +1,8 @@
-# Kamá — BACKEND: tareas ejecutables y contratos de integración
+# Kamá — FRONTEND: tareas ejecutables y contratos de integración
 
 **Versión:** 2.0 — propuesta técnica para aprobación por frontend, backend y Product Owner · **Fecha:** 26/11/2026  
 **Objetivo:** cerrar todas las historias Must con trabajo **realmente paralelo** y contratos explícitos desde el comienzo, sin reconstruir los módulos existentes.  
-**Alcance del documento:** tareas backend y **copia completa del mismo catálogo de contratos** que utiliza el otro equipo. Este archivo se puede usar de forma independiente en GitHub Projects o como instrucción para Claude Code.  
+**Alcance del documento:** tareas frontend y **copia completa del mismo catálogo de contratos** que utiliza el otro equipo. Este archivo se puede usar de forma independiente en GitHub Projects o como instrucción para Claude Code.  
 **No es un acta de aprobación.** Los contratos marcados **PROPUESTO** requieren acuerdo de los dos equipos antes de implementarse en producción; ningún dato nuevo se presenta como si ya existiera.
 
 ## 0. Fuentes, prioridades y evidencia
@@ -238,77 +238,119 @@ Todos requieren Bearer rol PERSONAL o ADMINISTRADOR: `GET /gestion/guias`, `POST
 
 Para cada C-XX, el equipo backend registra: ejemplo request real, respuesta exitosa real, error de validación, 401/403 cuando corresponde, 409 si hay concurrencia, test e2e y referencia Swagger. El equipo frontend prueba los **mismos JSON** con fixtures contractuales, valida el mapeo en `Http*Repository`, muestra errores reales y demuestra en navegador la ruta integrada. En acciones que escriben BD se usa ambiente de prueba aislado + cuentas/equipos ficticios y aprobación. La evidencia común se adjunta al issue emparejado.
 
-## 3. Tareas del BACKEND — fichas de implementación
+## 3. Tareas del FRONTEND — fichas de implementación
 
-**Política BE:** modificar solo `backend/`, migraciones/semillas relacionadas y pruebas; cambios Docker/Nginx/CI con aprobación conjunta. Reusar Clean Architecture y evitar imports de NestJS o Prisma en dominio/aplicación. El catálogo C-00…C-11 está copiado íntegro aquí y es la especificación para coordinación; propuestas deben aprobarse. No alterar contenido educativo ni credenciales reales. **Git de escritura siempre a cargo de estudiantes.**
+**Política FE:** modificar solo `frontend/`. Conservar `domain/application/infrastructure/presentation/main` y componentes educativos ya escritos. Backend solo lectura. No repetir F00, no reescribir contenido/semillas, no instalar librerías sin justificación. Cada tarea termina con revisión y commit humano. **Los ejemplos JSON obligatorios están íntegros en C-00…C-11 de este mismo archivo.**
 
-### BE-01 — Prácticas de invitados y persistencia correcta (HU-03/21/23) · P0 · pareja FE-01/02 · C-03/C-04
+### FE-01 — Prácticas reales (HU-03/21/25) · P0 · pareja BE-01 · contratos C-03/C-04
 
-- Inspeccionar `IniciarIntentoUseCase`, `ResponderPreguntaUseCase`, repositorios Prisma y migraciones reales; comprobar con SELECT en entorno de prueba si `POST intentos` anónimo persiste (fue autorizado y ejecutado en F00). Verificar nulidad `intento.usuario_id` real; modelo v2.0 obliga NOT NULL.
-- Mantener C-03 para `USUARIO_PUBLICO` con UUID, exclusión entre cuentas y 409; **no romper consumidores existentes** sin versión/aviso. Definir si un cliente anónimo invocando `POST /.../intentos` debe recibir `401` o `403` y testearlo; se propone `401` como sesión requerida para crear intento persistente.
-- Implementar **C-04 propuesto** solo cuando FE apruebe ruta/body/salida: validación pública stateless por pregunta, sin escrituras educativas; comparar opcionId y preguntaId y pertenencia a guía/actividad, mantener regla 70% y no revelar respuesta en GET. NO insertar filas en `intento`, `respuesta_intento`, `paso_leido`, `progreso_guia` para visitantes.
-- Si hay datos anónimos previos, definir migración de depuración **solo autorizada** y aplicar `usuario_id NOT NULL` en ambiente controlado; pruebas de rollback y compatibilidad.
-- Tests unitarios y e2e: 1–10 preguntas, 2–4 opciones, GET sin correcta, visitante evaluar y 0 filas, usuario crear/contestar/calificar y persistencia, reintento finalizado 409, UUID ajeno 404, correctas >=70%, 69% no aprobado.
-- **Entrega FE:** OpenAPI C-03+C-04, JSON real, error 400/401/404/409 y prueba SQL cero filas para guest. `PASS_BE` antes de `PASS_INTEGRATED`.
+**Diagnóstico:** mock trae A/B/C y correctas en cliente; backend usa UUID y devuelve pregunta sin respuesta. 
 
-### BE-02 — Propiedad, deduplicación y ciclo de ayuda (HU-29/30) · P0 · pareja FE-04/06 · C-05/C-06
+- Crear/ampliar tipos `Actividad`, `Pregunta{ id,enunciado,opciones[] }`, `Opcion{id,texto}`, `Feedback`, `Resultado`, `PracticaSession`. Aceptar 2–4 opciones; nunca campo `esCorrecta` en DTO de GET.
+- `application`: casos `obtenerActividad(slug)`, `iniciarIntentoAutenticado(slug)`, `responderAutenticado(intentoId,preguntaId,opcionId)`, `evaluarInvitado(slug,preguntaId,opcionId)` según C-03 y C-04; `iniciarInvitado` solo crea estado React temporal, **no POST intentos**.
+- `infrastructure`: `HttpPracticaRepository` dedicado, llamadas correctas, validación y map de errores (400,401,403,404,409,500,red); credenciales con cookie y Bearer si autenticado. `HttpGuiasRepository` no es la fuente de preguntas; retirar `preguntas` derivadas de mock del detalle real.
+- `presentation`: `GuiaPracticaPage` usa slug de ruta, muestra una pregunta cada vez con contador, bloquea repetición y avanza solo al recibir feedback; retroalimentación textual más icono, `opcionCorrecta` solo después de enviar. Si 409/timeout ambiguo en usuario autenticado, no reenviar por defecto; ofrecer reiniciar intento/volver a guía.
+- **Modo paralelo:** FE implementa soporte UUID, renders, puertos, fixtures y tests ya con C-04; mantiene etiquetado `MOCK_ONLY` solo en tests hasta que BE-01 publique endpoint propuesto. No conectar invitado al `POST /intentos` actual con persistencia dudosa.
+- **Pruebas:** contrato GET nunca contiene correctas; respuestas UUID y 2/3/4 opciones; 201/200 y 409, error red explícito; guest refresh pierde progreso, sesión registrada lo conserva; contenido de guías intocable.
+- **DoD:** práctica real de cuenta registrada `PASS_INTEGRATED`; invitado solo tras C-04 `PASS_INTEGRATED` y BE demuestra cero filas educativas.
 
-- Verificar ruta exacta y versión desplegada: controller `dev` GET/DELETE públicos por id, F00 reporta 401 en GET sin cookie; por tanto investigar middleware/guards y pruebas de la rama local. No asumir que pasar un UUID autoriza cancelar solicitud ajena.
-- Probar `POST` 201, 200 duplicado con **misma sesión y mismo equipo**, normalización de equipo, consulta y cancelación con la misma identidad, cancelación solo PENDIENTE, 409 al cambiar estado.
-- **Fijar mecanismo acordado de titularidad C-05**: sesión/capability del visitante opaca y de vida limitada, preferible cookie httpOnly SameSite apropiada y verificación server-side; gestionar navegador compartido, origen cross-site/cookie en prod y limpieza. Si cambia body/cookies, actualizar sección C-05 en ambos archivos antes de code.
-- Cola: GET asc paginada, POST tomar atómico `UPDATE WHERE estado=PENDIENTE`, solo asignado resuelve; `409` carrera, `403` ajeno. Probar dos monitores concurrentes y polling sin fuga.
-- **Entrega FE:** ejemplos de `Set-Cookie` / request y estados reales preservando cookie; documentación Swagger + tests de pertenencia, 201/200/204/401/403/404/409.
+### FE-02 — Resultados verdaderos (HU-21) · P0 · pareja BE-01 · C-03/C-04
 
-### BE-03 — Servicio progreso persistente (HU-23) · P0 · pareja FE-07 · C-10 PROPUESTO
+- Quitar por completo el resultado predeterminado `4/5`, incluido acceso directo a URL de resultados sin estado. Renderizar solo `resultado` devuelto en última respuesta autenticada o cálculo en memoria de respuestas invitado validadas por BE.
+- Contenido: `respuestasCorrectas`, `totalPreguntas`, `porcentaje`, `porcentajeAprobacion`, `aprobado`, acciones `Repetir` (nuevo intento) y `Volver a guía`; nunca marcar aprobado por estilo o ruta.
+- Definir presentación de resultado sin recarga: ruta con state válido/estado de aplicación; si URL directa sin resultado, mensaje `No hay un resultado disponible` + acción volver a la práctica (sin inventar). Para usuario registrado no crear endpoint de recuperar intento salvo decisión explícita; resultado puede perderse en reload de pantalla, aunque calificación siga en BD para progreso.
+- Tests 0/N, 70 %, 100 %, 69 %, 409 al doble envío, deep-link sin state. **DoD:** ningún resultado ficticio y concordancia con C-03/C-04.
 
-- Buscar cualquier ruta/caso de uso existente antes de crear uno nuevo. Si no existe, módulo de progreso en capas `domain/application/infrastructure/presentation` y registrar en Nest. Tablas modelo `progreso_guia`, `paso_leido`, relaciones con `intento`/`actividad` en Prisma; migración versionada si faltan.
-- Extender DetalleGuiaDto.pasos[] con `id: UUID` estable de paso sin quitar `orden` ni cambiar bloques; nunca devolver ID de usuario en cliente público. Marcar leído `PUT /mi-progreso/guias/:slug/pasos/:pasoId` idempotente y GET listado/detalle según C-10; identificar usuario mediante JWT, nunca desde body/path.
-- Resolver lecturas, porcentaje numérico, aprobó actividad, flag `completada` de acuerdo al criterio: último paso alcanzado y actividad aprobada si existe. Corregir si se edita/oculta una guía sin borrar progreso; **D-03 requiere PO** para supresión de pasos ya registrados.
-- Pruebas SQL de 2 usuarios, PK (usuario,paso), leer dos veces, reordenar pasos, guía oculta, sin pasos, logout/login, invitado 401 sin filas, eliminación de cuenta cascada; no cambiar un sistema correcto si ya existe.
-- **Entrega FE:** fixtures reales de C-10, DTO, casos e2e y doc breve de semántica; `PASS_BE`.
+### FE-03 — Eliminar fallback de mocks silenciosos (HU-09/10/21/04/06) · P0 · BE-08 / C-00…C-03/C-09
 
-### BE-04 — Estadísticas PostgreSQL del panel (HU-31) · P0 · pareja FE-08 · C-11 PROPUESTO
+- Retirar fallback incondicional de `HttpGuiasRepository` en `listarCategorias`, `listarGuiasPublicadas`, `obtenerDetalleGuia`; quitar también fallback de `HttpPersonalRepository` en operaciones autenticadas/administrativas.
+- Permitir `InMemory*Repository` únicamente con selección **explícita y visible** de entorno de tests/storybook/demos aisladas; producción/conexión real siempre debe mostrar `error`, `reintentar`, nunca datos simulados ante 500/502/desconexión.
+- `GET /guias/:slug` 404 -> not found real; catálogo `[]` -> mensaje vacío real; errores -> pantalla de error, no «Pronto habrá guías» si el BE está caído. Separar error de telemetría POST consultas del error al leer.
+- Tests contractuales de GET 200/404/500, JSON inválido, timeout, reconexión, mocks ausentes en build integrado; revisar doble registro de apertura en StrictMode.
+- **DoD:** caída del backend no se disfraza como aplicación funcionando.
 
-- Buscar antes si `consulta_guia` y API agregada ya existen. Asegurar `POST /guias/:slug/consultas` crea una fila por apertura efectiva de la guía; no exponer identificación de invitado.
-- Implementar endpoint único C-11 con rol de personal aprobado, filtro rango `desde/hasta` 7 días por defecto en `America/Bogota`, UTC [desde, hasta+1 día), top10 guías, agrupación categorías y ayuda por tema, `hayDatos`. Datos cero -> estructuras vacías; consultas validan rango y coste.
-- Agregar en SQL (`groupBy`/query raw parametrizada) con índices del modelo; agrupar por categoría mediante joins. No descargar cada evento en Node para contar.
-- Pruebas deterministas: fechas borde medianoche, solicitud sin guía, consultas anónimas, cero eventos, guía oculta, agrupación, 401/403, índices/plan básico; verificar sumatorias contra SELECT controlado.
-- **Entrega FE:** JSON real conforme C-11 + ejemplos de vacíos y error por rango; pruebas e2e autorizadas.
+### FE-04 — Solicitud de ayuda de punta a punta (HU-28/29) · P0 · pareja BE-02 · C-05
 
-### BE-05 — Autenticación/cuentas/privacidad (HU-01/02/04/05/06) · P0 · pareja FE-09/10 · C-08/C-09
+- Reusar botón global Ayuda; mostrar opciones FAQ/glosario solo cuando existan (si no, solo `Llamar a un monitor` como exige HU-28). `AyudaPage` pasa de texto estático a formulario real.
+- Campos `equipo` requerido <=100, `tema` enum completo, `guiaSlug` y `pasoOrden` autoal entrar desde una guía; enviar exactamente C-05 `POST /solicitudes-ayuda` con `credentials:include` cuando BE confirme titularidad. No enviar `pasoOrden` sin guía.
+- Estado reactivo tras 201 **o 200 yaExistia**: mensaje `Un monitor vendrá pronto`, posición, estado, cancelación `DELETE/:id` solo PENDIENTE; GET estado con intervalo razonable (15 s) mientras se espera; parar al desmontar; permitir reintento seguro por deduplicación de equipo una vez verificada en misma sesión.
+- Si C-05 titularidad/cookie cambia, actualizar solo adaptador, no todos los componentes. Error 409 por estado actualizado: recargar estado. 401 si se pierde titularidad: pedir nueva solicitud/no revelar información ajena.
+- Tests de datos mínimos, `200 yaExistia`, 201 nueva, 204 cancela, 409 ya tomada, 401/404, contexto del paso, no duplicado por doble clic, validación de formulario.
+- **DoD:** visita sin sesión, ayuda y cancelación real, prueba mismo navegador; seguimiento sin mostrar datos ajenos.
 
-- El backend ya expone rutas OTP de registro/login, refresh/logout, cuenta/eliminación y personal. Validarlas con fixtures ficticios autorizados; NO reimplementarlas por defecto. Verificar cobertura de JWT rotación refresh, auth cookie httpOnly, throttling, datos mínimos, roles, 401/403, OTP expirado/incorrecto, caducidad, invalidación de sesión y doble uso de refresh.
-- Cuenta pública: consentimiento/vigencia, duplicados por identificación/contacto, OTP 6 dígitos, sesión, supresión transaccional de usuario y progresos y anonimización de `consulta_guia`, `solicitud_ayuda`, calificación; evitar logs de códigos en producción. D-02 fecha nacimiento aún requiere justificación.
-- Personal: admin crea/desactiva/reactiva; contraseña temporal y cambio inicial OTP; solo ADMIN maneja otros empleados; PERSONAL solo puede atender cola y gestionar guías; desactivar revoca tokens.
-- Confirmar que `POST /personal/yo/password` use `{codigo,passwordNueva}` (verificado en `dev`), no `{solicitudId,nuevaPassword}`; entregar a FE prueba y ejemplo real. Probar que `auth/refresh` también funcione para personal.
-- **Entrega FE:** postman/HTTP ejemplos anónimos sanitizados, status 202/200/204, error 400/401/403/409/410/429, cookie flags, id ficticios.
+### FE-05 — CMS guías del personal (HU-13/15) · P0 · parejas BE-06/07 · C-07
 
-### BE-06 — Estabilidad de gestión guías y cola (HU-13/15/30) · P0 · pareja FE-05/06 · C-06/C-07
+- Antes de construir, buscar si ya existe editor en `frontend/src/`; reutilizar componentes, layout personal, tokens y casos de uso. Solo crear lo faltante.
+- Implementar `/personal/guias` y formulario de edición protegido (rutas concretas sujetas a router existente): listado con paginación/estado BORRADOR/PUBLICADA/OCULTA; editar título, objetivo, descripción, categoría real del GET, nivel, duración, palabras clave; crear borrador.
+- Editor de pasos con lista ordenable (botones subir/bajar suficientes), bloques `texto` y `aviso` y **visualización** de `imagen` ya existente; no prometer upload si HU-14 Should. Usar `id` de pasos devueltos por GET gestión, conservarlos tras ordenar y editar.
+- POST/PUT/publicar/ocultar según C-07. Modal de confirmación al eliminar un paso de contenido, sin tocar guías reales sin aprobación; validar título<=150, objetivo<=300, pasos<=50, bloque<=600 y publicar con >=1 paso.
+- Asegurar que refresh del catálogo público refleja publicación/ocultamiento; 401/403 protecciones reales; roles PERSONAL y ADMINISTRADOR; manejo de 409 y guardado fallido.
+- **DoD:** crear borrador ficticio → editar pasos → publicar → ocultar; BE demuestra que `seed` posterior no sobreescribe ediciones (BE-07).
 
-- **No crear nuevos controllers si ya existen.** `gestion/guias` GET/POST/PUT/publicar/ocultar y `solicitudes-ayuda` list/tomar/resolver constan en dev.
-- Revisar autorización PERSONAL/ADMINISTRADOR; validación DTO y serialización: crear BORRADOR, publicación exige >=1 paso, ocultar no elimina, `PUT pasos` conserva UUID de los que existían, orden nuevo estable, `PUT` omitidos pasos no elimina; 409 por guía publicada sin pasos.
-- Seguridad de toma concurrente por dos monitores, solo el asignado resuelve; error 409 consistente. Confirmar paginación 1..100, filtros `estado,tema,ordenarPor=creadaEn,direccion` y fechas de cola.
-- Entrega FE por cada endpoint existente: ruta, permiso, request/salida/error; pruebas de regresión de todos los flujos. Si faltan ajustes, PR puntual que no cambia el contrato sin acuerdo.
+### FE-06 — Cola monitor y atención (HU-30) · P0 · pareja BE-02/06 · C-06
 
-### BE-07 — Semillas no destructivas (HU-13/15; integridad) · P0 · pareja FE-05 · C-07
+- Pantalla protegida para PERSONAL/ADMINISTRADOR; `GET /solicitudes-ayuda?estado=PENDIENTE&...asc` cada 15s; paginación y filtros; lista visual de `equipo,tema,guia,paso,creadaEn,espera` con legibilidad y estado vacío.
+- Botón tomar -> POST `/:id/tomar`, deshabilitar durante operación, 409 -> aviso y reconsultar; EN_ATENCION mostrar solicitudes propias o vista estado, para que no desaparezcan del trabajo del monitor.
+- Resolver -> POST `/:id/resolver` con comentario opcional <=500; si 403 por monitor diferente mostrar sin permiso; al éxito actualizar lista; cancelar polling en desmontaje.
+- Tests dos monitores compitiendo, 409 de segundo, 403 del ajeno, lista ordenada, polling con fake timers 15s, latencia/red/401, atenciones propias conservadas.
+- **DoD:** dos sesiones de personal reales muestran propiedad de la solicitud; ninguna doble asignación.
 
-- Auditar seed actual: debe crear datos iniciales ausentes sin machacar guías y pasos editados por el personal. Si se autoriza actualizar semillas, usar marcas de autor/propiedad y control de modificaciones, evitando reemplazo por slug en cada inicio.
-- Prueba automática `seed→modificar título/paso por gestión→seed→comparar`: edición persiste; `seed` idempotente; datos obligatorios nuevos se incorporan sin duplicarse; no tocar guías reales para la prueba; no resetear DB de otro miembro.
-- Si el problema anterior ya está resuelto, dejar evidencias y cerrar como verificado, no aplicar refactor. **Entregar seguridad de datos antes de las pruebas del editor.**
+### FE-07 — Mi progreso real (HU-23) · P0 · pareja BE-03 · C-10 PROPUESTO
 
-### BE-08 — Contenido/alcance, aprobación editorial (HU-09/17–20/25–27) · P0 coordinación · pareja FE-12 · C-02
+- Crear tipos `ProgresoGuiaDTO` exactamente C-10 y repositorio HTTP independiente; FE **puede hacer toda la UI y contract tests desde ahora con fixtures**. No exponer barra estática como si fuese dato real.
+- `GuiaDetallePage`: al leer cada paso, si hay USUARIO_PUBLICO autenticado, llamar PUT con `pasoId` UUID estable; BE agrega `id` a paso en GET público. Al salir/volver mantener idempotencia; evitar escribir progreso de invitado.
+- `ProgresoPage`: GET `/mi-progreso`, render barra y porcentaje numérico y `Completada` o `Empezar`; estado sin progreso y error red diferenciados; usuarios no logueados ven invitación opcional a registrarse.
+- No guardar avance del invitado en localStorage/sessionStorage; solo memoria durante navegación; prueba refresh limpia. Cerrar sesión y reingresar muestra avance registrado.
+- **DoD:** con BE-03 en test DB marca un paso, autentica, vuelve, ve mismo porcentaje; otro usuario no ve sus datos. Seguir D-03 si cambia pasos publicados.
 
-- Documentar categorías y guías publicadas reales (F00: 5/15), confirmar 4 modalidades obligatorias y una actividad por guía, >=5 casos de phishing y contenidos de contraseñas/verificación.
-- Presentar D-01 al PO: mantener contenido extra publicado vs limitar visibilidad según backlog; **no eliminar ni reescribir contenido**; cambios editoriales y seeds solo con aprobación. Documentar versión de semilla/estado para evitar sorpresas.
-- FE recibe decisión editorial y query/filtro usado; BE garantiza que GET público devuelve solo PUBLICADA. Esta decisión no debe impedir trabajo de FE-01..11 en paralelo.
+### FE-08 — Panel estadístico real (HU-31) · P0 · pareja BE-04 · C-11 PROPUESTO
 
-### BE-09 — Infraestructura e integración general (transversal; HU-45) · P1 · pareja FE-11/14 · C-00/C-01
+- UI protegida PERSONAL/ADMINISTRADOR: fechas calendario `desde/hasta` (últimos 7 días por defecto), top 10 guías, consultas por categoría y temas de ayuda, total de solicitudes; estados cargando, vacío (`hayDatos=false`), error y tabla accesible como alternativa a gráfico.
+- Consumir GET `/gestion/estadisticas/resumen` según C-11, **no** filtrar manualmente todos los eventos ni inventar métricas. Convertir datos de DTO sin cambiar zona/semántica.
+- FE hace mock **solo en tests** para desarrollar layout; BE puede entregar API mientras tanto. Tests periodos válidos/inválidos, red, empty, 401/403, orden de top 10.
+- **DoD:** cifras cuadran contra registros de integración; sin fallbacks a cero inventados ante error.
 
-- Verificar en entorno aislado Docker PostgreSQL 15, migraciones/seeds idempotentes, Nest health + DB readiness (health actual no verifica BD), CORS/cookies HTTPOnly/secure en despliegue, Vite proxy local y frontend Nginx `/api/v1` + SPA fallback.
-- Verificar `GET /guias/:slug` y recarga navegador `/guias/smishing` desde URL pública real, `POST consultas`, QR de FE-11, Swagger en entorno adecuado, logs sin secretos, configuración production sin claves de desarrollo.
-- CI FE `pnpm test/lint/format:check/build` + backend test/unit/e2e (según scripts existentes); las HU-36–39 exigen validación frontend y se evidencian en FE-13. Documentar pasos reproducibles, sin borrar volumen ni aplicar migraciones destructivas sin aprobación.
-- **Entrega FE:** URL pública, cookies correctas, rutas deep link y API con certificación de funcionamiento desde otro equipo.
+### FE-09 — Registro, login, refresh, logout y eliminación (HU-01/02/05) · P0 · pareja BE-05 · C-08
 
-## 4. Primera ejecución sugerida para agente BACKEND
+- Verificar flujo completo E2E con cuentas ficticias autorizadas: aviso vigente → registro y consentimiento → OTP → sesión pública → refresh (cookie httpOnly) → logout → login OTP → solicitud eliminación → confirmación → no reingreso.
+- Corregir campos exactamente `numeroIdentificacion,fechaNacimiento,correo/telefono,aceptaAvisoPrivacidad`, reenvío, `solicitudId`/`registroId` con nombres correctos; mantener 400/409/410/429 mensajes sencillos.
+- Eliminar cuenta: añadir UI si falta, explicar consecuencias, pedir OTP, no borrar con solo clic, limpiar sesión/estado después de 204; no ejecutar sobre cuentas reales.
+- Verificar que `credentials:'include'` llega a refresh/logout, guard de rutas y rol 403. Revisión adicional de almacenamiento de token en `localStorage` en computadores compartidos; no cambiar estrategia sin prueba de compatibilidad.
+- **DoD:** pruebas 401/403/409/410/429, red, expiración y caso feliz; evidencias FE→BE con usuario ficticio.
 
-> Antes de editar audita **solo** BE-01/BE-02 y revisa existencia real de BE-03/BE-04. Contrasta C-03/C-04/C-05/C-06/C-10/C-11 con los controladores/Prisma actuales. Entrega contratos concretos, mapa de migraciones y pruebas previstas para aprobación. No modifiques frontend, no reescribas seeds/contenido educativo y no hagas Git de escritura. Cuando aprueben una sola unidad, implementa/testea y detente para revisión humana.
+### FE-10 — Acceso y gestión del personal (HU-04/06) · P0 · pareja BE-05 · C-09
+
+- Comprobar que `AccesoPersonalPage`, `PrimerAccesoPage`, `GestionPersonalPage` no muestran fallback mock ante error. Mantener login correo+password → OTP → JWT/cookie, cambio obligatorio de contraseña y permisos de ADMIN.
+- Repositorio de personal consume rutas exactas C-09, 202/200/204, paginación y `debeCambiarPassword`. Usar el DTO exacto `{codigo,passwordNueva}` confirmado en `dev` y revalidarlo con la rama de PR; completar UI faltante.
+- Panel admin lista, crea con contraseña temporal, edita, desactiva, reactiva, muestra errores de correo en uso; usuario PERSONAL recibe 403.
+- Tests 401 credenciales, OTP vencido, admin vs monitor, cambio inicial, alta/desactivación/historial, no fallback secreto.
+- **DoD:** flujo E2E admin→personal ficticio→primer cambio→desactivar→no login, sin afectar cuentas reales.
+
+### FE-11 — QR a enlaces públicos estables (HU-45) · P1 · pareja BE-09 · C-01
+
+- Generar QR de inicio, categoría y guía con URL pública configurada del entorno; no usar `localhost` para QR impreso ni mostrar rutas privadas; producir archivo imprimible y descarga.
+- Antes de instalar librería QR, revisar dependencias disponibles y obtener aprobación; alternativa compatible si ya existe dependencia. Uso sin sesión; probar escaneo con teléfono y refresh en ruta profunda.
+- **DoD:** QR de cada guía/categoría apunta a pantalla correcta desde otro equipo y sin login.
+
+### FE-12 — Contenido existente y catálogo, aceptación (HU-09/10/17–20/25–27) · P0 · pareja BE-08 · C-01/02
+
+- Inventariar cuatro modalidades, actividad de cada guía, >=5 escenarios simulados en conjunto, contenido de claves/códigos y verificación de comunicaciones integrado; reportar solo cobertura real, sin reescribir material educativo.
+- Revisar filtrado/slug `phishing` frente a `seguridad-digital`, catálogo 15/5 reportado; **D-01 PO decide** mostrar todo lo publicado o restringir visibilidad inicial. No borrar extras sin acta.
+- **DoD:** matriz de criterios Must por guía con capturas y decisión PO en diferencias; sin regresiones de contenidos.
+
+### FE-13 — Accesibilidad Must al cierre funcional (HU-36–39) · P1 · prueba compartida
+
+- Mantener cambios después de las integraciones que impactan pantallas; corregir al menos bloqueos de uso: navegación móvil inexistente, alto contraste ilegible, foco invisible en opciones y botones; después revisar tamaño 44x44, teclado y lector de pantalla.
+- Validar evidencia WCAG 2.2 AA, axe sin problemas serios/críticos y Lighthouse accesibilidad >=90 **si así lo exigen AC vigentes**; no declarar 100% Must sin esas pruebas. FE nunca modifica contenido para resolver estilo.
+- **DoD:** capturas/pruebas en 360px, 200% zoom, teclado, contraste, mensajes de error, focus y CI, criterios HU-36–39 trazados.
+
+### FE-14 — Integración total y cierre (todas las Must) · P0 · pareja BE-09 · C-00…C-11
+
+- E2E real con PostgreSQL y backend activo: visitante catálogo→detalle→actividad→resultado→ayuda/cancelación; usuario público OTP→práctica→paso leído/progreso→logout/login→eliminación; personal editor/cola; administrador cuentas/estadísticas; QR público, rutas profundas.
+- Error matrix: 400,401,403,404,409,410,429,500/red; cookies y CORS, rechazo a roles, no fallback de mock, pruebas de reintento no duplicado, seeds conservan ediciones, historial no sensible.
+- Ejecutar `pnpm test`, `pnpm lint`, `pnpm format:check`, `pnpm build`; pruebas contractuales FE y BE y CI, evidencia por HU Must `PASS_INTEGRATED`/`BLOCKED_CONTRACT`/`FAIL`/`NOT_TESTED`.
+- **DoD:** ningún flujo Must crítico se entrega `MOCK_ONLY`; todas las observaciones de QA listadas y corregidas o explícitamente aceptadas por PO si son de alcance.
+
+## 4. Primera ejecución sugerida para Claude Code (FRONTEND)
+
+> Toma FE-03 y FE-04 como trabajo funcional independiente en una rama aprobada por un estudiante; antes de editar presenta los contratos C-00/C-05, archivos afectados, pruebas y riesgo. No repitas F00. Ejecuta una sola unidad aprobada, verifica tests y detente para revisión/commit humano. En paralelo prepara diseño FE-01 con C-03 y C-04 (este último aún PROPUESTO). No implementes BE ni Git de escritura.
